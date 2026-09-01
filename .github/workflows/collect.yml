@@ -1,0 +1,70 @@
+name: collect
+
+on:
+  # Le dataset est publie vers 04h20 UTC. Deux passages laissent de la marge :
+  # le cron GitHub est frequemment retarde et parfois saute sous charge.
+  schedule:
+    - cron: '15 6 * * *'
+    - cron: '15 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Les deux executions quotidiennes ne doivent jamais commiter en meme temps.
+concurrency:
+  group: data-write
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci --omit=dev
+
+      - name: Collecte
+        run: node src/collect.ts
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+
+      - name: Commit
+        id: commit
+        run: |
+          set -euo pipefail
+          git config user.name 'tgvmax-watch bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data watchlist.json reservations.json
+
+          if git diff --cached --quiet; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'Aucun changement, donnee deja a jour.'
+            exit 0
+          fi
+
+          # [skip ci] est une ceinture : un push fait avec le GITHUB_TOKEN par
+          # defaut ne redeclenche de toute facon aucun workflow. C'est pour
+          # cette raison que le deploiement Pages est chaine explicitement.
+          git commit -m "data: collecte du $(date -u +%F) [skip ci]"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: collect
+    if: needs.collect.outputs.changed == 'true'
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

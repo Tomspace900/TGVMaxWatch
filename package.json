@@ -1,0 +1,27 @@
+{
+  "name": "tgvmax-watch",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Suivi quotidien des disponibilites TGVmax sur Paris <-> Bordeaux",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "collect": "node src/collect.ts",
+    "remind": "node src/remind.ts",
+    "sync:data": "node scripts/sync-data.ts",
+    "icons": "node scripts/gen-icons.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts",
+    "seed": "TGVMAX_ROOT=.fixture node scripts/seed-fixture.ts"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/web-push": "^3.6.4",
+    "typescript": "^5.9.2"
+  }
+}

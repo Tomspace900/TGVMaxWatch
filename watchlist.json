@@ -1,0 +1,6 @@
+{
+  "watch": [],
+  "rules": [
+    { "weekday": "fri", "dir": "FRPMO>FRBOJ", "after": "16:00" }
+  ]
+}

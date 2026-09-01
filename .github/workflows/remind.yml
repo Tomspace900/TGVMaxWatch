@@ -1,0 +1,47 @@
+name: remind
+
+on:
+  # 16h a Paris, c'est 14h UTC en heure d'ete et 15h UTC en heure d'hiver.
+  # On declenche les deux, et src/remind.ts laisse passer la bonne.
+  schedule:
+    - cron: '0 14 * * *'
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-write
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci --omit=dev
+
+      - name: Rappel de confirmation
+        run: node src/remind.ts
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name 'tgvmax-watch bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/state.json
+          git diff --cached --quiet && exit 0
+          git commit -m "data: rappel du $(date -u +%F) [skip ci]"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
