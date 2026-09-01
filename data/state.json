@@ -1,8 +1,8 @@
 {
-  "dataProcessed": null,
-  "collectedAt": null,
+  "dataProcessed": "2026-09-01T04:24:14+00:00",
+  "collectedAt": "2026-09-01T09:29:25.854Z",
   "lastPushOk": null,
-  "latestSnapshot": null,
-  "snapshotCount": 0,
-  "recordCount": 0
+  "latestSnapshot": "2026-09-01",
+  "snapshotCount": 1,
+  "recordCount": 2172
 }
