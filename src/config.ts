@@ -13,11 +13,16 @@ export const REPO_BRANCH = 'main';
 export const SITE_URL = 'https://tomspace900.github.io/TGVMaxWatch/';
 
 /**
- * Cle publique VAPID, en base64url.
- * A remplacer par la sortie de `npx web-push generate-vapid-keys`.
- * La cle privee correspondante vit dans le secret repo VAPID_PRIVATE_KEY.
+ * Cle publique VAPID, en base64url : un point P-256 non compresse de 65 octets.
+ *
+ * Publique par nature — c'est elle que le navigateur envoie au service push
+ * pour lier l'abonnement a nous. La cle privee correspondante vit dans le
+ * secret repo VAPID_PRIVATE_KEY et ne quitte jamais l'Action ; c'est elle qui
+ * fait rejeter en 403 tout envoi qui ne vient pas de ce collecteur, y compris
+ * quand l'abonnement est lisible dans un repo public.
  */
-export const VAPID_PUBLIC_KEY = 'REPLACE_WITH_VAPID_PUBLIC_KEY';
+export const VAPID_PUBLIC_KEY =
+  'BF5x8AumSkkoLwdKJk_A2QsuNUaEXmTxCGWykVyftodr9QZ0JrNW_XI3XzWQXDk2lhPxaFeBJNao3HD_8T629Uc';
 
 /** Codes gares du dataset SNCF. */
 export const PARIS = 'FRPMO';

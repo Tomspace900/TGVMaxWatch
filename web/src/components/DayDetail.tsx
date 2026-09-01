@@ -78,12 +78,17 @@ export function DayDetail({
               booked={booked.has(train.trainNo)}
               onWatch={() => onWatch(train.trainNo, train.depart)}
               onBook={() => onBook(day, train.trainNo)}
-              onOpen={() => window.open(sncfConnectUrl(day.dir, day.date, train.depart), '_blank')}
             />
           ))}
           <p className={styles.hint}>
             Glisser une ligne vers la gauche pour surveiller, vers la droite apres avoir reserve.
           </p>
+
+          {/* SNCF Connect n'expose aucun lien profond : on ouvre l'accueil et
+              la recherche se refait a la main. */}
+          <a className={styles.link} href={sncfConnectUrl()} target="_blank" rel="noreferrer">
+            Ouvrir SNCF Connect
+          </a>
         </>
       )}
     </>

@@ -13,10 +13,9 @@ interface Props {
   booked: boolean;
   onWatch: () => void;
   onBook: () => void;
-  onOpen: () => void;
 }
 
-export function TrainRow({ train, watched, booked, onWatch, onBook, onOpen }: Props) {
+export function TrainRow({ train, watched, booked, onWatch, onBook }: Props) {
   const [dx, setDx] = useState(0);
   const [armed, setArmed] = useState(false);
 
@@ -54,8 +53,7 @@ export function TrainRow({ train, watched, booked, onWatch, onBook, onOpen }: Pr
         </div>
       )}
 
-      <button
-        type="button"
+      <div
         className={`${styles.row} ${train.tier === 'long' ? styles.long : ''}`}
         data-available={train.available}
         style={{
@@ -63,7 +61,6 @@ export function TrainRow({ train, watched, booked, onWatch, onBook, onOpen }: Pr
           transition: dx === 0 ? 'transform var(--fast) var(--ease)' : 'none',
         }}
         onPointerDown={onPointerDown}
-        onClick={() => dx === 0 && onOpen()}
       >
         <span className={styles.time}>{train.depart}</span>
 
@@ -79,7 +76,7 @@ export function TrainRow({ train, watched, booked, onWatch, onBook, onOpen }: Pr
           {train.tier === 'long' && ' '}
           {train.tier === 'long' && <span className={styles.tag}>long</span>}
         </span>
-      </button>
+      </div>
     </div>
   );
 }
