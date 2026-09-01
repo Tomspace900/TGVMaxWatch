@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DIRECTIONS, MAX_RESERVATIONS } from '../../src/config.ts';
 import { todayInParis } from '../../src/dates.ts';
 import { useBundle } from './lib/data.ts';
@@ -27,11 +27,35 @@ export function App() {
   );
 
   const [dir, setDir] = useState(() => initialDir());
-  const [dragProgress, setDragProgress] = useState<number | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [peek, setPeek] = useState<string | null>(null);
   const [view, setView] = useState<SheetView>('day');
   const [anchor, setAnchor] = useState<SheetAnchor>('closed');
+
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const thumbMounted = useRef(false);
+
+  /**
+   * Position du curseur de sens, ecrite directement dans le DOM.
+   *
+   * C'est ce suivi continu — et non la transition de fin — qui fait qu'un
+   * changement de sens se sent « natif ». Le faire transiter par un etat React
+   * rendrait tout l'ecran, calendrier compris, a chaque frame du glissement.
+   */
+  const placeThumb = useCallback((progress: number, animate: boolean) => {
+    const thumb = thumbRef.current;
+    if (!thumb) return;
+    thumb.style.transition = animate ? '' : 'none';
+    thumb.style.transform = `translate3d(${progress * 100}%, 0, 0)`;
+  }, []);
+
+  const dirIndex = Math.max(0, DIRECTIONS.indexOf(dir as (typeof DIRECTIONS)[number]));
+
+  useLayoutEffect(() => {
+    // Rien ne s'anime a l'ouverture, seulement les changements ulterieurs.
+    placeThumb(dirIndex, thumbMounted.current);
+    thumbMounted.current = true;
+  }, [dirIndex, placeThumb]);
 
   // Ecriture optimiste : le fichier distant est la verite, mais l'interface ne
   // doit pas attendre un aller-retour reseau pour repondre au doigt.
@@ -78,14 +102,35 @@ export function App() {
     setPeek(null);
   }, []);
 
+  /**
+   * Surveiller un train depuis son balayage.
+   *
+   * La fenetre est fermee des deux cotes sur l'heure de depart. Avec le seul
+   * `after`, l'entree se lisait « previens-moi pour tout train apres 06h06 » et
+   * couvrait la journee entiere : un geste sur une ligne doit surveiller cette
+   * ligne, pas trente. Les fenetres larges s'ecrivent dans watchlist.json.
+   *
+   * Le balayage bascule : refaire le geste sur un train deja surveille le
+   * retire, sans quoi chaque repetition empilerait un doublon.
+   */
   const toggleWatch = useCallback(
     (date: string, depart: string) => {
-      const next: Watchlist = {
-        ...currentWatchlist,
-        watch: [...currentWatchlist.watch, { date, dir, after: depart }],
-      };
+      const already = currentWatchlist.watch.findIndex(
+        (entry) => entry.date === date && entry.dir === dir && entry.after === depart,
+      );
+
+      const watch =
+        already === -1
+          ? [...currentWatchlist.watch, { date, dir, after: depart, before: depart }]
+          : currentWatchlist.watch.filter((_, i) => i !== already);
+
+      const next: Watchlist = { ...currentWatchlist, watch };
       setWatchlist(next);
-      void persist('watchlist.json', next, `watchlist: surveille ${date}`);
+      void persist(
+        'watchlist.json',
+        next,
+        `watchlist: ${already === -1 ? 'surveille' : 'retire'} ${date} ${depart}`,
+      );
     },
     [currentWatchlist, dir, persist],
   );
@@ -142,7 +187,7 @@ export function App() {
     <div className={styles.app}>
       <Header
         dir={dir}
-        dragProgress={dragProgress}
+        thumbRef={thumbRef}
         state={bundle.state}
         onDirChange={setDir}
         onSettings={() => {
@@ -157,7 +202,7 @@ export function App() {
         dir={dir}
         selected={selected}
         onDirChange={setDir}
-        onDragProgress={setDragProgress}
+        onDragProgress={placeThumb}
         onSelect={openDay}
         onPeek={setPeek}
       />

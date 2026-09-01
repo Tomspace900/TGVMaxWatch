@@ -39,3 +39,14 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      # Les gestes ne se verifient qu'au toucher reel : `touch-action` n'agit
+      # ni sur la souris ni sur des evenements synthetiques. Une regression ici
+      # ne se decouvre autrement que sur un telephone, apres coup.
+      - name: Gestes
+        working-directory: web
+        run: |
+          npx playwright install --with-deps chromium
+          npx vite preview --port 4173 --strictPort &
+          until curl -sSf http://localhost:4173/TGVMaxWatch/ > /dev/null; do sleep 1; done
+          npm run test:gestures

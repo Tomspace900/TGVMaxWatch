@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { DIRECTIONS } from '../../../src/config.ts';
 import { weekday } from '../../../src/dates.ts';
 import { availabilityBucket, emptyDay, horizonDates, type Calendar } from '../lib/model.ts';
@@ -14,8 +14,11 @@ interface Props {
   dir: string;
   selected: string | null;
   onDirChange: (dir: string) => void;
-  /** Progression du glissement, 0 = premier sens, 1 = second. Suivi 1:1. */
-  onDragProgress: (progress: number | null) => void;
+  /**
+   * Position du curseur de sens, 0 = premier sens, 1 = second. `animate` est
+   * faux pendant le glissement, ou le curseur doit coller au doigt.
+   */
+  onDragProgress: (progress: number, animate: boolean) => void;
   onSelect: (date: string) => void;
   onPeek: (date: string | null) => void;
 }
@@ -32,45 +35,66 @@ export function CalendarGrid({
 }: Props) {
   const dates = useMemo(() => horizonDates(today), [today]);
   const index = Math.max(0, DIRECTIONS.indexOf(dir as (typeof DIRECTIONS)[number]));
-  const [offset, setOffset] = useState(0);
-  const trackRef = useRef<HTMLDivElement>(null);
 
-  const width = () => trackRef.current?.clientWidth ?? window.innerWidth * 2;
+  const trackRef = useRef<HTMLDivElement>(null);
+  const indexRef = useRef(index);
+  const mounted = useRef(false);
+
+  /**
+   * Ecrit la position directement dans le DOM.
+   *
+   * Passer par un etat React a chaque frame reconstruirait les 62 cases du
+   * carrousel soixante fois par seconde : c'est ce qui rendait le glissement
+   * pateux la ou il doit coller au doigt.
+   */
+  const place = useCallback((offset: number, animate: boolean) => {
+    const track = trackRef.current;
+    if (!track) return;
+    track.style.transition = animate ? '' : 'none';
+    track.style.transform = `translate3d(calc(${-indexRef.current * 50}% + ${offset}px), 0, 0)`;
+  }, []);
+
+  useLayoutEffect(() => {
+    indexRef.current = index;
+    // Rien ne s'anime a l'ouverture, seulement les changements ulterieurs.
+    place(0, mounted.current);
+    mounted.current = true;
+  }, [index, place]);
+
+  const panelWidth = () => (trackRef.current?.clientWidth ?? window.innerWidth * 2) / 2;
 
   const onPointerDown = createDragHandler({
     axis: 'x',
     onMove: ({ dx }) => {
-      // Resistance aux extremites : on ne peut pas glisser hors des deux sens.
-      const half = width() / 2;
-      const raw = dx / half;
-      const limited = index + -raw < 0 || index + -raw > 1 ? dx * 0.3 : dx;
-      setOffset(limited);
-      onDragProgress(Math.min(1, Math.max(0, index - limited / half)));
+      const half = panelWidth();
+      // Resistance aux extremites : il n'y a que deux sens, on ne glisse pas
+      // au-dela.
+      const wanted = index - dx / half;
+      const offset = wanted < 0 || wanted > 1 ? dx * 0.3 : dx;
+
+      place(offset, false);
+      onDragProgress(Math.min(1, Math.max(0, index - offset / half)), false);
     },
     onEnd: ({ dx, vx }) => {
-      const half = width() / 2;
-      const target = nearestAnchor([0, -half], project(dx - index * half, vx));
-      const next = DIRECTIONS[target === 0 ? 0 : 1]!;
+      const half = panelWidth();
+      const target = nearestAnchor([0, -half], project(-index * half + dx, vx));
+      const nextIndex = target === 0 ? 0 : 1;
+      const next = DIRECTIONS[nextIndex]!;
 
-      setOffset(0);
-      onDragProgress(null);
-      if (next !== dir) {
-        haptic();
-        onDirChange(next);
+      onDragProgress(nextIndex, true);
+
+      if (next === dir) {
+        place(0, true);
+        return;
       }
+      haptic();
+      onDirChange(next); // le useLayoutEffect repositionne, avec animation
     },
   });
 
   return (
     <div className={styles.viewport} onPointerDown={onPointerDown}>
-      <div
-        ref={trackRef}
-        className={styles.track}
-        style={{
-          transform: `translate3d(calc(${-index * 50}% + ${offset}px), 0, 0)`,
-          transition: offset === 0 ? `transform var(--normal) var(--ease)` : 'none',
-        }}
-      >
+      <div ref={trackRef} className={styles.track}>
         {DIRECTIONS.map((panelDir) => (
           <Panel
             key={panelDir}
@@ -120,14 +144,13 @@ function Panel({ dates, today, dir, calendar, selected, onSelect, onPeek }: Pane
 
         {dates.map((date) => {
           const day = calendar.get(date)?.get(dir) ?? emptyDay(date, dir);
-          const bucket = availabilityBucket(day.available);
 
           return (
             <button
               key={date}
               type="button"
               className={`${styles.cell} ${day.onlyLong ? styles.onlyLong : ''}`}
-              data-bucket={bucket}
+              data-bucket={availabilityBucket(day.available)}
               data-selected={selected === date}
               onClick={() => onSelect(date)}
               onContextMenu={(event) => {

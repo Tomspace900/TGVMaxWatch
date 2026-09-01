@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { createDragHandler, haptic, nearestAnchor, project } from '../lib/gesture.ts';
 import styles from './BottomSheet.module.css';
 
@@ -22,35 +22,64 @@ interface Props {
  * est interruptible a tout instant — on peut la rattraper en plein vol.
  */
 export function BottomSheet({ anchor, onAnchorChange, children }: Props) {
-  const [drag, setDrag] = useState<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const scrimRef = useRef<HTMLDivElement>(null);
+  const mounted = useRef(false);
   const crossed = useRef<SheetAnchor | null>(null);
 
-  const height = () => window.innerHeight;
-  const resting = ANCHOR_OFFSET[anchor] * height();
-  const y = drag === null ? resting : Math.max(ANCHOR_OFFSET.full * height(), resting + drag);
+  const height = () => sheetRef.current?.offsetHeight ?? window.innerHeight;
+
+  /** Position et voile ecrits directement dans le DOM, pour tenir la frame. */
+  const place = useCallback((y: number, animate: boolean) => {
+    const sheet = sheetRef.current;
+    const scrim = scrimRef.current;
+    if (!sheet || !scrim) return;
+
+    sheet.style.transition = animate ? '' : 'none';
+    sheet.style.transform = `translate3d(0, ${y}px, 0)`;
+
+    // Le voile suit la sheet en continu plutot que de s'allumer a la fin.
+    const span = height() * (ANCHOR_OFFSET.closed - ANCHOR_OFFSET.full);
+    const openness = Math.min(1, Math.max(0, (height() * ANCHOR_OFFSET.closed - y) / span));
+    scrim.style.transition = animate ? '' : 'none';
+    scrim.style.opacity = String(openness * 0.45);
+    scrim.style.pointerEvents = openness > 0.02 ? 'auto' : 'none';
+  }, []);
+
+  useLayoutEffect(() => {
+    place(ANCHOR_OFFSET[anchor] * height(), mounted.current);
+    mounted.current = true;
+  }, [anchor, place]);
 
   const onPointerDown = createDragHandler({
     axis: 'y',
     guardEdges: false,
     onMove: ({ dy }) => {
-      setDrag(dy);
+      const resting = ANCHOR_OFFSET[anchor] * height();
+      const y = Math.max(ANCHOR_OFFSET.full * height(), resting + dy);
+      place(y, false);
 
       // Retour haptique au franchissement de chaque seuil, pas en continu.
-      const nearest = closestAnchor(resting + dy, height());
+      const nearest = closestAnchor(y, height());
       if (nearest !== crossed.current) {
         crossed.current = nearest;
         haptic();
       }
     },
     onEnd: ({ dy, vy }) => {
+      const resting = ANCHOR_OFFSET[anchor] * height();
       const anchors = ORDER.map((name) => ANCHOR_OFFSET[name] * height());
       const target = nearestAnchor(anchors, project(resting + dy, vy));
       const next = ORDER[anchors.indexOf(target)]!;
 
-      setDrag(null);
       crossed.current = null;
-      if (next !== anchor) haptic();
-      onAnchorChange(next);
+
+      if (next === anchor) {
+        place(resting, true);
+        return;
+      }
+      haptic();
+      onAnchorChange(next); // le useLayoutEffect repositionne, avec animation
     },
   });
 
@@ -65,25 +94,10 @@ export function BottomSheet({ anchor, onAnchorChange, children }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [anchor, close]);
 
-  const open = anchor !== 'closed';
-
   return (
     <>
-      <div
-        className={styles.scrim}
-        onClick={close}
-        style={{ opacity: open ? 0.4 : 0, pointerEvents: open ? 'auto' : 'none' }}
-        aria-hidden
-      />
-      <div
-        className={styles.sheet}
-        style={{
-          transform: `translate3d(0, ${y}px, 0)`,
-          transition: drag === null ? 'transform var(--normal) var(--ease)' : 'none',
-        }}
-        role="dialog"
-        aria-hidden={!open}
-      >
+      <div ref={scrimRef} className={styles.scrim} onClick={close} aria-hidden />
+      <div className={styles.sheet} ref={sheetRef} role="dialog" aria-hidden={anchor === 'closed'}>
         <div className={styles.grip} onPointerDown={onPointerDown} />
         <div className={styles.body}>{children}</div>
       </div>

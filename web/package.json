@@ -6,7 +6,8 @@
     "dev": "node ../scripts/sync-data.ts --from ../.fixture && vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:gestures": "node tests/gestures.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -16,6 +17,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "playwright": "^1.49.1",
     "typescript": "^5.9.2",
     "vite": "^6.0.7"
   }

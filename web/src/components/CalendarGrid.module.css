@@ -1,6 +1,12 @@
 .viewport {
   overflow: hidden;
   flex: none;
+  /* Rien ne defile dans le calendrier : le geste horizontal est entierement a
+     nous. Sans cette ligne, Chrome Android prend le mouvement pour un scroll et
+     annule le pointeur avant meme que le seuil de prise en main soit franchi. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Deux panneaux cote a cote : le glissement horizontal est un vrai carrousel
@@ -10,6 +16,7 @@
   width: 200%;
   align-items: flex-start;
   will-change: transform;
+  transition: transform var(--normal) var(--ease);
 }
 
 .panel {
@@ -40,6 +47,7 @@
 
 .cell {
   position: relative;
+  -webkit-tap-highlight-color: transparent;
   /* Legerement plus haute que large : sur sept colonnes, une case carree est
      trop petite pour porter a la fois le quantieme, le compte et le delta. */
   aspect-ratio: 0.66;

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { weekday } from '../../../src/dates.ts';
 import { slotOf } from '../../../src/stats.ts';
+import { matchesWatchlist } from '../../../src/watchlist.ts';
 import { dirLabel, longDate } from '../lib/format.ts';
 import { sncfConnectUrl } from '../config/deeplink.ts';
 import { Sparkline } from './Sparkline.tsx';
@@ -30,9 +31,16 @@ export function DayDetail({
 }: Props) {
   const series = history[day.date]?.[day.dir] ?? [];
 
-  const watchedDate = watchlist.watch.some(
-    (entry) => entry.date === day.date && (!entry.dir || entry.dir === day.dir),
-  );
+  /**
+   * Le badge « suivi » se lit « une alerte partira pour ce train ».
+   *
+   * Il doit donc se decider par train, sur la meme fonction que celle qui
+   * filtre les notifications cote collecteur : marquer toute la journee parce
+   * qu'une seule de ses heures est surveillee ferait mentir le badge sur trente
+   * lignes.
+   */
+  const isWatched = (depart: string) =>
+    matchesWatchlist(watchlist, { date: day.date, dir: day.dir, depart });
 
   const booked = new Set(
     reservations.slots
@@ -74,7 +82,7 @@ export function DayDetail({
             <TrainRow
               key={`${train.trainNo}-${train.depart}`}
               train={train}
-              watched={watchedDate}
+              watched={isWatched(train.depart)}
               booked={booked.has(train.trainNo)}
               onWatch={() => onWatch(train.trainNo, train.depart)}
               onBook={() => onBook(day, train.trainNo)}

@@ -2,6 +2,12 @@
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
+  /* Le defilement vertical de la liste reste au navigateur, le balayage
+     horizontal est a nous. Sans cette ligne, Chrome Android annule le pointeur
+     des le premier deplacement et le geste ne demarre jamais. */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Action revelee progressivement sous le doigt, validee au franchissement du
@@ -17,6 +23,7 @@
   text-transform: uppercase;
   background: var(--inverse-bg);
   color: var(--inverse-text);
+  opacity: 0;
 }
 
 .action[data-side='left'] { justify-content: flex-end; }
@@ -61,6 +68,9 @@
 .duration {
   font-family: var(--mono);
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /*

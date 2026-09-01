@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { createDragHandler, haptic } from '../lib/gesture.ts';
 import { formatDuration } from '../lib/format.ts';
 import type { Train } from '../lib/model.ts';
@@ -6,6 +6,7 @@ import styles from './TrainRow.module.css';
 
 /** Distance a partir de laquelle l'action est validee au relachement. */
 const THRESHOLD = 84;
+const MAX_TRAVEL = 140;
 
 interface Props {
   train: Train;
@@ -16,51 +17,67 @@ interface Props {
 }
 
 export function TrainRow({ train, watched, booked, onWatch, onBook }: Props) {
-  const [dx, setDx] = useState(0);
-  const [armed, setArmed] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const actionRef = useRef<HTMLDivElement>(null);
+  const armed = useRef(false);
+
+  // `side` ne change qu'au changement de direction du geste, pas a chaque
+  // frame : c'est le seul etat React de la ligne.
+  const [side, setSide] = useState<'left' | 'right' | null>(null);
+
+  const place = useCallback((dx: number, animate: boolean) => {
+    const row = rowRef.current;
+    const action = actionRef.current;
+    if (!row) return;
+
+    row.style.transition = animate ? '' : 'none';
+    row.style.transform = `translate3d(${dx}px, 0, 0)`;
+
+    // L'action se revele progressivement sous le doigt, et se confirme au
+    // franchissement du seuil.
+    if (action) {
+      action.style.opacity = String(Math.min(1, Math.abs(dx) / THRESHOLD) * 0.6 + (armed.current ? 0.4 : 0));
+    }
+  }, []);
 
   const onPointerDown = createDragHandler({
     axis: 'x',
-    onMove: ({ dx: moved }) => {
-      const limited = Math.max(-140, Math.min(140, moved));
-      setDx(limited);
+    onMove: ({ dx }) => {
+      const offset = Math.max(-MAX_TRAVEL, Math.min(MAX_TRAVEL, dx));
+      const next = offset < 0 ? 'left' : 'right';
+      setSide((current) => (current === next ? current : next));
 
-      const past = Math.abs(limited) >= THRESHOLD;
-      if (past !== armed) {
-        setArmed(past);
+      const past = Math.abs(offset) >= THRESHOLD;
+      if (past !== armed.current) {
+        armed.current = past;
         haptic();
       }
+      place(offset, false);
     },
-    onEnd: ({ dx: moved }) => {
-      if (Math.abs(moved) >= THRESHOLD) {
+    onEnd: ({ dx }) => {
+      if (Math.abs(dx) >= THRESHOLD) {
         haptic(14);
-        if (moved < 0) onWatch();
+        if (dx < 0) onWatch();
         else onBook();
       }
-      setDx(0);
-      setArmed(false);
+      armed.current = false;
+      place(0, true);
+      setSide(null);
     },
   });
 
-  const side = dx < 0 ? 'left' : 'right';
-  const label = dx < 0 ? 'surveiller' : "j'ai reserve";
-
   return (
-    <div className={styles.wrap}>
-      {dx !== 0 && (
-        <div className={styles.action} data-side={side} style={{ opacity: armed ? 1 : 0.5 }}>
-          {label}
+    <div className={styles.wrap} onPointerDown={onPointerDown}>
+      {side && (
+        <div ref={actionRef} className={styles.action} data-side={side}>
+          {side === 'left' ? 'surveiller' : "j'ai reserve"}
         </div>
       )}
 
       <div
+        ref={rowRef}
         className={`${styles.row} ${train.tier === 'long' ? styles.long : ''}`}
         data-available={train.available}
-        style={{
-          transform: `translate3d(${dx}px, 0, 0)`,
-          transition: dx === 0 ? 'transform var(--fast) var(--ease)' : 'none',
-        }}
-        onPointerDown={onPointerDown}
       >
         <span className={styles.time}>{train.depart}</span>
 
@@ -73,7 +90,6 @@ export function TrainRow({ train, watched, booked, onWatch, onBook }: Props) {
 
         <span className={styles.duration}>
           {formatDuration(train.durationMin)}
-          {train.tier === 'long' && ' '}
           {train.tier === 'long' && <span className={styles.tag}>long</span>}
         </span>
       </div>

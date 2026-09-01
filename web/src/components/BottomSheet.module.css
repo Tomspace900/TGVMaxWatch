@@ -2,6 +2,8 @@
   position: fixed;
   inset: 0;
   background: #000;
+  opacity: 0;
+  pointer-events: none;
   will-change: opacity;
   transition: opacity var(--normal) var(--ease);
 }
@@ -17,20 +19,25 @@
   display: flex;
   flex-direction: column;
   will-change: transform;
-  touch-action: none;
+  transition: transform var(--normal) var(--ease);
+  /* Pas de `touch-action: none` ici : la valeur effective est l'intersection le
+     long de la chaine d'ancetres, et elle empecherait `.body` de defiler — la
+     liste des trains devenait alors inaccessible au-dela du premier ecran. */
 }
 
 .grip {
   flex: none;
-  padding: 8px 0 4px;
+  padding: 14px 0 8px;
   display: flex;
   justify-content: center;
+  /* Ici en revanche rien ne doit defiler : la poignee est a nous seuls. */
+  touch-action: none;
 }
 
 .grip::after {
   content: '';
-  width: 32px;
-  height: 3px;
+  width: 36px;
+  height: 4px;
   border-radius: 2px;
   background: var(--line-strong);
 }
@@ -40,5 +47,8 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Le defilement vertical reste au navigateur, l'horizontal est a nous : c'est
+     ce qui rend possible le balayage des lignes de train. */
+  touch-action: pan-y;
   padding: 0 var(--pad) calc(var(--pad) + env(safe-area-inset-bottom));
 }

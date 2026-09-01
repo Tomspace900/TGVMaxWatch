@@ -22,6 +22,7 @@
   width: 50%;
   background: var(--inverse-bg);
   will-change: transform;
+  transition: transform var(--normal) var(--ease);
 }
 
 .option {

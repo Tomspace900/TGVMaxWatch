@@ -5,16 +5,19 @@ import styles from './Header.module.css';
 
 interface Props {
   dir: string;
-  /** Progression du glissement en cours, `null` au repos. Suivi 1:1 du doigt. */
-  dragProgress: number | null;
+  /**
+   * Curseur du selecteur. Sa position est ecrite directement dans le DOM par
+   * App pendant le glissement : le faire passer par un etat React
+   * reconstruirait tout l'ecran a chaque frame.
+   */
+  thumbRef: React.RefObject<HTMLDivElement>;
   state: State;
   onDirChange: (dir: string) => void;
   onSettings: () => void;
 }
 
-export function Header({ dir, dragProgress, state, onDirChange, onSettings }: Props) {
+export function Header({ dir, thumbRef, state, onDirChange, onSettings }: Props) {
   const index = Math.max(0, DIRECTIONS.indexOf(dir as (typeof DIRECTIONS)[number]));
-  const position = dragProgress ?? index;
 
   const processed = state.dataProcessed;
   const stale = processed !== null && hoursSince(processed) > STALE_DATA_HOURS;
@@ -22,19 +25,13 @@ export function Header({ dir, dragProgress, state, onDirChange, onSettings }: Pr
   return (
     <header className={styles.header}>
       <div className={styles.switch}>
-        <div
-          className={styles.thumb}
-          style={{
-            transform: `translate3d(${position * 100}%, 0, 0)`,
-            transition: dragProgress === null ? 'transform var(--normal) var(--ease)' : 'none',
-          }}
-        />
+        <div ref={thumbRef} className={styles.thumb} />
         {DIRECTIONS.map((option, i) => (
           <button
             key={option}
             type="button"
             className={styles.option}
-            data-active={Math.round(position) === i}
+            data-active={index === i}
             onClick={() => onDirChange(option)}
           >
             {dirLabel(option)}
