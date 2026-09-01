@@ -71,7 +71,8 @@ function addMinutes(depart: string, minutes: number): string {
  * plus tendu les vendredis soir et les dimanches.
  */
 function availability(daysBefore: number, travelDate: string, depart: string): number {
-  const base = Math.min(0.85, 0.12 + (daysBefore / HORIZON_DAYS) * 0.8);
+  // Courbe d'erosion reelle : abondant a J+30, quasi vide a J-3.
+  const base = 0.04 + Math.pow(daysBefore / HORIZON_DAYS, 1.6) * 0.62;
   const day = weekday(travelDate);
   const hour = Number(depart.slice(0, 2));
 

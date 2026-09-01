@@ -1,0 +1,95 @@
+.wrap {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Action revelee progressivement sous le doigt, validee au franchissement du
+   seuil — pas un bouton qui apparait d'un coup en fin de geste. */
+.action {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--inverse-bg);
+  color: var(--inverse-text);
+}
+
+.action[data-side='left'] { justify-content: flex-end; }
+.action[data-side='right'] { justify-content: flex-start; }
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 2px;
+  background: var(--surface);
+  text-align: left;
+  will-change: transform;
+}
+
+.row[data-available='false'] {
+  color: var(--muted);
+}
+
+.time {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.row[data-available='false'] .time {
+  font-weight: 400;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+}
+
+.duration {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+/*
+ * Un 3h30 reste reservable et ne disparait jamais de la liste. Mais il ne doit
+ * pas non plus se fondre dans un detail gris : la duree passe en pleine
+ * intensite et la ligne porte une marque, pour qu'il soit immediatement
+ * identifiable comme un mauvais choix.
+ */
+.long .duration {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.long {
+  box-shadow: inset 3px 0 0 var(--text);
+  padding-left: 10px;
+}
+
+.tag {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  padding: 1px 3px;
+  color: var(--text);
+}
+
+.watched {
+  font-family: var(--mono);
+  font-size: 11px;
+}

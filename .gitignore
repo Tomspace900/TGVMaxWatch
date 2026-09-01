@@ -2,7 +2,6 @@ node_modules/
 web/node_modules/
 web/dist/
 web/public/data/
-web/public/icon-*.png
 *.log
 .DS_Store
 .fixture/

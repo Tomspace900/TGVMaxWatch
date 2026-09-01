@@ -1,0 +1,35 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  /* Aucune interaction horizontale ne doit demarrer dans la zone captee par le
+     geste de retour d'Android ; la garde est dans la couche gestuelle, celle-ci
+     empeche en plus le rebond horizontal de la page. */
+  overscroll-behavior: contain;
+}
+
+.peek {
+  position: fixed;
+  left: var(--pad);
+  right: var(--pad);
+  bottom: calc(var(--pad) + env(safe-area-inset-bottom));
+  padding: 10px 12px;
+  background: var(--inverse-bg);
+  color: var(--inverse-text);
+  border-radius: var(--radius);
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.peekCount {
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.spacer {
+  flex: 1;
+  min-height: 0;
+}

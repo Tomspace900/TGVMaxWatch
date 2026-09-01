@@ -1,0 +1,51 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.35;
+
+  /* Tous les chiffres du produit s'alignent verticalement. Une grille de
+     nombres qui ne s'alignent pas trahit immediatement l'amateurisme. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+
+  /* Neutralise le pull-to-refresh de Chrome, qui entrerait en conflit avec la
+     sheet des le premier geste vertical. */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rien ne s'anime a l'ouverture : l'app est ouverte plusieurs fois par jour,
+   une animation d'entree est charmante une semaine et insupportable ensuite. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

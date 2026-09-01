@@ -1,0 +1,67 @@
+/*
+ * Une seule couleur saturee dans tout le produit : l'echelle de disponibilite.
+ * Tout le reste est neutre. La couleur n'est jamais decorative, elle encode
+ * toujours une valeur — c'est ce qui empeche l'interface de ressembler a
+ * n'importe quel dashboard recent.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Neutres — mode clair. L'app se consulte dehors, en plein soleil : du
+     contraste reel, pas des pastels. */
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --sunken: #f0f1f2;
+  --line: #d4d9dc;
+  --line-strong: #a8b1b6;
+  --text: #14181b;
+  --muted: #5b666d;
+  --inverse-bg: #14181b;
+  --inverse-text: #fbfbfa;
+
+  /* Echelle de disponibilite : 0 / 1-2 / 3-5 / 6+ trains eligibles. */
+  --avail-0: #e6e8ea;
+  --avail-1: #a9dcc4;
+  --avail-2: #43b184;
+  --avail-3: #0f7f57;
+  --avail-0-ink: #7c868c;
+  --avail-1-ink: #10361f;
+  --avail-2-ink: #04231a;
+  --avail-3-ink: #eafaf3;
+
+  --radius: 3px;
+  --gap: 4px;
+  --pad: 14px;
+
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, monospace;
+
+  /* Budget serre : 150-200 ms. Le ressort est reserve a la sheet et aux gestes. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 150ms;
+  --normal: 200ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0e10;
+    --surface: #16191c;
+    --sunken: #101315;
+    --line: #262b2f;
+    --line-strong: #454d53;
+    --text: #e8ecef;
+    --muted: #8b959c;
+    --inverse-bg: #e8ecef;
+    --inverse-text: #0c0e10;
+
+    --avail-0: #1b1f22;
+    --avail-1: #14503a;
+    --avail-2: #1e8a61;
+    --avail-3: #35d197;
+    --avail-0-ink: #626c72;
+    --avail-1-ink: #b6e4d0;
+    --avail-2-ink: #04231a;
+    --avail-3-ink: #04231a;
+  }
+}

@@ -1,0 +1,36 @@
+.strip {
+  flex: none;
+  padding: 10px var(--pad) calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 20px;
+}
+
+.entry {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  text-align: left;
+}
+
+.count {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.long {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  padding: 0 3px;
+  color: var(--text);
+}

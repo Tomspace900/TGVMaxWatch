@@ -1,0 +1,44 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  will-change: opacity;
+  transition: opacity var(--normal) var(--ease);
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100dvh;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  touch-action: none;
+}
+
+.grip {
+  flex: none;
+  padding: 8px 0 4px;
+  display: flex;
+  justify-content: center;
+}
+
+.grip::after {
+  content: '';
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--pad) calc(var(--pad) + env(safe-area-inset-bottom));
+}

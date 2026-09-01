@@ -1,0 +1,113 @@
+.viewport {
+  overflow: hidden;
+  flex: none;
+}
+
+/* Deux panneaux cote a cote : le glissement horizontal est un vrai carrousel
+   suivi 1:1, pas une bascule declenchee a la fin du geste. */
+.track {
+  display: flex;
+  width: 200%;
+  align-items: flex-start;
+  will-change: transform;
+}
+
+.panel {
+  width: 50%;
+  padding: 0 var(--pad);
+  display: flex;
+  flex-direction: column;
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--gap);
+}
+
+.weekdays {
+  margin-bottom: 6px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cell {
+  position: relative;
+  /* Legerement plus haute que large : sur sept colonnes, une case carree est
+     trop petite pour porter a la fois le quantieme, le compte et le delta. */
+  aspect-ratio: 0.66;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  transition: outline-color var(--fast) var(--ease);
+  outline: 1.5px solid transparent;
+  outline-offset: -1.5px;
+}
+
+.cell[data-bucket='0'] { background: var(--avail-0); color: var(--avail-0-ink); }
+.cell[data-bucket='1'] { background: var(--avail-1); color: var(--avail-1-ink); }
+.cell[data-bucket='2'] { background: var(--avail-2); color: var(--avail-2-ink); }
+.cell[data-bucket='3'] { background: var(--avail-3); color: var(--avail-3-ink); }
+
+.cell[data-selected='true'] {
+  outline-color: var(--text);
+}
+
+.blank {
+  aspect-ratio: 0.66;
+}
+
+.day {
+  font-size: 10px;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+.count {
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.delta {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+/*
+ * Marqueur d'angle : toutes les places du jour sont sur des trains de plus de
+ * 3h. La couleur dit « il y a de la place », ce coin dit « mais pas de la
+ * bonne ». Sans lui, la couleur mentirait.
+ */
+.onlyLong::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-style: solid;
+  border-width: 9px 9px 0 0;
+  border-color: currentColor transparent transparent transparent;
+  opacity: 0.55;
+}
+
+.today {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

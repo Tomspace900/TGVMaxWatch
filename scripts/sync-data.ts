@@ -30,8 +30,14 @@ function main(): void {
   mkdirSync(TARGET, { recursive: true });
 
   for (const file of FILES) {
-    const from = join(source, file);
-    if (!existsSync(from)) {
+    // Une archive synthetique ne contient pas la watchlist ni les
+    // reservations : ce sont des fichiers de configuration reels, on retombe
+    // donc sur ceux du repo.
+    const from = [join(source, file), join(REPO, file)].find((candidate) =>
+      existsSync(candidate),
+    );
+
+    if (!from) {
       console.warn(`[sync] ${file} absent, ignore`);
       continue;
     }

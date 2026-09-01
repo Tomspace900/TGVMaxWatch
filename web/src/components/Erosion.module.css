@@ -1,0 +1,30 @@
+.panel {
+  flex: none;
+  padding: 16px var(--pad) 10px;
+}
+
+.title {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  color: var(--avail-2);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 3px;
+}
