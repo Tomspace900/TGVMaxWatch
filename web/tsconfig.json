@@ -11,7 +11,18 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+
+    // Aucun @types ambiant. Sans cette ligne, TypeScript remonte l'arborescence
+    // et trouve le @types/node du collecteur : la verification passe en local
+    // et echoue en CI, ou seul web/node_modules est installe. Les types du
+    // navigateur viennent de `lib`, ceux de Vite de src/vite-env.d.ts.
+    "types": []
   },
-  "include": ["src", "vite.config.ts", "../src/**/*.ts"]
+
+  // Volontairement limite a web/ : les modules partages avec le collecteur
+  // (config, dates, duration, types, stats) entrent dans le programme par les
+  // imports, ce qui garantit qu'ils restent purs. Inclure ../src en entier y
+  // ferait entrer storage.ts et sncf.ts, qui parlent a Node.
+  "include": ["src", "vite.config.ts"]
 }
