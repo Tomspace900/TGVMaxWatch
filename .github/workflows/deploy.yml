@@ -47,11 +47,10 @@ jobs:
           npm ci
           npm run build
 
-      # `enablement` active Pages a la premiere execution, ce qui evite un
-      # reglage manuel dans Settings.
+      # Pages doit avoir ete active a la main (Settings -> Pages -> Source :
+      # GitHub Actions). L'option `enablement` de cette action demande un jeton
+      # avec les droits admin du repo, que le GITHUB_TOKEN par defaut n'a pas.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
