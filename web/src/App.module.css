@@ -9,27 +9,30 @@
   overscroll-behavior: contain;
 }
 
+.spacer {
+  flex: 1;
+  min-height: 0;
+}
+
 .peek {
   position: fixed;
   left: var(--pad);
   right: var(--pad);
   bottom: calc(var(--pad) + env(safe-area-inset-bottom));
-  padding: 10px 12px;
+  padding: 14px 16px;
   background: var(--inverse-bg);
   color: var(--inverse-text);
   border-radius: var(--radius);
-  font-size: 13px;
+  box-shadow: var(--lift-2);
+  font-size: 13.5px;
+  font-weight: 550;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
 }
 
 .peekCount {
-  font-family: var(--mono);
   font-weight: 700;
-}
-
-.spacer {
-  flex: 1;
-  min-height: 0;
+  font-size: 15px;
 }

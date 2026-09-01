@@ -1,7 +1,8 @@
 .wrap {
   position: relative;
   overflow: hidden;
-  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--gap);
   /* Le defilement vertical de la liste reste au navigateur, le balayage
      horizontal est a nous. Sans cette ligne, Chrome Android annule le pointeur
      des le premier deplacement et le geste ne demarre jamais. */
@@ -17,10 +18,9 @@
   inset: 0;
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  padding: 0 18px;
+  font-size: 12px;
+  font-weight: 600;
   background: var(--inverse-bg);
   color: var(--inverse-text);
   opacity: 0;
@@ -33,44 +33,69 @@
   position: relative;
   display: grid;
   grid-template-columns: auto 1fr auto;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  padding: 11px 2px;
-  background: var(--surface);
+  padding: 13px 14px;
+  background: var(--raised);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--lift-1), var(--ring);
   text-align: left;
   will-change: transform;
 }
 
 .row[data-available='false'] {
+  background: var(--sunken);
+  box-shadow: none;
   color: var(--muted);
 }
 
 .time {
-  font-family: var(--mono);
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
 }
 
 .row[data-available='false'] .time {
-  font-weight: 400;
+  font-weight: 500;
   text-decoration: line-through;
-  text-decoration-thickness: 1px;
+  text-decoration-thickness: 1.5px;
+  opacity: 0.75;
 }
 
 .meta {
   font-size: 12px;
   color: var(--muted);
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.entity {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--sunken);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.row[data-available='false'] .entity {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .duration {
-  font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 550;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  white-space: nowrap;
 }
 
 /*
@@ -85,21 +110,38 @@
 }
 
 .long {
-  box-shadow: inset 3px 0 0 var(--text);
-  padding-left: 10px;
+  padding-left: 18px;
+}
+
+/* Une barre posee plutot qu'une ombre interne : sur un coin arrondi, l'ombre
+   dessinerait un croissant qui ressemble a un defaut de rendu. */
+.long::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--text);
 }
 
 .tag {
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  border: 1px solid currentColor;
-  border-radius: 2px;
-  padding: 1px 3px;
-  color: var(--text);
+  border-radius: var(--radius-pill);
+  padding: 3px 7px;
+  background: var(--inverse-bg);
+  color: var(--inverse-text);
 }
 
 .watched {
-  font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--avail-3);
+  color: var(--avail-3-ink);
 }

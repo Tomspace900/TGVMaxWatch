@@ -27,10 +27,19 @@ export function App() {
   );
 
   const [dir, setDir] = useState(() => initialDir());
-  const [selected, setSelected] = useState<string | null>(null);
+  /**
+   * L'app s'ouvre sur le jour courant, sheet a demi tiree.
+   *
+   * Le calendrier garde le haut de l'ecran — il reste l'identite du produit —
+   * mais la moitie basse porte immediatement la reponse a la question qu'on se
+   * pose en ouvrant : qu'est-ce qui part aujourd'hui. C'est aussi ce qui donne
+   * son sens a l'ancrage « demi », et ce qui evite un grand vide sous une
+   * grille de trente cases qui ne peut pas, geometriquement, remplir l'ecran.
+   */
+  const [selected, setSelected] = useState<string | null>(today);
   const [peek, setPeek] = useState<string | null>(null);
   const [view, setView] = useState<SheetView>('day');
-  const [anchor, setAnchor] = useState<SheetAnchor>('closed');
+  const [anchor, setAnchor] = useState<SheetAnchor>('half');
 
   const thumbRef = useRef<HTMLDivElement>(null);
   const thumbMounted = useRef(false);

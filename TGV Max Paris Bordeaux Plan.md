@@ -246,10 +246,16 @@ un dashboard, c'est une app d'horaires — dense, typographique, silencieuse. Si
 
 ### Ce qui est interdit
 
-Dégradés, glassmorphisme, ombres portées, accent violet, cartes empilées à coins très arrondis,
-emoji, illustrations, écran d'accueil avec logo, onboarding, skeletons scintillants, toasts,
-barre d'onglets à cinq icônes en bas. Ce sont exactement les marqueurs du template, et c'est ce
-qui fait qu'une app « ressemble à toutes les autres ».
+> **Révisé après essai sur téléphone.** Cette liste a été appliquée à la lettre, et le résultat
+> a été jugé austère au point de paraître inachevé. Les interdits sur les dégradés, la profondeur
+> et les arrondis sont levés : ils servent la prise en main, pas la décoration.
+>
+> Restent interdits, eux : l'accent violet, les emoji, les illustrations, l'écran d'accueil avec
+> logo, l'onboarding, les skeletons scintillants, les toasts, la barre d'onglets à cinq icônes.
+>
+> Et surtout, la règle qui portait vraiment le produit tient toujours : **une seule couleur
+> saturée**, l'échelle de disponibilité. La couleur n'encode jamais autre chose qu'une valeur ;
+> la profondeur et les arrondis, eux, n'encodent rien du tout.
 
 ### Direction
 

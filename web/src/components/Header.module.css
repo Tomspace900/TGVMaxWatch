@@ -1,41 +1,44 @@
 .header {
   flex: none;
-  padding: calc(env(safe-area-inset-top) + 10px) var(--pad) 8px;
+  padding: calc(env(safe-area-inset-top) + 12px) var(--pad) 10px;
 }
 
 .switch {
   position: relative;
   display: flex;
-  height: 34px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
+  height: 40px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--sunken);
+  box-shadow: inset 0 1px 2px rgb(16 24 32 / 0.05);
 }
 
 /* Le curseur suit le doigt en continu pendant le glissement du calendrier.
    C'est ce suivi 1:1, et pas la transition finale, qui fait « natif ». */
 .thumb {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 50%;
-  background: var(--inverse-bg);
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: var(--radius-pill);
+  background: var(--raised);
+  box-shadow: var(--lift-2);
   will-change: transform;
-  transition: transform var(--normal) var(--ease);
+  transition: transform var(--normal) var(--spring);
 }
 
 .option {
   position: relative;
   flex: 1;
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  font-size: 13px;
+  font-weight: 550;
   color: var(--muted);
   transition: color var(--fast) var(--ease);
 }
 
 .option[data-active='true'] {
-  color: var(--inverse-text);
+  color: var(--text);
 }
 
 .status {
@@ -43,24 +46,29 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  padding-top: 7px;
-  font-size: 11px;
+  padding-top: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 
 .stale {
-  margin-top: 7px;
-  padding: 7px 9px;
+  margin-top: 10px;
+  padding: 10px 12px;
   background: var(--inverse-bg);
   color: var(--inverse-text);
-  border-radius: var(--radius);
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
 }
 
 .settings {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--muted);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  padding: 4px 10px;
+  margin: -4px -10px -4px 0;
+  border-radius: var(--radius-pill);
+}
+
+.settings:active {
+  background: var(--sunken);
 }

@@ -14,6 +14,8 @@ export interface TrainRecord {
   heure_depart: string;
   heure_arrivee: string;
   od_happy_card: Availability;
+  /** Transporteur : `TGV INOUI`, `OUIGO`, `INTERCITES`. Absent si non publie. */
+  entity?: string;
 }
 
 export type Snapshot = TrainRecord[];

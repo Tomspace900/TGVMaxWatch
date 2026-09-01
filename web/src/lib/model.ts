@@ -5,6 +5,8 @@ import type { DurationTier, History, TrainRecord } from '../../../src/types.ts';
 
 export interface Train {
   trainNo: string;
+  /** `TGV INOUI`, `OUIGO`... Absent tant que le dataset ne le publie pas. */
+  entity?: string;
   depart: string;
   arrivee: string;
   durationMin: number;
@@ -46,6 +48,7 @@ export function buildCalendar(records: TrainRecord[], history: History): Calenda
     const durationMin = recordDuration(record);
     day.trains.push({
       trainNo: record.train_no,
+      ...(record.entity ? { entity: record.entity } : {}),
       depart: record.heure_depart,
       arrivee: record.heure_arrivee,
       durationMin,

@@ -1,7 +1,8 @@
 .scrim {
   position: fixed;
   inset: 0;
-  background: #000;
+  background: rgb(6 8 10 / 0.55);
+  backdrop-filter: blur(2px);
   opacity: 0;
   pointer-events: none;
   will-change: opacity;
@@ -15,11 +16,12 @@
   top: 0;
   height: 100dvh;
   background: var(--surface);
-  border-top: 1px solid var(--line);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--lift-3);
   display: flex;
   flex-direction: column;
   will-change: transform;
-  transition: transform var(--normal) var(--ease);
+  transition: transform var(--normal) var(--spring);
   /* Pas de `touch-action: none` ici : la valeur effective est l'intersection le
      long de la chaine d'ancetres, et elle empecherait `.body` de defiler — la
      liste des trains devenait alors inaccessible au-dela du premier ecran. */
@@ -27,7 +29,7 @@
 
 .grip {
   flex: none;
-  padding: 14px 0 8px;
+  padding: 12px 0 6px;
   display: flex;
   justify-content: center;
   /* Ici en revanche rien ne doit defiler : la poignee est a nous seuls. */
@@ -36,10 +38,11 @@
 
 .grip::after {
   content: '';
-  width: 36px;
+  width: 40px;
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
   background: var(--line-strong);
+  opacity: 0.6;
 }
 
 .body {

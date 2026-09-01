@@ -38,12 +38,20 @@ export function BottomSheet({ anchor, onAnchorChange, children }: Props) {
     sheet.style.transition = animate ? '' : 'none';
     sheet.style.transform = `translate3d(0, ${y}px, 0)`;
 
-    // Le voile suit la sheet en continu plutot que de s'allumer a la fin.
-    const span = height() * (ANCHOR_OFFSET.closed - ANCHOR_OFFSET.full);
-    const openness = Math.min(1, Math.max(0, (height() * ANCHOR_OFFSET.closed - y) / span));
+    /*
+     * Le voile ne s'allume qu'au-dela de l'ancrage « demi ».
+     *
+     * A demi, la sheet cohabite avec le calendrier : c'est l'etat de repos de
+     * l'application, et un voile actif y rendrait toutes les cases
+     * intouchables — impossible de passer d'un jour a l'autre sans refermer.
+     * Seul l'ancrage plein est modal.
+     */
+    const span = height() * (ANCHOR_OFFSET.half - ANCHOR_OFFSET.full);
+    const beyondHalf = Math.min(1, Math.max(0, (height() * ANCHOR_OFFSET.half - y) / span));
+
     scrim.style.transition = animate ? '' : 'none';
-    scrim.style.opacity = String(openness * 0.45);
-    scrim.style.pointerEvents = openness > 0.02 ? 'auto' : 'none';
+    scrim.style.opacity = String(beyondHalf * 0.5);
+    scrim.style.pointerEvents = beyondHalf > 0.5 ? 'auto' : 'none';
   }, []);
 
   useLayoutEffect(() => {

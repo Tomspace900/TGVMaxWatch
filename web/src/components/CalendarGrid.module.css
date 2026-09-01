@@ -16,7 +16,7 @@
   width: 200%;
   align-items: flex-start;
   will-change: transform;
-  transition: transform var(--normal) var(--ease);
+  transition: transform var(--normal) var(--spring);
 }
 
 .panel {
@@ -34,32 +34,39 @@
 }
 
 .weekdays {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .weekday {
   text-align: center;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   color: var(--muted);
 }
 
 .cell {
   position: relative;
-  -webkit-tap-highlight-color: transparent;
-  /* Legerement plus haute que large : sur sept colonnes, une case carree est
-     trop petite pour porter a la fois le quantieme, le compte et le delta. */
-  aspect-ratio: 0.66;
-  border-radius: var(--radius);
+  aspect-ratio: 0.74;
+  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  transition: outline-color var(--fast) var(--ease);
-  outline: 1.5px solid transparent;
-  outline-offset: -1.5px;
+  gap: 2px;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--lift-1);
+  transition:
+    transform var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+
+/* Le doigt doit sentir la case repondre : c'est ce qui fait la difference
+   entre une grille de donnees et un objet manipulable. */
+.cell:active {
+  transform: scale(0.94);
+  box-shadow: none;
 }
 
 .cell[data-bucket='0'] { background: var(--avail-0); color: var(--avail-0-ink); }
@@ -68,35 +75,47 @@
 .cell[data-bucket='3'] { background: var(--avail-3); color: var(--avail-3-ink); }
 .cell[data-bucket='4'] { background: var(--avail-4); color: var(--avail-4-ink); }
 
+/* Un degrade tres court donne du volume sans rien encoder de faux. */
+.cell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 55%);
+  pointer-events: none;
+}
+
 .cell[data-selected='true'] {
-  outline-color: var(--text);
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--text);
 }
 
 .blank {
-  aspect-ratio: 0.66;
+  aspect-ratio: 0.74;
 }
 
 .day {
-  font-size: 10px;
-  opacity: 0.7;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.72;
   line-height: 1;
 }
 
 .count {
-  font-family: var(--mono);
-  font-size: 19px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 650;
   line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .delta {
   position: absolute;
-  right: 3px;
-  bottom: 2px;
-  font-family: var(--mono);
-  font-size: 9px;
+  right: 4px;
+  bottom: 3px;
+  font-size: 9.5px;
+  font-weight: 550;
   line-height: 1;
-  opacity: 0.85;
+  opacity: 0.75;
 }
 
 /*
@@ -110,13 +129,23 @@
   top: 0;
   left: 0;
   border-style: solid;
-  border-width: 9px 9px 0 0;
+  border-width: 11px 11px 0 0;
   border-color: currentColor transparent transparent transparent;
-  opacity: 0.55;
+  opacity: 0.5;
+  z-index: 1;
 }
 
 .today {
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  font-weight: 750;
+  opacity: 1;
+}
+
+.today::after {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  margin: 2px auto 0;
 }

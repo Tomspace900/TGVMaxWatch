@@ -18,8 +18,25 @@ const WHERE =
   '(origine="PARIS (intramuros)" and destination="BORDEAUX ST JEAN")' +
   ' or (origine="BORDEAUX ST JEAN" and destination="PARIS (intramuros)")';
 
-const SELECT =
-  'date,train_no,origine_iata,destination_iata,heure_depart,heure_arrivee,od_happy_card';
+/** Colonnes indispensables. Leur absence est une rupture de contrat. */
+const REQUIRED_FIELDS = [
+  'date',
+  'train_no',
+  'origine_iata',
+  'destination_iata',
+  'heure_depart',
+  'heure_arrivee',
+  'od_happy_card',
+];
+
+/**
+ * Colonnes utiles mais non vitales.
+ *
+ * On ne les demande que si le dataset les declare : un `select` portant une
+ * colonne inconnue renvoie 400, et le collecteur quotidien tomberait pour un
+ * simple agrement d'affichage.
+ */
+const OPTIONAL_FIELDS = ['entity', 'axe'];
 
 /**
  * Plancher de vraisemblance. Le dataset renvoie ~2170 lignes pour cet axe ;
@@ -61,29 +78,61 @@ async function fetchWithRetry(url: string, label: string): Promise<Response> {
   });
 }
 
+export interface DatasetInfo {
+  /** `metas.default.data_processed`, en ISO 8601. */
+  dataProcessed: string;
+  /** Colonnes reellement declarees par le dataset. */
+  fields: string[];
+}
+
 /**
- * Date de derniere publication du dataset (`metas.default.data_processed`).
+ * Metadonnees du dataset.
  *
- * C'est la seule chose a interroger avant tout traitement : la source ne
- * change qu'une fois par jour, et comparer cette valeur a celle stockee rend
- * le collecteur idempotent malgre les deux executions quotidiennes.
+ * Un seul appel donne les deux choses dont on a besoin avant tout traitement :
+ * la date de publication — la source ne change qu'une fois par jour, et la
+ * comparer a celle stockee rend le collecteur idempotent malgre les deux
+ * executions quotidiennes — et la liste des colonnes, qui evite de deviner le
+ * nom d'un champ optionnel.
  */
-export async function fetchDataProcessed(): Promise<string> {
+export async function fetchDatasetInfo(): Promise<DatasetInfo> {
   const response = await fetchWithRetry(DATASET, 'metadonnees');
   const meta = (await response.json()) as {
     metas?: { default?: { data_processed?: string } };
+    fields?: { name?: string }[];
   };
 
-  const processed = meta.metas?.default?.data_processed;
-  if (!processed) {
+  const dataProcessed = meta.metas?.default?.data_processed;
+  if (!dataProcessed) {
     throw new Error('[sncf] `metas.default.data_processed` absent de la reponse');
   }
-  return processed;
+
+  const fields = (meta.fields ?? [])
+    .map((field) => field.name)
+    .filter((name): name is string => typeof name === 'string');
+
+  return { dataProcessed, fields };
+}
+
+/** Colonnes a demander, compte tenu de ce que le dataset declare. */
+export function selectFor(available: string[]): string[] {
+  const declared = new Set(available);
+
+  // Un dataset qui ne declare rien du tout (reponse inattendue) ne doit pas
+  // faire perdre les colonnes vitales : on les demande alors quand meme, et
+  // c'est l'export qui tranchera.
+  const optional =
+    declared.size === 0 ? [] : OPTIONAL_FIELDS.filter((field) => declared.has(field));
+
+  if (optional.length > 0) {
+    console.log(`[sncf] colonnes optionnelles disponibles : ${optional.join(', ')}`);
+  }
+
+  return [...REQUIRED_FIELDS, ...optional];
 }
 
 /** Un seul appel a l'export, tout le filtrage etant fait cote serveur. */
-export async function fetchSnapshot(): Promise<Snapshot> {
-  const params = new URLSearchParams({ where: WHERE, select: SELECT });
+export async function fetchSnapshot(fields: string[]): Promise<Snapshot> {
+  const params = new URLSearchParams({ where: WHERE, select: fields.join(',') });
   const response = await fetchWithRetry(`${DATASET}/exports/json?${params}`, 'export');
   const payload: unknown = await response.json();
 
@@ -130,7 +179,7 @@ function normalize(payload: unknown[]): TrainRecord[] {
     if (typeof depart !== 'string' || typeof arrivee !== 'string') continue;
     if (happy !== 'OUI' && happy !== 'NON') continue;
 
-    records.push({
+    const record: TrainRecord = {
       date,
       train_no: String(trainNo),
       origine_iata: origine,
@@ -138,7 +187,13 @@ function normalize(payload: unknown[]): TrainRecord[] {
       heure_depart: normalizeTime(depart),
       heure_arrivee: normalizeTime(arrivee),
       od_happy_card: happy,
-    });
+    };
+
+    // Optionnelle : absente tant que le dataset ne la declare pas.
+    const entity = raw['entity'];
+    if (typeof entity === 'string' && entity.length > 0) record.entity = entity;
+
+    records.push(record);
   }
 
   return records;

@@ -3,7 +3,7 @@ import { diffSnapshots } from './diff.ts';
 import { createHistoryBuilder } from './history.ts';
 import { buildNotification } from './notify.ts';
 import { sendPush } from './push.ts';
-import { fetchDataProcessed, fetchSnapshot } from './sncf.ts';
+import { fetchDatasetInfo, fetchSnapshot, selectFor } from './sncf.ts';
 import { createStatsBuilder } from './stats.ts';
 import {
   listSnapshotDates,
@@ -30,14 +30,14 @@ async function main(): Promise<void> {
   const today = todayInParis();
   const state = readState();
 
-  const dataProcessed = await fetchDataProcessed();
+  const { dataProcessed, fields } = await fetchDatasetInfo();
   if (dataProcessed === state.dataProcessed) {
     console.log(`[collect] donnee inchangee (${dataProcessed}), rien a faire`);
     return;
   }
 
   console.log(`[collect] nouvelle publication ${dataProcessed}, collecte en cours`);
-  const snapshot = await fetchSnapshot();
+  const snapshot = await fetchSnapshot(selectFor(fields));
   console.log(`[collect] ${snapshot.length} lignes recuperees`);
 
   // Le snapshot precedent doit etre lu avant d'ecrire le nouveau, sans quoi le

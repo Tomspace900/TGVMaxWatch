@@ -1,73 +1,96 @@
 /*
- * Une seule couleur saturee dans tout le produit : l'echelle de disponibilite.
- * Tout le reste est neutre. La couleur n'est jamais decorative, elle encode
- * toujours une valeur — c'est ce qui empeche l'interface de ressembler a
- * n'importe quel dashboard recent.
+ * Une seule couleur saturee porte l'information : l'echelle de disponibilite.
+ * Tout le reste est neutre. La profondeur, les arrondis et le mouvement sont
+ * la pour rendre l'objet agreable a manipuler, jamais pour encoder une valeur.
  */
 
 :root {
   color-scheme: light dark;
 
-  /* Neutres — mode clair. L'app se consulte dehors, en plein soleil : du
-     contraste reel, pas des pastels. */
-  --bg: #fbfbfa;
-  --surface: #ffffff;
-  --sunken: #f0f1f2;
-  --line: #d4d9dc;
-  --line-strong: #a8b1b6;
-  --text: #14181b;
-  --muted: #5b666d;
-  --inverse-bg: #14181b;
-  --inverse-text: #fbfbfa;
+  /* Neutres tiedes plutot que gris purs : moins clinique a l'oeil, et le
+     contraste reste franc — l'app se consulte dehors, sur un quai. */
+  /* `surface` et `raised` doivent differer : une carte blanche sur une sheet
+     blanche n'a plus de contenant, et la liste se lit comme du texte flottant. */
+  --bg: #f4f4f2;
+  --surface: #fbfbf9;
+  --raised: #ffffff;
+  --sunken: #eeeeec;
+  --line: #e2e2de;
+  --line-strong: #b9b9b2;
+  --text: #16181a;
+  --muted: #6b7075;
+  --inverse-bg: #16181a;
+  --inverse-text: #f7f7f5;
 
   /* Echelle de disponibilite : 0 / 1-2 / 3-5 / 6-11 / 12+ trains eligibles.
      En mode clair, plus il y a de places, plus la case est dense. */
-  --avail-0: #e6e8ea;
-  --avail-1: #d5ece1;
-  --avail-2: #94d2b7;
-  --avail-3: #3d9f76;
-  --avail-4: #0b6b4a;
-  --avail-0-ink: #7c868c;
-  --avail-1-ink: #16402f;
-  --avail-2-ink: #0c3324;
+  --avail-0: #ebebe8;
+  --avail-1: #d3ece0;
+  --avail-2: #93d3b6;
+  --avail-3: #3ca176;
+  --avail-4: #0a6b4b;
+  --avail-0-ink: #8b9196;
+  --avail-1-ink: #16412f;
+  --avail-2-ink: #0a3324;
   --avail-3-ink: #ffffff;
-  --avail-4-ink: #eafaf3;
+  --avail-4-ink: #e8f8f0;
 
-  --radius: 3px;
-  --gap: 4px;
-  --pad: 14px;
+  /* Profondeur douce, jamais une ombre portee franche. */
+  /* Le liseré fait le gros du travail : l'ombre seule ne suffit pas a poser une
+     carte claire sur un fond clair, et une ombre plus franche serait lourde. */
+  --ring: inset 0 0 0 1px var(--line);
+  --lift-1: 0 1px 2px rgb(16 24 32 / 0.06), 0 1px 1px rgb(16 24 32 / 0.04);
+  --lift-2: 0 2px 8px rgb(16 24 32 / 0.08), 0 1px 2px rgb(16 24 32 / 0.05);
+  --lift-3: 0 -8px 32px rgb(16 24 32 / 0.14), 0 -2px 8px rgb(16 24 32 / 0.06);
 
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  --gap: 6px;
+  --pad: 16px;
+
+  --font:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --mono: ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, monospace;
 
-  /* Budget serre : 150-200 ms. Le ressort est reserve a la sheet et aux gestes. */
+  /* Budget serre pour les changements d'etat, ressort pour ce qui suit le
+     doigt : la sheet, le carrousel, les lignes. */
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --fast: 150ms;
-  --normal: 200ms;
+  --spring: cubic-bezier(0.22, 1.2, 0.36, 1);
+  --fast: 140ms;
+  --normal: 220ms;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0c0e10;
-    --surface: #16191c;
-    --sunken: #101315;
-    --line: #262b2f;
-    --line-strong: #454d53;
-    --text: #e8ecef;
-    --muted: #8b959c;
-    --inverse-bg: #e8ecef;
-    --inverse-text: #0c0e10;
+    /* Les surfaces s'eclaircissent avec l'elevation : c'est ce qui donne la
+       profondeur en mode sombre, ou une ombre ne se voit pas. */
+    --bg: #0e1012;
+    --surface: #17191c;
+    --raised: #1e2125;
+    --sunken: #121417;
+    --line: #282c31;
+    --line-strong: #4a5157;
+    --text: #eceef0;
+    --muted: #949ca3;
+    --inverse-bg: #eceef0;
+    --inverse-text: #0e1012;
 
-    /* En mode sombre la progression va vers la luminosite, pas vers la densite. */
-    --avail-0: #1b1f22;
-    --avail-1: #0f3d2d;
-    --avail-2: #16694e;
-    --avail-3: #23a97c;
-    --avail-4: #45e2a7;
-    --avail-0-ink: #626c72;
-    --avail-1-ink: #7ec4a6;
-    --avail-2-ink: #d2f0e2;
-    --avail-3-ink: #042018;
-    --avail-4-ink: #042018;
+    --avail-0: #1c2024;
+    --avail-1: #10402f;
+    --avail-2: #176b4e;
+    --avail-3: #24aa7d;
+    --avail-4: #47e5aa;
+    --avail-0-ink: #6b747b;
+    --avail-1-ink: #82c9a9;
+    --avail-2-ink: #d6f2e5;
+    --avail-3-ink: #05221a;
+    --avail-4-ink: #05221a;
+
+    --lift-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --lift-2: 0 2px 10px rgb(0 0 0 / 0.5);
+    --lift-3: 0 -10px 40px rgb(0 0 0 / 0.55);
   }
 }

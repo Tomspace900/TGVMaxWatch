@@ -83,6 +83,7 @@ export function TrainRow({ train, watched, booked, onWatch, onBook }: Props) {
 
         <span className={styles.meta}>
           <span>{train.arrivee}</span>
+          {train.entity && <span className={styles.entity}>{train.entity}</span>}
           <span>n{train.trainNo}</span>
           {watched && <span className={styles.watched}>suivi</span>}
           {booked && <span className={styles.tag}>reserve</span>}
