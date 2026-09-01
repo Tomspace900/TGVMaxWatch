@@ -23,6 +23,7 @@ interface Props {
  */
 export function Settings({ state, stats, watchlist, reservations, onUnwatch, onRelease }: Props) {
   const [token, setLocalToken] = useState(getToken() ?? '');
+  const [saved, setSaved] = useState(getToken() !== null);
   const [push, setPush] = useState<PushStatus>('off');
   const [error, setError] = useState<string | null>(null);
 
@@ -105,11 +106,18 @@ export function Settings({ state, stats, watchlist, reservations, onUnwatch, onR
           {push === 'on' && 'Abonnement actif et synchronise avec le repo.'}
           {push === 'off' && "Pas encore d'abonnement sur cet appareil."}
           {push === 'unsynced' &&
-            "Abonnement local present, mais le repo n'a pas pu etre verifie — enregistre un jeton."}
+            "Abonnement cree sur cet appareil, mais le collecteur ne le connait pas encore : enregistre le jeton ci-dessous, il sera publie dans la foulee."}
           {push === 'denied' && 'Permission refusee par le navigateur.'}
           {push === 'unsupported' && "Ce navigateur ne gere pas le Web Push."}
           {state.lastPushOk && ` Dernier envoi reussi ${ageLabel(state.lastPushOk)}.`}
         </p>
+
+        {!saved && push !== 'on' && (
+          <p className={styles.muted}>
+            Enregistre d'abord le jeton GitHub : c'est lui qui publie l'abonnement dans le repo,
+            sans quoi le collecteur n'a nulle part ou pousser.
+          </p>
+        )}
 
         {push !== 'on' && (
           <button
@@ -146,7 +154,10 @@ export function Settings({ state, stats, watchlist, reservations, onUnwatch, onR
           type="button"
           className={styles.button}
           onClick={() => {
-            setToken(token.trim() || null);
+            const trimmed = token.trim();
+            setToken(trimmed || null);
+            setSaved(trimmed.length > 0);
+            setError(null);
             void syncSubscription().then(setPush);
           }}
         >

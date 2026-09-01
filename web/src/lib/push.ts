@@ -55,8 +55,15 @@ export async function enablePush(): Promise<PushStatus> {
       applicationServerKey: toApplicationServerKey(VAPID_PUBLIC_KEY),
     }));
 
-  await publish(serialize(subscription));
-  return 'on';
+  try {
+    await publish(serialize(subscription));
+    return 'on';
+  } catch {
+    // L'abonnement existe cote navigateur mais le collecteur ne le connait
+    // pas encore : c'est le cas quand le jeton n'a pas ete saisi avant. Ce
+    // n'est pas une erreur, l'enregistrement du jeton resynchronisera.
+    return 'unsynced';
+  }
 }
 
 /**
