@@ -58,6 +58,7 @@
 .cell[data-bucket='1'] { background: var(--avail-1); color: var(--avail-1-ink); }
 .cell[data-bucket='2'] { background: var(--avail-2); color: var(--avail-2-ink); }
 .cell[data-bucket='3'] { background: var(--avail-3); color: var(--avail-3-ink); }
+.cell[data-bucket='4'] { background: var(--avail-4); color: var(--avail-4-ink); }
 
 .cell[data-selected='true'] {
   outline-color: var(--text);

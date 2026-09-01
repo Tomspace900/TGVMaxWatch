@@ -63,5 +63,12 @@ export const STALE_DATA_HOURS = 36;
  */
 export const MIN_SNAPSHOTS_FOR_STATS = 56;
 
-/** Echelle de disponibilite : bornes basses de chaque palier de couleur. */
-export const AVAILABILITY_BUCKETS = [0, 1, 3, 6] as const;
+/**
+ * Echelle de disponibilite : borne basse de chaque palier de couleur.
+ *
+ * Le plan prevoyait 0 / 1-2 / 3-5 / 6+. La premiere collecte reelle montre
+ * ~32 trains par jour et par sens sur cet axe, avec des journees a 30 places
+ * disponibles : le palier « 6+ » avalait alors la majorite du calendrier et la
+ * couleur n'encodait plus rien. Cinq paliers couvrent la plage observee.
+ */
+export const AVAILABILITY_BUCKETS = [0, 1, 3, 6, 12] as const;

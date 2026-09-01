@@ -20,15 +20,18 @@
   --inverse-bg: #14181b;
   --inverse-text: #fbfbfa;
 
-  /* Echelle de disponibilite : 0 / 1-2 / 3-5 / 6+ trains eligibles. */
+  /* Echelle de disponibilite : 0 / 1-2 / 3-5 / 6-11 / 12+ trains eligibles.
+     En mode clair, plus il y a de places, plus la case est dense. */
   --avail-0: #e6e8ea;
-  --avail-1: #a9dcc4;
-  --avail-2: #43b184;
-  --avail-3: #0f7f57;
+  --avail-1: #d5ece1;
+  --avail-2: #94d2b7;
+  --avail-3: #3d9f76;
+  --avail-4: #0b6b4a;
   --avail-0-ink: #7c868c;
-  --avail-1-ink: #10361f;
-  --avail-2-ink: #04231a;
-  --avail-3-ink: #eafaf3;
+  --avail-1-ink: #16402f;
+  --avail-2-ink: #0c3324;
+  --avail-3-ink: #ffffff;
+  --avail-4-ink: #eafaf3;
 
   --radius: 3px;
   --gap: 4px;
@@ -55,13 +58,16 @@
     --inverse-bg: #e8ecef;
     --inverse-text: #0c0e10;
 
+    /* En mode sombre la progression va vers la luminosite, pas vers la densite. */
     --avail-0: #1b1f22;
-    --avail-1: #14503a;
-    --avail-2: #1e8a61;
-    --avail-3: #35d197;
+    --avail-1: #0f3d2d;
+    --avail-2: #16694e;
+    --avail-3: #23a97c;
+    --avail-4: #45e2a7;
     --avail-0-ink: #626c72;
-    --avail-1-ink: #b6e4d0;
-    --avail-2-ink: #04231a;
-    --avail-3-ink: #04231a;
+    --avail-1-ink: #7ec4a6;
+    --avail-2-ink: #d2f0e2;
+    --avail-3-ink: #042018;
+    --avail-4-ink: #042018;
   }
 }

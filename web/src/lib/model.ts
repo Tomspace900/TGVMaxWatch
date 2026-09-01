@@ -81,13 +81,13 @@ export function horizonDates(today = todayInParis()): string[] {
   return Array.from({ length: HORIZON_DAYS + 1 }, (_, offset) => addDays(today, offset));
 }
 
-/** Palier de couleur d'une case : 0, 1-2, 3-5, 6+. */
-export function availabilityBucket(count: number): 0 | 1 | 2 | 3 {
+/** Palier de couleur d'une case : 0, 1-2, 3-5, 6-11, 12+. */
+export function availabilityBucket(count: number): number {
   let bucket = 0;
   AVAILABILITY_BUCKETS.forEach((floor, index) => {
     if (count >= floor) bucket = index;
   });
-  return bucket as 0 | 1 | 2 | 3;
+  return bucket;
 }
 
 export function emptyDay(date: string, dir: string): Day {
