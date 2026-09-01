@@ -48,12 +48,20 @@ npm install
 npm test          # tests sur fixtures, aucun acces reseau
 npm run typecheck
 
-# Archive synthetique pour developper la PWA sans attendre la vraie collecte
+# Archive synthetique de 70 jours, pour developper la PWA sans attendre que la
+# vraie collecte ait accumule quoi que ce soit.
 npm run seed
-node scripts/sync-data.ts --from .fixture
 
-cd web && npm install && npm run dev
+cd web && npm install && npm run dev   # copie .fixture/ dans public/ puis sert
 ```
+
+Deux variables d'environnement ouvrent la chaine reelle a un jeu de donnees de
+test, sans jamais toucher a l'archive :
+
+| | |
+|---|---|
+| `TGVMAX_ROOT` | racine des donnees lues et ecrites |
+| `TGVMAX_DATASET_URL` | point d'entree du dataset, pour rejouer la collecte contre un faux endpoint |
 
 Les fichiers `src/*.ts` s'executent directement (`node src/collect.ts`) : Node
 22.18+ retire les annotations de type a la volee. D'ou `erasableSyntaxOnly`

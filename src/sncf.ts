@@ -3,7 +3,16 @@ import { DIRECTIONS } from './config.ts';
 import { recordDir } from './duration.ts';
 import type { Snapshot, TrainRecord } from './types.ts';
 
-const DATASET = 'https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax';
+/**
+ * Point d'entree du dataset.
+ *
+ * `TGVMAX_DATASET_URL` sert a rejouer la chaine complete contre un faux
+ * endpoint : le vrai domaine n'est pas joignable depuis tous les
+ * environnements de developpement.
+ */
+const DATASET =
+  process.env['TGVMAX_DATASET_URL'] ??
+  'https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax';
 
 const WHERE =
   '(origine="PARIS (intramuros)" and destination="BORDEAUX ST JEAN")' +
