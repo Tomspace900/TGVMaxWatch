@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 /**
  * Couche gestuelle.
  *
@@ -135,12 +138,26 @@ export function nearestAnchor(anchors: readonly number[], target: number): numbe
   );
 }
 
+const NATIVE = Capacitor.isNativePlatform();
+
 /**
  * Retour haptique.
  *
  * Uniquement au franchissement d'un seuil et a l'accrochage d'un ancrage,
  * jamais sur un tap simple — sinon la vibration devient du bruit.
+ *
+ * En natif, le moteur haptique du systeme donne une impulsion nettement plus
+ * fine que `navigator.vibrate`, qui ne sait que faire vibrer le telephone
+ * pendant une duree.
  */
 export function haptic(duration = 10): void {
+  if (NATIVE) {
+    void Haptics.impact({
+      style: duration > 10 ? ImpactStyle.Medium : ImpactStyle.Light,
+    }).catch(() => {
+      /* Appareil sans moteur haptique : le geste reste valide. */
+    });
+    return;
+  }
   navigator.vibrate?.(duration);
 }

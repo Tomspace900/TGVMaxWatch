@@ -52,19 +52,28 @@ function chunk(type: string, body: Buffer): Buffer {
   return Buffer.concat([length, typed, crc]);
 }
 
-/** Encode une image RGB en PNG sans perte. */
-function encodePng(size: number, pixel: (x: number, y: number) => Rgb): Buffer {
-  // Une ligne = un octet de filtre (0 = aucun) suivi des triplets RGB.
-  const raw = Buffer.alloc(size * (size * 3 + 1));
+/** `null` = pixel transparent. */
+type Pixel = Rgb | null;
+
+/**
+ * Encode une image en PNG sans perte.
+ *
+ * L'alpha n'est pas un agrement : l'icone adaptative Android superpose un
+ * premier plan a un fond, et un premier plan opaque masquerait ce fond.
+ */
+function encodePng(size: number, pixel: (x: number, y: number) => Pixel): Buffer {
+  // Une ligne = un octet de filtre (0 = aucun) suivi des quadruplets RGBA.
+  const raw = Buffer.alloc(size * (size * 4 + 1));
   let offset = 0;
 
   for (let y = 0; y < size; y++) {
     raw[offset++] = 0;
     for (let x = 0; x < size; x++) {
-      const [r, g, b] = pixel(x, y);
-      raw[offset++] = r;
-      raw[offset++] = g;
-      raw[offset++] = b;
+      const color = pixel(x, y);
+      raw[offset++] = color ? color[0] : 0;
+      raw[offset++] = color ? color[1] : 0;
+      raw[offset++] = color ? color[2] : 0;
+      raw[offset++] = color ? 255 : 0;
     }
   }
 
@@ -72,7 +81,7 @@ function encodePng(size: number, pixel: (x: number, y: number) => Rgb): Buffer {
   header.writeUInt32BE(size, 0);
   header.writeUInt32BE(size, 4);
   header[8] = 8; // profondeur
-  header[9] = 2; // truecolor
+  header[9] = 6; // truecolor + alpha
   header[10] = 0;
   header[11] = 0;
   header[12] = 0;
@@ -85,31 +94,75 @@ function encodePng(size: number, pixel: (x: number, y: number) => Rgb): Buffer {
   ]);
 }
 
-function draw(size: number): Buffer {
-  // Marge generreuse : l'icone doit rester lisible une fois masquee en rond.
-  const margin = Math.round(size * 0.19);
-  const inner = size - margin * 2;
-  const gap = Math.max(1, Math.round(size * 0.022));
+interface DrawOptions {
+  /** Part du cote laissee vide autour du motif. */
+  margin: number;
+  /** Fond opaque, ou transparent pour un premier plan adaptatif. */
+  background: Rgb | null;
+}
+
+function draw(size: number, { margin, background }: DrawOptions): Buffer {
+  const inset = Math.round(size * margin);
+  const inner = size - inset * 2;
+  const gap = Math.max(1, Math.round(inner * 0.03));
   const cell = (inner - gap * 3) / 4;
 
   return encodePng(size, (x, y) => {
-    const column = Math.floor((x - margin) / (cell + gap));
-    const row = Math.floor((y - margin) / (cell + gap));
-    if (column < 0 || column > 3 || row < 0 || row > 3) return BACKGROUND;
+    const column = Math.floor((x - inset) / (cell + gap));
+    const row = Math.floor((y - inset) / (cell + gap));
+    if (column < 0 || column > 3 || row < 0 || row > 3) return background;
 
     // Rejette les pixels tombant dans la gouttiere entre deux cases.
-    const withinX = (x - margin) - column * (cell + gap);
-    const withinY = (y - margin) - row * (cell + gap);
-    if (withinX >= cell || withinY >= cell) return BACKGROUND;
+    const withinX = x - inset - column * (cell + gap);
+    const withinY = y - inset - row * (cell + gap);
+    if (withinX >= cell || withinY >= cell) return background;
 
     return SCALE[PATTERN[row * 4 + column]!]!;
   });
 }
 
-const target = resolve(import.meta.dirname, '..', 'web', 'public');
-mkdirSync(target, { recursive: true });
+const ROOT = resolve(import.meta.dirname, '..');
+
+// --- PWA -------------------------------------------------------------------
+const web = join(ROOT, 'web', 'public');
+mkdirSync(web, { recursive: true });
 
 for (const size of [192, 512]) {
-  writeFileSync(join(target, `icon-${size}.png`), draw(size));
+  // Marge generreuse : l'icone doit rester lisible une fois masquee en rond.
+  writeFileSync(join(web, `icon-${size}.png`), draw(size, { margin: 0.19, background: BACKGROUND }));
   console.log(`icon-${size}.png ecrit`);
 }
+
+// --- Android ---------------------------------------------------------------
+/** Cotes de `ic_launcher`, par densite. */
+const LAUNCHER = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
+/** Cotes de `ic_launcher_foreground` : 108 dp, dont seuls les 72 dp centraux
+ *  sont garantis visibles une fois le masque du lanceur applique. */
+const FOREGROUND = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 };
+
+const res = join(ROOT, 'web', 'android', 'app', 'src', 'main', 'res');
+
+for (const [density, size] of Object.entries(LAUNCHER)) {
+  const dir = join(res, `mipmap-${density}`);
+  mkdirSync(dir, { recursive: true });
+
+  const legacy = draw(size, { margin: 0.19, background: BACKGROUND });
+  writeFileSync(join(dir, 'ic_launcher.png'), legacy);
+  writeFileSync(join(dir, 'ic_launcher_round.png'), legacy);
+
+  // 28 % de marge : le motif tient dans la zone sure des 72 dp centraux, quel
+  // que soit le masque — rond, carre arrondi ou goutte selon le lanceur.
+  writeFileSync(
+    join(dir, 'ic_launcher_foreground.png'),
+    draw(FOREGROUND[density as keyof typeof FOREGROUND], { margin: 0.28, background: null }),
+  );
+  console.log(`mipmap-${density} ecrit`);
+}
+
+const background = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#0C0E10</color>
+</resources>
+`;
+writeFileSync(join(res, 'values', 'ic_launcher_background.xml'), background);
+console.log('ic_launcher_background.xml ecrit');
