@@ -1,6 +1,7 @@
 import {
   DURATION_DIRECT_MAX,
   DURATION_INTERMEDIATE_MAX,
+  TRACKED_STATIONS,
 } from './config.ts';
 import { timeToMinutes } from './dates.ts';
 import type { DurationTier, TrainRecord } from './types.ts';
@@ -43,6 +44,21 @@ export function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${h}h${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * Ne retient que Montparnasse et Saint-Jean.
+ *
+ * Le filtre serveur porte sur les villes : le dataset renvoie aussi des departs
+ * d'Austerlitz, qui ne sont pas le voyage surveille ici. Ce predicat s'applique
+ * a la collecte comme a la relecture de l'archive, pour que les snapshots deja
+ * ecrits ne reintroduisent pas ces lignes dans les agregats.
+ */
+export function isTracked(record: TrainRecord): boolean {
+  return (
+    TRACKED_STATIONS.includes(record.origine_iata) &&
+    TRACKED_STATIONS.includes(record.destination_iata)
+  );
 }
 
 /** Sens d'un enregistrement, sous la forme `FRPMO>FRBOJ`. */

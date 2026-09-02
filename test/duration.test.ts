@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { durationMinutes, durationTier, formatDuration } from '../src/duration.ts';
+import {
+  isTracked,
+  durationMinutes,
+  durationTier,
+  formatDuration,
+  recordDir,
+  recordKey,
+} from '../src/duration.ts';
+import { t } from './helpers.ts';
 
 describe('duree de trajet', () => {
   it('calcule une duree simple', () => {
@@ -30,5 +38,22 @@ describe('duree de trajet', () => {
     assert.equal(formatDuration(134), '2h14');
     assert.equal(formatDuration(185), '3h05');
     assert.equal(formatDuration(120), '2h00');
+  });
+});
+
+describe('perimetre des gares', () => {
+  it('ne retient que Montparnasse et Saint-Jean', () => {
+    const montparnasse = t('2026-10-17', '8441');
+    assert.equal(isTracked(montparnasse), true);
+
+    // Ouigo Train Classique part d'Austerlitz, a plus de cinq heures de
+    // trajet : ce n'est pas le voyage surveille ici.
+    assert.equal(isTracked({ ...montparnasse, origine_iata: 'FRPAZ' }), false);
+    assert.equal(isTracked({ ...montparnasse, destination_iata: 'FRMAS' }), false);
+  });
+
+  it('garde le sens brut, sans regroupement', () => {
+    assert.equal(recordDir(t('2026-10-17', '8441')), 'FRPMO>FRBOJ');
+    assert.equal(recordKey(t('2026-10-17', '8441')), '2026-10-17|8441|FRPMO>FRBOJ');
   });
 });

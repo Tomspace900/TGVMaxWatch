@@ -1,6 +1,6 @@
 import { normalizeTime, isIsoDate } from './dates.ts';
 import { DIRECTIONS } from './config.ts';
-import { recordDir } from './duration.ts';
+import { isTracked, recordDir } from './duration.ts';
 import type { Snapshot, TrainRecord } from './types.ts';
 
 /**
@@ -144,11 +144,12 @@ export async function fetchSnapshot(fields: string[]): Promise<Snapshot> {
 
   if (records.length < MIN_RECORDS) {
     throw new Error(
-      `[sncf] ${records.length} lignes valides sur ${payload.length} recues, ` +
+      `[sncf] ${records.length} lignes retenues sur ${payload.length} recues, ` +
         `moins que le plancher de ${MIN_RECORDS} : reponse tronquee ou schema modifie`,
     );
   }
 
+  console.log(`[sncf] ${payload.length - records.length} lignes hors perimetre ecartees`);
   warnOnUnexpectedDirections(records);
   return sortRecords(records);
 }
@@ -193,7 +194,8 @@ function normalize(payload: unknown[]): TrainRecord[] {
     const entity = raw['entity'];
     if (typeof entity === 'string' && entity.length > 0) record.entity = entity;
 
-    records.push(record);
+    // Ecarte les gares hors perimetre avant meme d'entrer dans l'archive.
+    if (isTracked(record)) records.push(record);
   }
 
   return records;

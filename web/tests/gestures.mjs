@@ -75,19 +75,21 @@ await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }
 await page.waitForTimeout(400);
 check('suivi 1:1 du curseur', midDrag !== 'none' && !/1, 0, 0, 1, 0, 0/.test(midDrag), midDrag);
 
-// Ouverture d'un jour. Les deux panneaux coexistent : viser le visible.
-const label = await page.evaluate(() => {
-  for (const cell of document.querySelectorAll('button[aria-label]')) {
-    const rect = cell.getBoundingClientRect();
+// Ouverture d'un jour. Les deux panneaux coexistent dans le DOM : viser celui
+// qui est reellement a l'ecran, et l'identifier par sa date et son sens —
+// l'etiquette seule peut etre partagee par les deux panneaux.
+const cell = await page.evaluate(() => {
+  for (const el of document.querySelectorAll('[data-date]')) {
+    const rect = el.getBoundingClientRect();
     if (rect.left >= 0 && rect.right <= innerWidth && rect.width > 0) {
-      return cell.getAttribute('aria-label');
+      return { date: el.dataset.date, dir: el.dataset.dir };
     }
   }
   return null;
 });
-await page.locator(`button[aria-label="${label}"]`).click();
+await page.locator(`[data-date="${cell.date}"][data-dir="${cell.dir}"]`).click();
 await page.waitForTimeout(500);
-check('ouverture du detail', Boolean(label), label);
+check('ouverture du detail', Boolean(cell), `${cell?.date} ${cell?.dir}`);
 
 // Defilement de la liste des trains. `touch-action: none` sur un ancetre le
 // bloquerait silencieusement et tronquerait la liste au premier ecran.

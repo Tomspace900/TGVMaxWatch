@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { createDragHandler, haptic } from '../lib/gesture.ts';
-import { formatDuration } from '../lib/format.ts';
+import { carrierLabel, formatDuration } from '../lib/format.ts';
 import type { Train } from '../lib/model.ts';
 import styles from './TrainRow.module.css';
 
@@ -83,7 +83,9 @@ export function TrainRow({ train, watched, booked, onWatch, onBook }: Props) {
 
         <span className={styles.meta}>
           <span>{train.arrivee}</span>
-          {train.entity && <span className={styles.entity}>{train.entity}</span>}
+          {carrierLabel(train.entity) && (
+            <span className={styles.entity}>{carrierLabel(train.entity)}</span>
+          )}
           <span>n{train.trainNo}</span>
           {watched && <span className={styles.watched}>suivi</span>}
           {booked && <span className={styles.tag}>reserve</span>}

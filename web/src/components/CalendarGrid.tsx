@@ -3,7 +3,7 @@ import { DIRECTIONS } from '../../../src/config.ts';
 import { weekday } from '../../../src/dates.ts';
 import { availabilityBucket, emptyDay, horizonDates, type Calendar } from '../lib/model.ts';
 import { createDragHandler, haptic, nearestAnchor, project } from '../lib/gesture.ts';
-import { dayNumber } from '../lib/format.ts';
+import { dayNumber, dirLabel, longDate } from '../lib/format.ts';
 import styles from './CalendarGrid.module.css';
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -152,6 +152,8 @@ function Panel({ dates, today, dir, calendar, selected, onSelect, onPeek }: Pane
               className={`${styles.cell} ${day.onlyLong ? styles.onlyLong : ''}`}
               data-bucket={availabilityBucket(day.available)}
               data-selected={selected === date}
+              data-date={date}
+              data-dir={dir}
               onClick={() => onSelect(date)}
               onContextMenu={(event) => {
                 // Appui long : apercu rapide, sans ouvrir la sheet.
@@ -159,7 +161,9 @@ function Panel({ dates, today, dir, calendar, selected, onSelect, onPeek }: Pane
                 haptic();
                 onPeek(date);
               }}
-              aria-label={`${date} : ${day.available} trains`}
+              // Le sens fait partie de l'identite de la case : sans lui, deux
+              // journees de sens opposes portent la meme etiquette.
+              aria-label={`${longDate(date)}, ${dirLabel(dir)} : ${day.available} trains`}
             >
               <span className={`${styles.day} ${date === today ? styles.today : ''}`}>
                 {dayNumber(date)}

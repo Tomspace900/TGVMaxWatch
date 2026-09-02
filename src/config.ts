@@ -28,6 +28,17 @@ export const VAPID_PUBLIC_KEY =
 export const PARIS = 'FRPMO';
 export const BORDEAUX = 'FRBOJ';
 
+/**
+ * Les seules gares suivies.
+ *
+ * Le filtre serveur porte sur les villes, et le dataset renvoie donc aussi des
+ * Ouigo Train Classique au depart d'Austerlitz, a plus de cinq heures de
+ * trajet. Ce n'est pas le voyage que ce projet surveille : ces lignes sont
+ * ecartees des la collecte plutot que de polluer l'archive, les agregats et
+ * les notifications.
+ */
+export const TRACKED_STATIONS = [PARIS, BORDEAUX];
+
 /** Les deux sens suivis. */
 export const DIR_PARIS_BORDEAUX = `${PARIS}>${BORDEAUX}`;
 export const DIR_BORDEAUX_PARIS = `${BORDEAUX}>${PARIS}`;

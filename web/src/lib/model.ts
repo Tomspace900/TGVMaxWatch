@@ -5,7 +5,7 @@ import type { DurationTier, History, TrainRecord } from '../../../src/types.ts';
 
 export interface Train {
   trainNo: string;
-  /** `TGV INOUI`, `OUIGO`... Absent tant que le dataset ne le publie pas. */
+  /** Code brut du service. Voir `carrierLabel` pour ce qu'il vaut. */
   entity?: string;
   depart: string;
   arrivee: string;

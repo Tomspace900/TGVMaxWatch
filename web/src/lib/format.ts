@@ -12,6 +12,18 @@ export function stationLabel(iata: string): string {
   return STATION_LABELS[iata] ?? iata;
 }
 
+/**
+ * Etiquette de transporteur.
+ *
+ * `entity` melange deux choses : un code d'axe commercial pour les TGV INOUI
+ * (`SUDOUESTPA`, `PASUDOUEST`) et le service pour les OUIGO. Seul le second
+ * apprend quelque chose — afficher « SUDOUESTPA » sur quatre lignes sur cinq
+ * serait du bruit, pas de l'information.
+ */
+export function carrierLabel(entity?: string): string | null {
+  return entity?.toUpperCase().startsWith('OUIGO') ? 'OUIGO' : null;
+}
+
 export function dirLabel(dir: string): string {
   const [from = '', to = ''] = dir.split('>');
   return `${stationLabel(from)} → ${stationLabel(to)}`;

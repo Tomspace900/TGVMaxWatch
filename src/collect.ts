@@ -1,5 +1,6 @@
 import { todayInParis } from './dates.ts';
 import { diffSnapshots } from './diff.ts';
+import { isTracked } from './duration.ts';
 import { createHistoryBuilder } from './history.ts';
 import { buildNotification } from './notify.ts';
 import { sendPush } from './push.ts';
@@ -105,7 +106,9 @@ function rebuildDerived(today: string): void {
   const stats = createStatsBuilder(today);
 
   for (const collectionDate of dates) {
-    const snapshot = readSnapshot(collectionDate);
+    // Les snapshots anterieurs au filtrage contiennent encore des gares hors
+    // perimetre : les ecarter ici evite qu'ils ne remontent dans les agregats.
+    const snapshot = readSnapshot(collectionDate).filter(isTracked);
     history.add(collectionDate, snapshot);
     stats.add(collectionDate, snapshot);
   }
