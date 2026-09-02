@@ -1,20 +1,21 @@
 name: android
 
+# Declenchement manuel uniquement : un build EAS consomme du quota, et rien
+# dans ce projet ne justifie d'en lancer un a chaque commit.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'web/**'
-      - 'src/**'
-      - 'scripts/**'
-      - '.github/workflows/android.yml'
   workflow_dispatch:
+    inputs:
+      profile:
+        description: Profil EAS
+        type: choice
+        default: preview
+        options: [preview, development]
 
 permissions:
   contents: read
 
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,36 +24,38 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: mobile/package-lock.json
 
-      # Le SDK Android est preinstalle sur le runner ; seul le JDK est a poser.
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      # Les JSON empaquetes ne servent qu'au tout premier lancement hors ligne :
-      # l'application native lit ensuite GitHub Pages. Ils doivent quand meme
-      # etre presents, sinon le build Vite echoue sur des fichiers absents.
-      - name: Copie des donnees
-        run: node scripts/sync-data.ts
-
-      - name: Build web et synchronisation Capacitor
-        working-directory: web
+      - name: Verifications
+        working-directory: mobile
         run: |
           npm ci
-          npm run build:android
+          npm run typecheck
 
-      - name: APK de debogage
-        working-directory: web/android
-        run: ./gradlew --no-daemon assembleDebug
+      # Le bundle Metro est verifie ici plutot que sur les serveurs d'Expo : une
+      # erreur de resolution se voit en trente secondes au lieu d'echouer au
+      # bout de dix minutes de build.
+      - name: Bundle
+        working-directory: mobile
+        run: npx expo export --platform android --output-dir /tmp/export
 
-      # Signe avec la cle de debogage : installable par sideload, pas
-      # publiable. La signature de release viendra avec la distribution.
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK
+        working-directory: mobile
+        run: |
+          eas build \
+            --platform android \
+            --profile ${{ inputs.profile }} \
+            --non-interactive \
+            --wait \
+            --output "$RUNNER_TEMP/tgvmax.apk"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: tgvmax-debug-apk
-          path: web/android/app/build/outputs/apk/debug/app-debug.apk
+          name: tgvmax-${{ inputs.profile }}-apk
+          path: ${{ runner.temp }}/tgvmax.apk
           if-no-files-found: error

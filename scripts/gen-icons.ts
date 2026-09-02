@@ -123,46 +123,33 @@ function draw(size: number, { margin, background }: DrawOptions): Buffer {
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-// --- PWA -------------------------------------------------------------------
-const web = join(ROOT, 'web', 'public');
-mkdirSync(web, { recursive: true });
+/*
+ * Expo se charge lui-meme de decliner les densites au moment du build : on ne
+ * produit donc que les sources, la ou Capacitor demandait cinq mipmaps.
+ */
+const assets = join(ROOT, 'mobile', 'assets');
+mkdirSync(assets, { recursive: true });
 
-for (const size of [192, 512]) {
-  // Marge generreuse : l'icone doit rester lisible une fois masquee en rond.
-  writeFileSync(join(web, `icon-${size}.png`), draw(size, { margin: 0.19, background: BACKGROUND }));
-  console.log(`icon-${size}.png ecrit`);
-}
+// Icone pleine, fond compris. Marge generreuse pour rester lisible une fois
+// masquee en rond.
+writeFileSync(join(assets, 'icon.png'), draw(1024, { margin: 0.19, background: BACKGROUND }));
 
-// --- Android ---------------------------------------------------------------
-/** Cotes de `ic_launcher`, par densite. */
-const LAUNCHER = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
-/** Cotes de `ic_launcher_foreground` : 108 dp, dont seuls les 72 dp centraux
- *  sont garantis visibles une fois le masque du lanceur applique. */
-const FOREGROUND = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 };
+// Premier plan de l'icone adaptative : transparent, et 28 % de marge pour que
+// le motif tienne dans la zone sure des 72 dp centraux quel que soit le masque
+// du lanceur — rond, carre arrondi ou goutte.
+writeFileSync(
+  join(assets, 'android-icon-foreground.png'),
+  draw(1024, { margin: 0.28, background: null }),
+);
 
-const res = join(ROOT, 'web', 'android', 'app', 'src', 'main', 'res');
+// Le canal monochrome n'est lu qu'en silhouette par les icones themees
+// d'Android 13+ : le motif y suffit, les niveaux de l'echelle n'y survivent pas.
+writeFileSync(
+  join(assets, 'android-icon-monochrome.png'),
+  draw(1024, { margin: 0.28, background: null }),
+);
 
-for (const [density, size] of Object.entries(LAUNCHER)) {
-  const dir = join(res, `mipmap-${density}`);
-  mkdirSync(dir, { recursive: true });
+writeFileSync(join(assets, 'splash-icon.png'), draw(512, { margin: 0.24, background: null }));
+writeFileSync(join(assets, 'favicon.png'), draw(64, { margin: 0.12, background: BACKGROUND }));
 
-  const legacy = draw(size, { margin: 0.19, background: BACKGROUND });
-  writeFileSync(join(dir, 'ic_launcher.png'), legacy);
-  writeFileSync(join(dir, 'ic_launcher_round.png'), legacy);
-
-  // 28 % de marge : le motif tient dans la zone sure des 72 dp centraux, quel
-  // que soit le masque — rond, carre arrondi ou goutte selon le lanceur.
-  writeFileSync(
-    join(dir, 'ic_launcher_foreground.png'),
-    draw(FOREGROUND[density as keyof typeof FOREGROUND], { margin: 0.28, background: null }),
-  );
-  console.log(`mipmap-${density} ecrit`);
-}
-
-const background = `<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="ic_launcher_background">#0C0E10</color>
-</resources>
-`;
-writeFileSync(join(res, 'values', 'ic_launcher_background.xml'), background);
-console.log('ic_launcher_background.xml ecrit');
+console.log('icones Expo ecrites dans mobile/assets');

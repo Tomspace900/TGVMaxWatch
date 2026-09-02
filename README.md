@@ -22,11 +22,11 @@ combien de jours ? ».
 | Collecte | GitHub Actions, cron quotidien, Node 22 + TypeScript |
 | Stockage | fichiers versionnes dans le repo, commites par le bot |
 | Alertes | Web Push (VAPID), emis depuis le job cron — il *est* le backend d'envoi |
-| UI | PWA React/Vite statique, lit les JSON du repo, aucun backend |
+| UI | Application Android native, Expo SDK 57 + React Native |
 
 ```
 src/            collecteur, diff, statistiques, envoi push
-web/            PWA calendrier
+mobile/         application Expo
 data/
   state.json          fraicheur de la donnee et dernier envoi push
   latest.json         dernier snapshot brut, lu par la PWA
@@ -48,12 +48,20 @@ npm install
 npm test          # tests sur fixtures, aucun acces reseau
 npm run typecheck
 
-# Archive synthetique de 70 jours, pour developper la PWA sans attendre que la
-# vraie collecte ait accumule quoi que ce soit.
+# Archive synthetique de 70 jours, si la vraie collecte n'a pas encore de recul.
 npm run seed
 
-cd web && npm install && npm run dev   # copie .fixture/ dans public/ puis sert
+cd mobile && npm install && npx expo start
 ```
+
+L'application lit les donnees directement sur `raw.githubusercontent.com` : en
+natif il n'y a pas de CORS, donc rien a republier quand le collecteur commite.
+Un cache fichier local permet l'ouverture hors ligne.
+
+Les modules purs de `src/` — config, dates, duration, types, stats, watchlist —
+sont importes tels quels par l'application. Metro les trouve grace au
+`watchFolders` de `mobile/metro.config.js` ; ils ne doivent jamais toucher a
+`node:`.
 
 Deux variables d'environnement ouvrent la chaine reelle a un jeu de donnees de
 test, sans jamais toucher a l'archive :
@@ -69,14 +77,17 @@ dans `tsconfig.json` — ni `enum`, ni `namespace`, ni propriete de constructeur
 
 ## Mise en service
 
-1. Repo **public** et Pages active (Settings -> Pages -> Source : GitHub Actions).
+1. Repo **public**.
 2. Settings -> Actions -> General -> Workflow permissions : **Read and write**.
-3. `npx web-push generate-vapid-keys`. Secrets repo `VAPID_PRIVATE_KEY` et
-   `VAPID_SUBJECT` ; la cle **publique** va dans `src/config.ts`.
-4. Un PAT fine-grained (`Contents: write`, ce seul repo), saisi dans la PWA pour
-   editer la watchlist depuis le telephone.
-5. Le gabarit de lien SNCF Connect dans `web/src/config/deeplink.ts` doit etre
-   remplace par une vraie URL de recherche relevee sur le telephone.
+3. Un compte Expo, et son jeton en secret repo `EXPO_TOKEN` : le workflow
+   `android` construit alors un APK telechargeable en artefact.
+4. Un PAT fine-grained (`Contents: write`, ce seul repo), saisi dans les
+   reglages de l'application pour editer la watchlist depuis le telephone. Il
+   est range dans le keystore Android via SecureStore.
+
+Les notifications ne sont **pas encore branchees** : la bascule de web-push vers
+l'API Expo Push attend des identifiants FCM. L'ecran de reglages sait deja
+obtenir et publier le jeton Expo.
 
 Le cron ne se declenche que sur la branche par defaut : rien n'est collecte tant
 que le collecteur n'est pas sur `main`.

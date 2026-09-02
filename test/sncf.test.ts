@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { selectFor, sortRecords } from '../src/sncf.ts';
+import { carrierLabel } from '../src/duration.ts';
 import { env } from '../src/push.ts';
 import { PB, t } from './helpers.ts';
 
@@ -67,5 +68,17 @@ describe('variables d environnement', () => {
 
     delete process.env['TGVMAX_ENV_TEST'];
     assert.equal(env('TGVMAX_ENV_TEST'), undefined);
+  });
+});
+
+describe('libelle du transporteur', () => {
+  it('ne retient que OUIGO', () => {
+    // `entity` porte un code d'axe commercial pour les TGV INOUI : l'afficher
+    // serait du bruit sur quatre lignes sur cinq.
+    assert.equal(carrierLabel('OUIGO_paris centre <> toulouse'), 'OUIGO');
+    assert.equal(carrierLabel('ouigo'), 'OUIGO');
+    assert.equal(carrierLabel('PASUDOUEST'), null);
+    assert.equal(carrierLabel('SUDOUESTPA'), null);
+    assert.equal(carrierLabel(undefined), null);
   });
 });

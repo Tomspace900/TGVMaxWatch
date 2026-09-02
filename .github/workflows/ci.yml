@@ -21,11 +21,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
-  # Job separe, sans les dependances de la racine : c'est la seule facon de
-  # verifier que le front ne depend de rien du collecteur. TypeScript remonte
-  # l'arborescence pour trouver des @types, et un typecheck lance depuis un
-  # poste ou la racine est installee ne voit donc pas la difference.
-  web:
+  # Job separe, sans les dependances de la racine : l'application ne doit
+  # dependre de rien du collecteur en dehors des modules purs partages, et
+  # seul un environnement ou la racine n'est pas installee peut le prouver.
+  mobile:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,20 +32,15 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: node scripts/sync-data.ts
-      - working-directory: web
+          cache-dependency-path: mobile/package-lock.json
+
+      - working-directory: mobile
         run: |
           npm ci
-          npm run build
+          npm run typecheck
 
-      # Les gestes ne se verifient qu'au toucher reel : `touch-action` n'agit
-      # ni sur la souris ni sur des evenements synthetiques. Une regression ici
-      # ne se decouvre autrement que sur un telephone, apres coup.
-      - name: Gestes
-        working-directory: web
-        run: |
-          npx playwright install --with-deps chromium
-          npx vite preview --port 4173 --strictPort &
-          until curl -sSf http://localhost:4173/TGVMaxWatch/ > /dev/null; do sleep 1; done
-          npm run test:gestures
+      # Le bundle Metro est la seule verification qui attrape une resolution
+      # cassee vers les modules partages, qui vivent hors du dossier du projet.
+      - name: Bundle Android
+        working-directory: mobile
+        run: npx expo export --platform android --output-dir /tmp/export

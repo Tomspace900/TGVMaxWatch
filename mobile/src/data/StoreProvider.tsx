@@ -1,0 +1,56 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { loadJson } from './remote.ts';
+import { EMPTY_BUNDLE, StoreContext, type Bundle, type Store } from './store.ts';
+import type { Reservations, Watchlist } from '../../../src/types.ts';
+
+export function StoreProvider({ children }: { children: ReactNode }) {
+  const [bundle, setBundle] = useState<Bundle>(EMPTY_BUNDLE);
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const [state, latest, history, stats, watchlist, reservations] = await Promise.all([
+      loadJson('data/state.json', EMPTY_BUNDLE.state),
+      loadJson('data/latest.json', EMPTY_BUNDLE.latest),
+      loadJson('data/history.json', EMPTY_BUNDLE.history),
+      loadJson('data/stats.json', EMPTY_BUNDLE.stats),
+      loadJson('watchlist.json', EMPTY_BUNDLE.watchlist),
+      loadJson('reservations.json', EMPTY_BUNDLE.reservations),
+    ]);
+
+    setBundle({
+      state: state.value,
+      latest: latest.value,
+      history: history.value,
+      stats: stats.value,
+      watchlist: watchlist.value,
+      reservations: reservations.value,
+    });
+    // Le snapshot est la seule ressource dont l'absence se voit vraiment.
+    setOffline(latest.stale);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const value = useMemo<Store>(
+    () => ({
+      bundle,
+      loading,
+      offline,
+      refresh,
+      // Ecriture optimiste : le depot fait foi, mais l'interface ne doit pas
+      // attendre un aller-retour reseau pour repondre au doigt.
+      setWatchlist: (watchlist: Watchlist) =>
+        setBundle((current) => ({ ...current, watchlist })),
+      setReservations: (reservations: Reservations) =>
+        setBundle((current) => ({ ...current, reservations })),
+    }),
+    [bundle, loading, offline, refresh],
+  );
+
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+}

@@ -61,6 +61,23 @@ export function isTracked(record: TrainRecord): boolean {
   );
 }
 
+/**
+ * Transporteur affichable, ou `null`.
+ *
+ * Le champ `entity` du dataset ne porte pas le type de train : c'est un code
+ * d'axe commercial pour les TGV INOUI (`SUDOUESTPA`, `PASUDOUEST`) et le
+ * service pour les OUIGO. Seul le second apprend quelque chose — afficher
+ * « PASUDOUEST » sur quatre lignes sur cinq serait du bruit, pas de
+ * l'information.
+ *
+ * Cette regle vit avec les autres lecteurs d'enregistrement, et non dans une
+ * interface : elle interprete la source, et une interface qu'on remplace ne
+ * doit pas pouvoir l'emporter avec elle.
+ */
+export function carrierLabel(entity?: string): string | null {
+  return entity?.toUpperCase().startsWith('OUIGO') ? 'OUIGO' : null;
+}
+
 /** Sens d'un enregistrement, sous la forme `FRPMO>FRBOJ`. */
 export function recordDir(record: TrainRecord): string {
   return `${record.origine_iata}>${record.destination_iata}`;
