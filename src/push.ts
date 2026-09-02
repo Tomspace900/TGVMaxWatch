@@ -9,6 +9,18 @@ const SUBSCRIPTION_PATH = 'data/push-subscription.json';
 export type PushOutcome = 'sent' | 'no-subscription' | 'not-configured';
 
 /**
+ * Variable d'environnement, vide traitee comme absente.
+ *
+ * Un secret GitHub non defini n'arrive pas en `undefined` mais en chaine vide,
+ * et `??` ne rattrape que `null`/`undefined`. Sans ce filtre, une cle absente
+ * traverse le garde-fou et fait tomber le collecteur.
+ */
+export function env(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
+/**
  * Envoie l'unique message de l'execution.
  *
  * Le job cron *est* le backend d'envoi : il n'y a pas de serveur, l'abonnement
@@ -17,11 +29,11 @@ export type PushOutcome = 'sent' | 'no-subscription' | 'not-configured';
  * bruyamment : le mail d'echec GitHub est alors le seul canal de secours.
  */
 export async function sendPush(notification: Notification): Promise<PushOutcome> {
-  const privateKey = process.env['VAPID_PRIVATE_KEY'];
-  const publicKey = process.env['VAPID_PUBLIC_KEY'] ?? VAPID_PUBLIC_KEY;
-  const subject = process.env['VAPID_SUBJECT'] ?? 'mailto:tgvmax-watch@example.com';
+  const privateKey = env('VAPID_PRIVATE_KEY');
+  const publicKey = env('VAPID_PUBLIC_KEY') ?? VAPID_PUBLIC_KEY;
+  const subject = env('VAPID_SUBJECT') ?? 'mailto:tgvmax-watch@example.com';
 
-  if (!privateKey || publicKey.startsWith('REPLACE_')) {
+  if (!privateKey || !publicKey || publicKey.startsWith('REPLACE_')) {
     console.warn('[push] cles VAPID absentes, notification non envoyee');
     return 'not-configured';
   }

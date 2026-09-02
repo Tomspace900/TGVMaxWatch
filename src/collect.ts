@@ -58,13 +58,26 @@ async function main(): Promise<void> {
     recordCount: snapshot.length,
   };
 
-  if (previous) {
-    nextState.lastPushOk = await notify(previous, snapshot, state.lastPushOk);
-  } else {
+  /*
+   * L'etat est ecrit avant la notification, et non apres.
+   *
+   * L'archive est la partie irremplacable : la source ecrase son dataset et un
+   * jour non collecte est perdu pour toujours. Une panne du canal d'alerte ne
+   * doit donc jamais emporter la collecte avec elle — le workflow echouera
+   * quand meme, mais apres avoir mis les donnees a l'abri.
+   */
+  writeState(nextState);
+  console.log('[collect] donnees ecrites');
+
+  if (!previous) {
     console.log('[collect] premier snapshot, aucun diff possible');
+    return;
   }
 
-  writeState(nextState);
+  const pushedAt = await notify(previous, snapshot, state.lastPushOk);
+  if (pushedAt !== state.lastPushOk) {
+    writeState({ ...nextState, lastPushOk: pushedAt });
+  }
   console.log('[collect] termine');
 }
 

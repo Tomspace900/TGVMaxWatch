@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { selectFor, sortRecords } from '../src/sncf.ts';
+import { env } from '../src/push.ts';
 import { PB, t } from './helpers.ts';
 
 const REQUIRED = [
@@ -47,5 +48,24 @@ describe('tri des enregistrements', () => {
       sorted.map((record) => `${record.date} ${record.heure_depart}`),
       ['2026-10-17 06:00', '2026-10-17 10:00', '2026-10-18 08:00'],
     );
+  });
+});
+
+describe('variables d environnement', () => {
+  it('traite une chaine vide comme absente', () => {
+    // Un secret GitHub non defini arrive en chaine vide. Sans ce filtre, la
+    // valeur traverse `??`, court-circuite la cle du code, et fait tomber le
+    // collecteur alors que le canal d'alerte est simplement non configure.
+    process.env['TGVMAX_ENV_TEST'] = '';
+    assert.equal(env('TGVMAX_ENV_TEST'), undefined);
+
+    process.env['TGVMAX_ENV_TEST'] = '   ';
+    assert.equal(env('TGVMAX_ENV_TEST'), undefined);
+
+    process.env['TGVMAX_ENV_TEST'] = ' cle ';
+    assert.equal(env('TGVMAX_ENV_TEST'), 'cle');
+
+    delete process.env['TGVMAX_ENV_TEST'];
+    assert.equal(env('TGVMAX_ENV_TEST'), undefined);
   });
 });

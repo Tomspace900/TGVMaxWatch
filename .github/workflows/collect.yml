@@ -35,11 +35,14 @@ jobs:
         run: node src/collect.ts
         env:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
-          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
 
+      # `always()` : si la notification a echoue, le snapshot est deja sur le
+      # disque et doit etre commite quand meme. Le job reste rouge — le mail
+      # d'echec est le seul canal de secours — mais la journee n'est pas perdue.
       - name: Commit
         id: commit
+        if: always()
         run: |
           set -euo pipefail
           git config user.name 'tgvmax-watch bot'
