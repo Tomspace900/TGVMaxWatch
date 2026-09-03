@@ -86,12 +86,18 @@ async function main(): Promise<void> {
  * Snapshot de reference pour le diff : le plus recent qui ne soit pas celui
  * qu'on s'apprete a ecrire. Une seconde publication le meme jour ecrase le
  * fichier du jour, donc on l'exclut explicitement.
+ *
+ * Le filtrage est le meme que pour les agregats, et pour la meme raison : les
+ * snapshots ecrits avant la restriction du perimetre contiennent encore des
+ * gares hors sujet. Le nouveau snapshot, lui, arrive deja filtre — sans cette
+ * symetrie, chacune de ces lignes ressort en train supprime a chaque
+ * execution.
  */
 function readPreviousSnapshot(today: string): Snapshot | null {
   const previousDate = listSnapshotDates()
     .filter((date) => date !== today)
     .at(-1);
-  return previousDate ? readSnapshot(previousDate) : null;
+  return previousDate ? readSnapshot(previousDate).filter(isTracked) : null;
 }
 
 /**

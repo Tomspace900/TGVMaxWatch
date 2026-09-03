@@ -21,7 +21,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # `ci.yml` tourne sur le meme push, mais en parallele : sans ce prealable, une
+  # mise a jour partait sur le telephone avant que les tests n'aient dit quoi que
+  # ce soit, et n'etait rattrapable que par une autre mise a jour. Une erreur de
+  # resolution, elle, est deja attrapee par `eas update`, qui bundle avant de
+  # publier.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
   publish:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
