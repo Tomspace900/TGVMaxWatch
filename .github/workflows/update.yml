@@ -1,0 +1,54 @@
+name: update
+
+# Publication d'une mise a jour OTA. C'est le chemin normal pour tout ce qui
+# n'est pas natif : quelques centaines de kilo-octets au lieu des ~100 Mo d'un
+# APK, appliques au redemarrage de l'application. Un nouveau build n'est
+# necessaire que si les dependances natives changent — et la politique
+# `fingerprint` s'en apercoit toute seule.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'src/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-update
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - working-directory: mobile
+        run: |
+          npm ci
+          npm run typecheck
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publier la mise a jour
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas update \
+            --channel preview \
+            --environment preview \
+            --message "${{ github.event.head_commit.message || 'mise a jour manuelle' }}" \
+            --non-interactive
