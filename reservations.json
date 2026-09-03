@@ -1,4 +1,14 @@
 {
-  "lastDir": null,
-  "slots": []
+  "lastDir": "FRBOJ>FRPMO",
+  "slots": [
+    {
+      "date": "2026-09-03",
+      "dir": "FRBOJ>FRPMO",
+      "trainNo": "12276",
+      "depart": "06:46",
+      "arrivee": "08:55",
+      "bookedAt": "2026-09-03",
+      "confirmed": false
+    }
+  ]
 }
