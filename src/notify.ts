@@ -13,6 +13,9 @@ export interface Notification {
 /** Nombre de lignes detaillees avant de basculer sur un « et N autres ». */
 const MAX_LINES = 6;
 
+/** Horaires listes par groupe avant de basculer sur un « +N ». */
+const MAX_TIMES = 4;
+
 /** Le payload d'un Web Push est plafonne aux alentours de 4 ko. */
 const MAX_PAYLOAD_BYTES = 3_500;
 
@@ -64,17 +67,8 @@ export function buildNotification(
     );
   }
 
-  for (const event of opens) {
-    lines.push(
-      `${shortDate(event.date)} ${event.depart} n${event.trainNo} ${formatDuration(
-        event.durationMin,
-      )}${event.tier === 'long' ? ' (long)' : ''}`,
-    );
-  }
-
-  for (const event of closes) {
-    lines.push(`parti : ${shortDate(event.date)} ${event.depart} n${event.trainNo}`);
-  }
+  lines.push(...group(opens));
+  lines.push(...group(closes, 'parti '));
 
   const shown = lines.slice(0, MAX_LINES);
   if (lines.length > shown.length) {
@@ -87,6 +81,56 @@ export function buildNotification(
     : APP_URL;
 
   return truncate({ title, body: shown.join('\n'), url, tag: 'tgvmax' });
+}
+
+/**
+ * Une ligne par date et par sens, les horaires a la suite.
+ *
+ * Une ligne par train repetait la date a chaque fois et donnait le numero,
+ * qui n'aide pas d'un coup d'oeil — mais omettait le sens, qui est la seule
+ * chose qu'on ne peut pas deviner et qui decide s'il faut ouvrir ou non.
+ *
+ * La duree ne sort que sur les trains longs, et en clair : ailleurs elle est
+ * previsible et occupe la place des horaires, tandis qu'un « 3h30 » a cote d'un
+ * trajet habituellement en 2h05 est l'avertissement, sans avoir a le nommer.
+ */
+function group(events: TrainEvent[], prefix = ''): string[] {
+  const groups = new Map<string, TrainEvent[]>();
+
+  for (const event of events) {
+    const key = `${event.date}|${event.dir}`;
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(event);
+    else groups.set(key, [event]);
+  }
+
+  return [...groups.values()].map((bucket) => {
+    const first = bucket[0]!;
+
+    /*
+     * Deux trains peuvent partir a la meme minute — le 06/09, les 8473 et 8505
+     * partent a 10:41 et arrivent a 12:45. La ligne liste des horaires de
+     * depart, pas des trains : repeter « 10:41 10:41 » se lit comme un defaut
+     * d'affichage sans rien apprendre de plus.
+     */
+    const unique = bucket.filter(
+      (event, index) => bucket.findIndex((other) => other.depart === event.depart) === index,
+    );
+
+    const times = unique
+      .slice(0, MAX_TIMES)
+      .map(
+        (event) =>
+          `${event.depart}${
+            event.tier === 'long' ? ` (${formatDuration(event.durationMin)})` : ''
+          }`,
+      );
+    const rest = unique.length - times.length;
+
+    return `${prefix}${shortDate(first.date)} ${dirLabel(first.dir)} ${times.join(' ')}${
+      rest > 0 ? ` +${rest}` : ''
+    }`;
+  });
 }
 
 function buildTitle(opens: number, closes: number, opened: NewDate[]): string {

@@ -76,9 +76,44 @@ describe('construction du message', () => {
     assert.match(notification!.url, /date=2026-10-04/);
   });
 
-  it('groupe tout dans un seul message et tronque au-dela de six lignes', () => {
+  it('regroupe une meme date et un meme sens sur une seule ligne', () => {
+    const events = ['08:11', '10:11', '12:46', '14:46', '16:15', '19:11'].map((depart) =>
+      event('OPEN', '2026-10-17', '8441', depart),
+    );
+
+    const notification = buildNotification(events, [])!;
+    const lines = notification.body.split('\n');
+
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0], '17/10 Paris > Bordeaux 08:11 10:11 12:46 14:46 +2');
+  });
+
+  /*
+   * Le sens etait la seule information absente des lignes d'ouverture, et la
+   * seule qu'on ne puisse pas deviner : « 57 places ouvertes » ne dit pas s'il
+   * s'agit de l'aller ou du retour.
+   */
+  it('porte le sens sur chaque ligne', () => {
+    const notification = buildNotification([event('OPEN', '2026-10-17', '8441')], [])!;
+    assert.match(notification.body, /Paris > Bordeaux/);
+  });
+
+  it('ne repete pas un horaire partage par deux trains', () => {
+    const notification = buildNotification(
+      [
+        event('OPEN', '2026-10-17', '8473', '10:41'),
+        event('OPEN', '2026-10-17', '8505', '10:41'),
+        event('OPEN', '2026-10-17', '8441', '12:46'),
+      ],
+      [],
+    )!;
+
+    assert.equal(notification.body, '17/10 Paris > Bordeaux 10:41 12:46');
+  });
+
+  it('tronque au-dela de six lignes', () => {
     const events = Array.from({ length: 10 }, (_, i) =>
-      event('OPEN', '2026-10-17', String(8000 + i)),
+      event('OPEN', `2026-10-${String(10 + i)}`, String(8000 + i)),
     );
 
     const notification = buildNotification(events, [])!;
@@ -90,7 +125,7 @@ describe('construction du message', () => {
   it('signale un train long dans le corps du message', () => {
     const long: TrainEvent = { ...event('OPEN', '2026-10-17', '8441'), durationMin: 210, tier: 'long' };
     const notification = buildNotification([long], [])!;
-    assert.match(notification.body, /3h30 \(long\)/);
+    assert.match(notification.body, /16:12 \(3h30\)/);
   });
 
   it('reste sous la limite de payload du service push', () => {
