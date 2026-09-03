@@ -66,6 +66,21 @@ jamais du `latest` de npm. Le SDK 57 veut gesture-handler 2.32 et reanimated
 **Un secret GitHub non defini arrive en chaine vide, pas en `undefined`.** `??`
 ne le rattrape pas. Traiter le vide comme absent.
 
+**Il n'y a pas de dossier `android/` et il ne doit pas y en avoir.** Expo le
+genere au moment du build. Les etapes Gradle de la documentation Firebase — qui
+decrivent le chemin React Native nu, ou l'on edite `build.gradle` a la main —
+ne s'appliquent donc pas : `google-services.json` est commite et declare dans
+`app.json`, et Expo ajoute lui-meme le plugin des services Google a partir de
+cette entree. Ce fichier ne contient que des identifiants publics, destines a
+etre embarques dans l'application ; la cle de compte de service, elle, ne vit
+que sur EAS.
+
+**L'option « enhanced push security » du compte Expo ne doit jamais etre
+coupee.** Le jeton de notification est public dans `data/push-token.json`, et
+l'API Expo accepte par defaut n'importe quel appel non authentifie : sans cette
+option, toute personne lisant le depot peut notifier l'appareil. Elle rend
+obligatoire la signature que le collecteur produit deja avec `EXPO_TOKEN`.
+
 **Supprimer un workflow, c'est verifier qui l'appelle.** GitHub resout les
 `uses: ./.github/workflows/*.yml` en parsant le fichier, pas en executant le
 job : une reference pendante invalide le workflow entier. La suppression de la
@@ -77,7 +92,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 50 tests sur fixtures, aucun acces reseau
+npm test              # 61 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
@@ -113,29 +128,19 @@ installable par sideload. Il faut Android + `preview` + base directory `mobile`.
 
 ## Ce qui reste a faire
 
-**Notifications : cote code, c'est fait ; cote comptes, il manque FCM.**
-`src/push.ts` parle au service Expo Push et l'application cree son canal
-Android, affiche au premier plan et ouvre le bon jour au tap. Il reste, hors
-depot :
+**Le dernier maillon des notifications n'est pas verifie.** Cote code et cote
+comptes, tout est en place : `src/push.ts` parle au service Expo Push,
+l'application cree son canal Android, affiche au premier plan et ouvre le bon
+jour au tap ; le projet Firebase existe au paquet `com.tomspace900.tgvmaxwatch`,
+sa cle de compte de service est sur EAS — **jamais dans le depot** — et la
+securite renforcee est active.
 
-1. un projet Firebase avec une application Android au paquet
-   `com.tomspace900.tgvmaxwatch` ;
-2. sa cle de compte de service uploadee sur EAS — **jamais commitee** ;
-3. l'option « enhanced push security » activee sur le compte Expo.
-
-Le `google-services.json` est en place et reference depuis `app.json`. Les
-etapes Gradle de la documentation Firebase ne s'appliquent pas : ce projet
-n'a pas de dossier `android/`, Expo le genere au build et y ajoute lui-meme le
-plugin des services Google.
-
-Le point 3 n'est pas cosmetique. L'API Expo accepte par defaut n'importe quel
-appel non authentifie, et le jeton de notification est public dans ce depot :
-sans elle, toute personne lisant le depot peut envoyer des notifications sur
-l'appareil. Le collecteur signe deja ses requetes avec `EXPO_TOKEN` ; l'option
-rend cette signature obligatoire.
-
-**Le site GitHub Pages peut etre desactive** — la PWA a ete desinstallee, plus
-rien n'en depend.
+Reste a le prouver sur l'appareil : installer l'APK, activer les notifications,
+verifier que `data/push-token.json` apparait dans le depot, puis declencher une
+collecte avec une watchlist large et regarder si la notification arrive et
+ouvre le bon jour. Tant que ce fichier est absent, `sendPush` sort en
+`no-subscription` sans rien envoyer et `lastPushOk` ne bouge pas — c'est le
+symptome a lire dans `data/state.json`.
 
 **Statistiques.** `stats.ts` calcule taux de reouverture, delai median de
 disparition et courbe d'erosion, mais ne publie rien sous huit semaines de
