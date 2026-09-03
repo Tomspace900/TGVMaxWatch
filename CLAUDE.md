@@ -56,8 +56,25 @@ champ `entity` du dataset porte un axe commercial pour les TGV INOUI et le
 service pour les OUIGO : seul le second apprend quelque chose.
 
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
-convertir. Seul le cron est en UTC — d'ou le double declenchement de
-`remind.yml` a 14h et 15h UTC, avec un garde-fou sur l'heure reelle a Paris.
+convertir. Seul le cron est en UTC.
+
+**Le cron de ce depot part avec trois a cinq heures de retard.** Mesure, pas
+supposee : `collect` vise 06:15 UTC et part a 11:20 ; `remind` visait 14:00 et
+partait a 18:24. Aucun traitement ne doit donc dependre de l'heure a laquelle
+il croit tourner. Le rappel de confirmation exigeait 16h pile a Paris, ne
+comptant que l'heure d'ecart entre l'ete et l'hiver : il a trouve 19h et 20h,
+s'est retire quatre fois de suite, et n'est jamais parti — sans qu'un run ne
+devienne rouge, puisqu'un garde-fou qui refuse sort en code 0. Viser tot,
+accepter une fenetre (`isParisHourWithin`), et deduire le doublon d'un marqueur
+dans `state.json`.
+
+**Une notification doit porter ce qu'on ne peut pas deviner.** Les lignes
+d'ouverture donnaient la date, l'heure, le numero de train et la duree, mais
+pas le sens : « 57 places ouvertes » ne disait pas s'il s'agissait de l'aller
+ou du retour. Le numero de train, lui, n'aide en rien d'un coup d'oeil. Meme
+piege sur les dates entrantes a J+30, dont le titre est prioritaire : une date
+qui entre complete — le cas courant — masquait toutes les ouvertures reelles
+du meme run derriere un « 0 train ».
 
 **Les versions natives viennent de `mobile/node_modules/expo/bundledNativeModules.json`**,
 jamais du `latest` de npm. Le SDK 57 veut gesture-handler 2.32 et reanimated
@@ -92,7 +109,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 61 tests sur fixtures, aucun acces reseau
+npm test              # 71 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
@@ -104,6 +121,11 @@ npx expo export --platform android --output-dir /tmp/export   # resolution Metro
 Le bundle Metro est la seule verification qui attrape une resolution cassee
 vers les modules partages, qui vivent hors du dossier du projet.
 
+Le canal d'alerte ne se verifie pas en lisant du code : declencher
+`notify-test.yml`. Il rejoue le vrai diff des deux derniers snapshots en
+ignorant la watchlist et envoie le message obtenu, sans rien ecrire. En local,
+`TGVMAX_PUSH_URL` pointe le meme chemin vers un faux endpoint.
+
 Le domaine `ressources.data.sncf.com` peut etre injoignable selon
 l'environnement. `TGVMAX_DATASET_URL` permet de rejouer la chaine complete
 contre un faux endpoint, et `TGVMAX_ROOT` de le faire sans toucher a l'archive.
@@ -113,11 +135,14 @@ contre un faux endpoint, et `TGVMAX_ROOT` de le faire sans toucher a l'archive.
 **Changement JS** — interface, gestes, mise en page, logique metier : un push
 sur `main` touchant `mobile/**` ou `src/**` declenche `update.yml`, qui publie
 une mise a jour OTA de quelques centaines de kilo-octets. Elle s'applique au
-redemarrage de l'application.
+redemarrage de l'application. La publication attend les tests du collecteur :
+`ci.yml` tourne sur le meme push mais en parallele, et une mise a jour arrivee
+sur le telephone ne se rattrape que par une autre mise a jour.
 
 **Changement natif** — nouvelle dependance native, plugin de config : il faut
-un nouvel APK (~108 Mo). Declencher `android.yml` (profil `preview`), ou passer
-par le MCP Expo. La politique de runtime est `fingerprint` : l'ancienne
+un nouvel APK (~108 Mo). Passer par le MCP Expo, ou declencher `android.yml`
+(profil `preview`) — le workflow reste la pour les sessions ou le connecteur
+Expo n'est pas disponible, les deux chemins ayant ete verifies. La politique de runtime est `fingerprint` : l'ancienne
 installation cesse simplement de recevoir les mises a jour au lieu de charger
 du JS incompatible.
 
@@ -128,19 +153,10 @@ installable par sideload. Il faut Android + `preview` + base directory `mobile`.
 
 ## Ce qui reste a faire
 
-**Le dernier maillon des notifications n'est pas verifie.** Cote code et cote
-comptes, tout est en place : `src/push.ts` parle au service Expo Push,
-l'application cree son canal Android, affiche au premier plan et ouvre le bon
-jour au tap ; le projet Firebase existe au paquet `com.tomspace900.tgvmaxwatch`,
-sa cle de compte de service est sur EAS — **jamais dans le depot** — et la
-securite renforcee est active.
-
-Reste a le prouver sur l'appareil : installer l'APK, activer les notifications,
-verifier que `data/push-token.json` apparait dans le depot, puis declencher une
-collecte avec une watchlist large et regarder si la notification arrive et
-ouvre le bon jour. Tant que ce fichier est absent, `sendPush` sort en
-`no-subscription` sans rien envoyer et `lastPushOk` ne bouge pas — c'est le
-symptome a lire dans `data/state.json`.
+**Les notifications sont verifiees de bout en bout** — jeton enregistre depuis
+l'appareil, message recu, tap qui ouvre le bon jour — le 2026-09-03. Le rappel
+de confirmation, lui, n'a encore jamais eu de reservation a signaler a la
+bonne heure : son premier vrai passage reste a observer.
 
 **Statistiques.** `stats.ts` calcule taux de reouverture, delai median de
 disparition et courbe d'erosion, mais ne publie rien sous huit semaines de
@@ -148,9 +164,11 @@ collecte : des donnees brutes valent mieux qu'une estimation sur trois
 observations. L'ecran `mobile/app/history.tsx` restera donc vide jusque-la.
 L'archive a demarre le 2026-09-01.
 
-**`android.yml` pourrait disparaitre.** Le depot est lie au projet Expo, donc
-les builds sont declenchables directement via le MCP. Le workflow n'a ete garde
-que le temps de valider ce chemin.
+**Le silence est le mode de panne du projet.** Un workflow qui ne se declenche
+pas n'envoie pas de mail d'echec, et une collecte manquee ne se voit nulle part
+ailleurs. Le seul temoin est le bandeau de fraicheur de l'application, au-dela
+de 36h. Les workflows planifies etant desactives apres une longue inactivite du
+depot, verifier vers le 2026-11-01 que `collect` tourne toujours.
 
 ## Source et licence
 
