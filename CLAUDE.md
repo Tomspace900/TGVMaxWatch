@@ -66,6 +66,14 @@ jamais du `latest` de npm. Le SDK 57 veut gesture-handler 2.32 et reanimated
 **Un secret GitHub non defini arrive en chaine vide, pas en `undefined`.** `??`
 ne le rattrape pas. Traiter le vide comme absent.
 
+**Supprimer un workflow, c'est verifier qui l'appelle.** GitHub resout les
+`uses: ./.github/workflows/*.yml` en parsant le fichier, pas en executant le
+job : une reference pendante invalide le workflow entier. La suppression de la
+PWA a ainsi emporte le job `deploy` de `collect.yml` et, avec lui, la collecte
+du 2026-09-03 — sans le moindre run rouge, puisqu'un workflow invalide ne se
+declenche pas et que le mail d'echec ne part donc jamais. `test/workflows.test.ts`
+monte la garde depuis.
+
 ## Verifier
 
 ```sh
