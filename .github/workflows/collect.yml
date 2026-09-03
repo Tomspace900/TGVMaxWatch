@@ -19,8 +19,6 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.commit.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +40,6 @@ jobs:
       # disque et doit etre commite quand meme. Le job reste rouge — le mail
       # d'echec est le seul canal de secours — mais la journee n'est pas perdue.
       - name: Commit
-        id: commit
         if: always()
         run: |
           set -euo pipefail
@@ -51,7 +48,6 @@ jobs:
           git add data watchlist.json reservations.json
 
           if git diff --cached --quiet; then
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
             echo 'Aucun changement, donnee deja a jour.'
             exit 0
           fi
@@ -61,13 +57,3 @@ jobs:
           git commit -m "data: collecte du $(date -u +%F) [skip ci]"
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
-          echo 'changed=true' >> "$GITHUB_OUTPUT"
-
-  deploy:
-    needs: collect
-    if: needs.collect.outputs.changed == 'true'
-    uses: ./.github/workflows/deploy.yml
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
