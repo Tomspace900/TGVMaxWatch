@@ -5,10 +5,9 @@ import Constants from 'expo-constants';
 /**
  * Jeton de notification Expo.
  *
- * Le collecteur ne s'en sert pas encore : la bascule de web-push vers l'API
- * Expo Push attend que les identifiants FCM soient en place. Cet ecran permet
- * d'obtenir et de publier le jeton des maintenant, pour que la bascule soit
- * une simple modification cote collecteur.
+ * Le jeton est publie dans le depot, ou le collecteur le lit pour envoyer via
+ * le service Expo Push. Il reste inerte tant que les identifiants FCM ne sont
+ * pas configures cote EAS : l'appareil n'obtient alors aucun jeton.
  */
 export type PushStatus = 'unsupported' | 'denied' | 'off' | 'ready';
 

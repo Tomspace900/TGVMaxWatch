@@ -1,4 +1,4 @@
-import { SITE_URL, STATION_LABELS } from './config.ts';
+import { APP_URL, STATION_LABELS } from './config.ts';
 import { formatDuration } from './duration.ts';
 import type { NewDate, TrainEvent } from './types.ts';
 
@@ -74,8 +74,8 @@ export function buildNotification(
 
   const focus = newDates[0] ?? opens[0] ?? closes[0];
   const url = focus
-    ? `${SITE_URL}?date=${focus.date}&dir=${encodeURIComponent(focus.dir)}`
-    : SITE_URL;
+    ? `${APP_URL}?date=${focus.date}&dir=${encodeURIComponent(focus.dir)}`
+    : APP_URL;
 
   return truncate({ title, body: shown.join('\n'), url, tag: 'tgvmax' });
 }

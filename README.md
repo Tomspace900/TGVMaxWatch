@@ -5,7 +5,7 @@ archivage de l'historique, alertes Web Push et calendrier PWA.
 Repo unique, zero serveur, zero base de donnees.
 
 Le collecteur tourne dans GitHub Actions et commite ses resultats dans ce repo.
-La PWA est un site statique construit depuis `web/` et publie sur GitHub Pages.
+L'application Android lit ces donnees directement depuis le depot.
 
 ## Pourquoi archiver
 

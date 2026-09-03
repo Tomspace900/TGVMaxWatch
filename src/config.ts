@@ -9,8 +9,14 @@ export const REPO_OWNER = 'Tomspace900';
 export const REPO_NAME = 'TGVMaxWatch';
 export const REPO_BRANCH = 'main';
 
-/** URL publique du site GitHub Pages (sert de base aux liens des notifications). */
-export const SITE_URL = 'https://tomspace900.github.io/TGVMaxWatch/';
+/**
+ * Lien porte par une notification.
+ *
+ * Le schema de l'application, et non plus une URL web : le site qui servait la
+ * PWA n'existe plus, et ce lien n'est de toute facon lu que par l'application,
+ * qui en extrait la date et le sens pour ouvrir directement le bon jour.
+ */
+export const APP_URL = 'tgvmax://day';
 
 /** Codes gares du dataset SNCF. */
 export const PARIS = 'FRPMO';
