@@ -21,7 +21,7 @@ combien de jours ? ».
 |---|---|
 | Collecte | GitHub Actions, cron quotidien, Node 22 + TypeScript |
 | Stockage | fichiers versionnes dans le repo, commites par le bot |
-| Alertes | Web Push (VAPID), emis depuis le job cron — il *est* le backend d'envoi |
+| Alertes | service Expo Push, emis depuis le job cron — il *est* le backend d'envoi |
 | UI | Application Android native, Expo SDK 57 + React Native |
 
 ```
@@ -85,9 +85,9 @@ dans `tsconfig.json` — ni `enum`, ni `namespace`, ni propriete de constructeur
    reglages de l'application pour editer la watchlist depuis le telephone. Il
    est range dans le keystore Android via SecureStore.
 
-Les notifications ne sont **pas encore branchees** : la bascule de web-push vers
-l'API Expo Push attend des identifiants FCM. L'ecran de reglages sait deja
-obtenir et publier le jeton Expo.
+Les notifications demandent en plus des identifiants FCM : un projet Firebase,
+sa cle de compte de service uploadee sur EAS, et le `google-services.json`
+reference depuis `app.json`. Voir `CLAUDE.md` pour la marche a suivre.
 
 Le cron ne se declenche que sur la branche par defaut : rien n'est collecte tant
 que le collecteur n'est pas sur `main`.

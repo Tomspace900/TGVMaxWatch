@@ -34,8 +34,9 @@ jobs:
       - name: Collecte
         run: node src/collect.ts
         env:
-          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
-          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          # Le jeton de notification est public dans le depot : la requete est
+          # signee pour que seul ce collecteur puisse pousser vers l'appareil.
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       # `always()` : si la notification a echoue, le snapshot est deja sur le
       # disque et doit etre commite quand meme. Le job reste rouge — le mail

@@ -29,7 +29,7 @@ data/         archive et agregats, commites par le bot
 | Stockage | fichiers versionnes dans le depot |
 | Application | Expo SDK 57, expo-router, Reanimated 4, EAS Build + EAS Update |
 | Donnees cote app | lues sur `raw.githubusercontent.com`, cache fichier pour le hors ligne |
-| Alertes | **encore en Web Push**, voir « Ce qui reste a faire » |
+| Alertes | service Expo Push, jeton dans `data/push-token.json` |
 
 `data/snapshots/` est la source de verite. `history.json` et `stats.json` en
 sont des vues **entierement recalculees a chaque execution** : un bug
@@ -105,21 +105,27 @@ installable par sideload. Il faut Android + `preview` + base directory `mobile`.
 
 ## Ce qui reste a faire
 
-**Notifications natives.** L'application obtient et publie un jeton Expo
-(`data/push-token.json`) mais le collecteur envoie toujours du Web Push VAPID
-vers l'abonnement de la PWA. Basculer demande des identifiants FCM — un projet
-Firebase et sa cle de compte de service uploadee sur EAS — puis de remplacer
-`src/push.ts` par un appel a l'API Expo Push.
+**Notifications : cote code, c'est fait ; cote comptes, il manque FCM.**
+`src/push.ts` parle au service Expo Push et l'application cree son canal
+Android, affiche au premier plan et ouvre le bon jour au tap. Il reste, hors
+depot :
 
-Tant que ce n'est pas fait, **le canal d'alerte est la PWA**, dont le code a ete
-supprime du depot mais qui reste installee sur le telephone et servie par le
-dernier deploiement Pages. Ne pas supprimer, avant que le push natif soit
-verifie de bout en bout :
+1. un projet Firebase avec une application Android au paquet
+   `com.tomspace900.tgvmaxwatch` ;
+2. sa cle de compte de service uploadee sur EAS — **jamais commitee** ;
+3. le `google-services.json` du projet, lui commite, et reference depuis
+   `app.json` en `expo.android.googleServicesFile`. C'est un changement natif :
+   il demande un nouveau build, pas une mise a jour OTA ;
+4. l'option « enhanced push security » activee sur le compte Expo.
 
-- les secrets `VAPID_PRIVATE_KEY` et `VAPID_SUBJECT`
-- `data/push-subscription.json`
-- `src/push.ts`, `src/notify.ts` et la dependance `web-push`
-- le site GitHub Pages
+Le point 4 n'est pas cosmetique. L'API Expo accepte par defaut n'importe quel
+appel non authentifie, et le jeton de notification est public dans ce depot :
+sans elle, toute personne lisant le depot peut envoyer des notifications sur
+l'appareil. Le collecteur signe deja ses requetes avec `EXPO_TOKEN` ; l'option
+rend cette signature obligatoire.
+
+**Le site GitHub Pages peut etre desactive** — la PWA a ete desinstallee, plus
+rien n'en depend.
 
 **Statistiques.** `stats.ts` calcule taux de reouverture, delai median de
 disparition et courbe d'erosion, mais ne publie rien sous huit semaines de

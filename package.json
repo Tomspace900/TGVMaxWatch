@@ -16,12 +16,8 @@
     "test": "node --test test/*.test.ts",
     "seed": "TGVMAX_ROOT=.fixture node scripts/seed-fixture.ts"
   },
-  "dependencies": {
-    "web-push": "^3.6.7"
-  },
   "devDependencies": {
     "@types/node": "^22.15.3",
-    "@types/web-push": "^3.6.4",
     "typescript": "^5.9.2"
   }
 }

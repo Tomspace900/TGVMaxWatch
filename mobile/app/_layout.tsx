@@ -3,10 +3,12 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StoreProvider } from '../src/data/StoreProvider.tsx';
+import { useNotificationRouting } from '../src/data/notifications.ts';
 import { useTheme } from '../src/theme.ts';
 
 export default function RootLayout() {
   const theme = useTheme();
+  useNotificationRouting();
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
