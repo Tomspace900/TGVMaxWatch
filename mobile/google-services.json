@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "165282227917",
+    "project_id": "tgvmaxwatch",
+    "storage_bucket": "tgvmaxwatch.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165282227917:android:3a2f19ee38a430c482ab84",
+        "android_client_info": {
+          "package_name": "com.tomspace900.tgvmaxwatch"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBP551RTcAnbAVz8QqL30LcsA_raDmpgGs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

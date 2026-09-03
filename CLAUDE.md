@@ -113,12 +113,14 @@ depot :
 1. un projet Firebase avec une application Android au paquet
    `com.tomspace900.tgvmaxwatch` ;
 2. sa cle de compte de service uploadee sur EAS — **jamais commitee** ;
-3. le `google-services.json` du projet, lui commite, et reference depuis
-   `app.json` en `expo.android.googleServicesFile`. C'est un changement natif :
-   il demande un nouveau build, pas une mise a jour OTA ;
-4. l'option « enhanced push security » activee sur le compte Expo.
+3. l'option « enhanced push security » activee sur le compte Expo.
 
-Le point 4 n'est pas cosmetique. L'API Expo accepte par defaut n'importe quel
+Le `google-services.json` est en place et reference depuis `app.json`. Les
+etapes Gradle de la documentation Firebase ne s'appliquent pas : ce projet
+n'a pas de dossier `android/`, Expo le genere au build et y ajoute lui-meme le
+plugin des services Google.
+
+Le point 3 n'est pas cosmetique. L'API Expo accepte par defaut n'importe quel
 appel non authentifie, et le jeton de notification est public dans ce depot :
 sans elle, toute personne lisant le depot peut envoyer des notifications sur
 l'appareil. Le collecteur signe deja ses requetes avec `EXPO_TOKEN` ; l'option
