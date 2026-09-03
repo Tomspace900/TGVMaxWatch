@@ -42,12 +42,21 @@ export function buildNotification(
   const opens = events.filter((event) => event.kind === 'OPEN');
   const closes = events.filter((event) => event.kind === 'CLOSE');
 
-  if (opens.length === 0 && closes.length === 0 && newDates.length === 0) return null;
+  /*
+   * Une date qui entre a J+30 sans une seule place n'est pas une nouvelle : il
+   * n'y a rien a reserver, et le titre des dates entrantes etant prioritaire,
+   * elle masquerait les ouvertures reelles du meme run derriere un « 0 train ».
+   * C'est le cas courant, pas le cas limite : le 2026-10-03 est entre avec
+   * soixante-deux trains, tous complets.
+   */
+  const opened = newDates.filter((entry) => entry.oui > 0);
 
-  const title = buildTitle(opens.length, closes.length, newDates);
+  if (opens.length === 0 && closes.length === 0 && opened.length === 0) return null;
+
+  const title = buildTitle(opens.length, closes.length, opened);
   const lines: string[] = [];
 
-  for (const entry of newDates) {
+  for (const entry of opened) {
     lines.push(
       `J+30 ${shortDate(entry.date)} ${dirLabel(entry.dir)} : ${entry.oui} train${
         entry.oui > 1 ? 's' : ''
@@ -72,7 +81,7 @@ export function buildNotification(
     shown.push(`+${lines.length - shown.length} autres`);
   }
 
-  const focus = newDates[0] ?? opens[0] ?? closes[0];
+  const focus = opened[0] ?? opens[0] ?? closes[0];
   const url = focus
     ? `${APP_URL}?date=${focus.date}&dir=${encodeURIComponent(focus.dir)}`
     : APP_URL;
@@ -80,9 +89,9 @@ export function buildNotification(
   return truncate({ title, body: shown.join('\n'), url, tag: 'tgvmax' });
 }
 
-function buildTitle(opens: number, closes: number, newDates: NewDate[]): string {
-  if (newDates.length > 0) {
-    const total = newDates.reduce((sum, entry) => sum + entry.oui, 0);
+function buildTitle(opens: number, closes: number, opened: NewDate[]): string {
+  if (opened.length > 0) {
+    const total = opened.reduce((sum, entry) => sum + entry.oui, 0);
     return `Nouvelle date a J+30 : ${total} train${total > 1 ? 's' : ''}`;
   }
   if (opens > 0) {

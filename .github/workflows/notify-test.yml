@@ -1,0 +1,28 @@
+name: notify-test
+
+# Sur demande uniquement. Le canal d'alerte est le produit, mais il ne se
+# declenche qu'au hasard des ouvertures de places : sans ce bouton, on ne
+# decouvre qu'il est mort qu'en manquant l'evenement qu'il devait signaler.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci --omit=dev
+
+      - name: Notification de verification
+        run: node src/notify-test.ts
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

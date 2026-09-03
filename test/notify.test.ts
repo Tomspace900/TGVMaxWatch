@@ -38,6 +38,44 @@ describe('construction du message', () => {
     assert.match(notification!.url, /date=2026-11-16/);
   });
 
+  it('ignore une date entrante sans une seule place', () => {
+    assert.equal(
+      buildNotification([], [{ date: '2026-10-03', dir: PB, oui: 0, total: 62 }]),
+      null,
+    );
+  });
+
+  /*
+   * Le cas qui a motive le filtre. Le 2026-10-03 est entre dans l'horizon avec
+   * soixante-deux trains tous complets, le meme jour que 244 ouvertures : le
+   * titre des dates entrantes etant prioritaire, le message aurait annonce
+   * « 0 train » et masque tout le reste.
+   */
+  it('une date entrante vide ne masque pas les ouvertures du meme run', () => {
+    const notification = buildNotification(
+      [event('OPEN', '2026-10-17', '8441'), event('OPEN', '2026-10-18', '8442')],
+      [{ date: '2026-10-03', dir: PB, oui: 0, total: 62 }],
+    );
+
+    assert.match(notification!.title, /2 places ouvertes/);
+    assert.doesNotMatch(notification!.body, /03\/10/);
+    assert.match(notification!.url, /date=2026-10-17/);
+  });
+
+  it('garde les dates entrantes qui ont des places, et ecarte les vides', () => {
+    const notification = buildNotification(
+      [],
+      [
+        { date: '2026-10-03', dir: PB, oui: 0, total: 62 },
+        { date: '2026-10-04', dir: PB, oui: 7, total: 40 },
+      ],
+    );
+
+    assert.match(notification!.title, /Nouvelle date a J\+30 : 7 trains/);
+    assert.doesNotMatch(notification!.body, /03\/10/);
+    assert.match(notification!.url, /date=2026-10-04/);
+  });
+
   it('groupe tout dans un seul message et tronque au-dela de six lignes', () => {
     const events = Array.from({ length: 10 }, (_, i) =>
       event('OPEN', '2026-10-17', String(8000 + i)),
