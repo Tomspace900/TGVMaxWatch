@@ -44,7 +44,7 @@ d'agregation se repare en relancant le job, sans corrompre l'archive.
 
 ## Les flux
 
-Six workflows, dont deux seulement se declenchent tout seuls.
+Cinq workflows, dont deux seulement se declenchent tout seuls.
 
 | Workflow | Declenchement | Role |
 |---|---|---|
@@ -52,7 +52,6 @@ Six workflows, dont deux seulement se declenchent tout seuls.
 | `remind` | cron `0 6` et `0 9` UTC, ou manuel | Rappelle de confirmer une reservation pour le lendemain |
 | `ci` | push sur `main`, pull request | Typecheck et tests, cote collecteur *et* cote application |
 | `update` | push sur `main` touchant `mobile/**` ou `src/**` | Publie une mise a jour OTA, apres les tests |
-| `android` | manuel | Construit un APK via EAS |
 | `notify-test` | manuel | Envoie une notification de verification, sans rien ecrire |
 
 **`collect`** sort immediatement si `data_processed` n'a pas bouge : les deux
@@ -94,7 +93,7 @@ seule forme qui survit.
 
 ```sh
 npm install
-npm test          # 71 tests sur fixtures, aucun acces reseau
+npm test          # 70 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed      # archive synthetique de 70 jours, si besoin de recul
 
@@ -131,7 +130,9 @@ et extensions `.ts` explicites aux imports.
    `raw.githubusercontent.com` sans authentification.
 2. Settings -> Actions -> General -> Workflow permissions : **Read and write**.
 3. Un compte Expo, son jeton en secret de depot `EXPO_TOKEN`. Il sert deux
-   fois : signer les envois push, et piloter EAS.
+   fois : signer les envois push, et publier les mises a jour OTA. Les builds
+   d'APK, eux, se declenchent depuis le MCP Expo — profil `preview`, base
+   directory `mobile` — et non depuis un workflow.
 4. Un projet Firebase avec une application Android au paquet
    `com.tomspace900.tgvmaxwatch`, sa cle de compte de service **uploadee sur
    EAS et jamais commitee**, et l'option « enhanced push security » activee.

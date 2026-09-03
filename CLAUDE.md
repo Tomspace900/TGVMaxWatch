@@ -109,7 +109,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 71 tests sur fixtures, aucun acces reseau
+npm test              # 70 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
@@ -140,9 +140,11 @@ redemarrage de l'application. La publication attend les tests du collecteur :
 sur le telephone ne se rattrape que par une autre mise a jour.
 
 **Changement natif** — nouvelle dependance native, plugin de config : il faut
-un nouvel APK (~108 Mo). Passer par le MCP Expo, ou declencher `android.yml`
-(profil `preview`) — le workflow reste la pour les sessions ou le connecteur
-Expo n'est pas disponible, les deux chemins ayant ete verifies. La politique de runtime est `fingerprint` : l'ancienne
+un nouvel APK (~108 Mo). Le depot est lie au projet Expo : le build se
+declenche par le MCP, profil `preview`, base directory `mobile`. Il y a eu un
+workflow `android.yml` en doublon ; il a ete supprime une fois ce chemin
+verifie, parce que deux chemins pour la meme chose font deux choses a
+maintenir et une seule a etre a jour. La politique de runtime est `fingerprint` : l'ancienne
 installation cesse simplement de recevoir les mises a jour au lieu de charger
 du JS incompatible.
 
