@@ -44,35 +44,35 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # Lie le depot au projet EAS. Un role Developer suffit a le creer, et
-      # l'operation est sans effet quand le projet existe deja. Tant que
-      # `extra.eas.projectId` n'est pas commite, cette etape est ce qui evite
-      # un « EAS project not configured ».
-      - name: Lier le projet EAS
-        working-directory: mobile
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          eas init --force --non-interactive
-          echo "projectId=$(node -p "require('./app.json').expo.extra.eas.projectId")" >> "$GITHUB_OUTPUT"
-        id: link
-
+      # `--output` n'existe que pour les builds locaux : un build cloud se
+      # recupere par l'URL de son artefact, que `--json` expose.
       - name: Build APK
+        id: build
         working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
+          set -euo pipefail
           eas build \
             --platform android \
             --profile ${{ inputs.profile }} \
             --non-interactive \
             --wait \
-            --output "$RUNNER_TEMP/tgvmax.apk"
+            --json > "$RUNNER_TEMP/build.json"
 
-      - name: Rappel du projectId
+          url=$(jq -r '[.. | objects | .applicationArchiveUrl? // empty] | first' "$RUNNER_TEMP/build.json")
+          page=$(jq -r '[.. | objects | .id? // empty] | first' "$RUNNER_TEMP/build.json")
+
+          test -n "$url" && test "$url" != "null"
+          curl -fsSL "$url" -o "$RUNNER_TEMP/tgvmax.apk"
+          echo "page=$page" >> "$GITHUB_OUTPUT"
+
+      # La page d'installation EAS est plus commode que l'artefact : elle
+      # s'ouvre au telephone et installe directement, sans dezippage.
+      - name: Lien d'installation
         if: always()
         run: |
-          echo "projectId a commiter dans mobile/app.json : ${{ steps.link.outputs.projectId }}" \
+          echo "Page d'installation : https://expo.dev/accounts/tomspace900/projects/tgvmax-watch/builds/${{ steps.build.outputs.page }}" \
             >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
