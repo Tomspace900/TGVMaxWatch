@@ -1,11 +1,13 @@
 name: remind
 
 on:
-  # 16h a Paris, c'est 14h UTC en heure d'ete et 15h UTC en heure d'hiver.
-  # On declenche les deux, et src/remind.ts laisse passer la bonne.
+  # Vise le milieu de matinee a Paris, tres en amont de l'echeance de 17h.
+  # Les executions planifiees de ce depot partent avec trois a cinq heures de
+  # retard : viser 16h faisait arriver le rappel a 20h, et src/remind.ts le
+  # refusait. On vise donc tot, et c'est la fenetre cote code qui tranche.
   schedule:
-    - cron: '0 14 * * *'
-    - cron: '0 15 * * *'
+    - cron: '0 6 * * *'
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 permissions:

@@ -22,6 +22,7 @@ export const EMPTY_BUNDLE: Bundle = {
     dataProcessed: null,
     collectedAt: null,
     lastPushOk: null,
+    lastRemindOn: null,
     latestSnapshot: null,
     snapshotCount: 0,
     recordCount: 0,

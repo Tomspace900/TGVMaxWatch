@@ -27,6 +27,7 @@ export const EMPTY_STATE: State = {
   dataProcessed: null,
   collectedAt: null,
   lastPushOk: null,
+  lastRemindOn: null,
   latestSnapshot: null,
   snapshotCount: 0,
   recordCount: 0,

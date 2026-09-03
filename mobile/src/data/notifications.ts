@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 
@@ -52,9 +53,26 @@ export function useNotificationRouting(): void {
       const url = response.notification.request.content.data?.['url'];
       if (typeof url !== 'string') return;
 
-      const params = new URL(url).searchParams;
-      const date = params.get('date');
-      const dir = params.get('dir');
+      let parsed: URL;
+      try {
+        parsed = new URL(url);
+      } catch {
+        return;
+      }
+
+      /*
+       * Tout ne pointe pas vers un ecran de l'application. Le rappel de
+       * confirmation renvoie vers SNCF Connect, ou se fait l'action demandee :
+       * faute de ce cas, il ne restait qu'un lien sans date, et taper la
+       * notification ne faisait rien du tout.
+       */
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        void Linking.openURL(url);
+        return;
+      }
+
+      const date = parsed.searchParams.get('date');
+      const dir = parsed.searchParams.get('dir');
       if (date) router.push({ pathname: '/day/[date]', params: { date, ...(dir ? { dir } : {}) } });
     });
 

@@ -71,6 +71,19 @@ export function hourInParis(now: Date = new Date()): number {
   );
 }
 
+/**
+ * L'heure parisienne tombe-t-elle dans la fenetre `[from, until]`, bornes
+ * comprises ?
+ *
+ * Les executions planifiees partent avec plusieurs heures de retard : comparer
+ * l'heure a une valeur unique revient a n'accepter presque jamais, et rejeter
+ * tout un declenchement quotidien sans que rien ne devienne rouge.
+ */
+export function isParisHourWithin(from: number, until: number, now: Date = new Date()): boolean {
+  const hour = hourInParis(now);
+  return hour >= from && hour <= until;
+}
+
 /** `HH:MM` -> minutes depuis minuit. */
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number) as [number, number];

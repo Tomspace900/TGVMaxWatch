@@ -26,8 +26,10 @@ export interface State {
   dataProcessed: string | null;
   /** Instant ou le collecteur a ecrit ce snapshot. */
   collectedAt: string | null;
-  /** Date du dernier envoi push reussi, affichee dans la PWA. */
+  /** Date du dernier envoi push reussi, affichee dans l'application. */
   lastPushOk: string | null;
+  /** Jour parisien du dernier rappel de confirmation envoye, `YYYY-MM-DD`. */
+  lastRemindOn: string | null;
   /** Date de collecte du dernier snapshot, `YYYY-MM-DD`. */
   latestSnapshot: string | null;
   snapshotCount: number;
