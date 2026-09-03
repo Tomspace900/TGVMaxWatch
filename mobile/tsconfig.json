@@ -5,16 +5,21 @@
     "noUncheckedIndexedAccess": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
+
+    // Aucun @types ambiant. Sans cette ligne, TypeScript remonte
+    // l'arborescence et trouve le @types/node du collecteur : la verification
+    // passe en local et echoue en CI, ou seul mobile/node_modules existe.
+    "types": [],
+
     "paths": {
-      "@/*": ["./src/*"],
-      "@shared/*": ["../src/*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "../src/**/*.ts"
-  ]
+
+  // Volontairement limite a mobile/. Les modules purs partages avec le
+  // collecteur — config, dates, duration, types, stats, watchlist — entrent
+  // dans le programme par les imports, ce qui garantit qu'ils restent purs.
+  // Inclure ../src en entier y ferait entrer storage.ts, sncf.ts et push.ts,
+  // qui parlent a Node et a web-push.
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }
