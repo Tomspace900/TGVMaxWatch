@@ -1,4 +1,4 @@
-import { HISTORY_RETENTION_DAYS, MIN_SNAPSHOTS_FOR_STATS } from './config.ts';
+import { HISTORY_RETENTION_DAYS, MIN_EROSION_SPAN } from './config.ts';
 import { addDays, daysBetween, weekday } from './dates.ts';
 import { recordDir, recordKey } from './duration.ts';
 import type {
@@ -62,30 +62,55 @@ export function createStatsBuilder(today: string): StatsBuilder {
       }
     },
 
+    /*
+     * Chaque metrique est calculee, puis publiee si elle a survecu a sa propre
+     * garde d'echantillon. Un seuil global cale sur huit semaines retenait une
+     * courbe d'erosion deja lisible au bout d'un mois, et un taux de
+     * reouverture deja fonde sur cinq fermetures.
+     *
+     * La regle de fond ne bouge pas : jamais d'estimation inventee, et toujours
+     * la taille d'echantillon a cote du chiffre.
+     */
     finish(finishToday, snapshotCount) {
-      const ready = snapshotCount >= MIN_SNAPSHOTS_FOR_STATS;
       const all = [...timelines.values()];
+      const burnRate = computeBurnRate(all, finishToday);
+      const reopen = computeReopen(all);
+      const erosion = computeErosion(all, finishToday);
 
       return {
         generatedAt: new Date().toISOString(),
         snapshotCount,
-        ready,
-        // Sous le seuil, on n'affiche aucune prevision : mieux vaut des donnees
-        // brutes qu'une estimation inventee sur trois observations.
-        burnRate: ready ? computeBurnRate(all, finishToday) : [],
-        reopen: ready ? computeReopen(all) : {},
-        erosion: ready ? computeErosion(all, finishToday) : [],
+        ready: {
+          burnRate: burnRate.length > 0,
+          reopen: Object.keys(reopen).length > 0,
+          erosion: erosion.length > 0,
+        },
+        burnRate,
+        reopen,
+        erosion,
       };
     },
   };
 }
 
 /**
- * Delai median entre l'entree d'une date dans la fenetre et le passage a NON.
+ * A combien de jours du depart un train passe a NON.
  *
- * On n'utilise que des dates de voyage deja passees : une date encore a venir
- * dont le train est toujours disponible est une observation censuree, et la
- * compter tirerait toutes les medianes vers le bas.
+ * On mesurait auparavant le delai depuis la **premiere observation**, ce qui
+ * prenait pour origine la date a laquelle l'archive avait commence a regarder :
+ * pour toute date de voyage deja presente dans la fenetre au demarrage, une
+ * fonte de vingt-cinq jours en rapportait deux. Le commentaire d'origine
+ * traitait soigneusement la censure a droite et ignorait cette troncature a
+ * gauche.
+ *
+ * La distance au depart, elle, est definie pour toute serie quelle que soit sa
+ * date d'entree dans l'observation — immunisee contre la troncature au lieu
+ * d'etre protegee d'elle — et se lit directement : « les vendredis 19h partent
+ * vers J-18 » est une consigne, « partent en 12 jours » n'en est pas une.
+ *
+ * On n'utilise que des dates de voyage deja passees. Une date a venir n'a pas
+ * eu toute sa chance de se fermer : ne compter que celles qui se sont deja
+ * fermees selectionnerait les plus rapides et biaiserait la mediane.
  */
 function computeBurnRate(timelines: Timeline[], today: string): BurnRate[] {
   const groups = new Map<string, number[]>();
@@ -101,7 +126,7 @@ function computeBurnRate(timelines: Timeline[], today: string): BurnRate[] {
 
     const key = `${weekday(timeline.date)}|${slotOf(timeline.depart)}|${timeline.dir}`;
     const values = groups.get(key) ?? [];
-    values.push(daysBetween(first.d, closed.d));
+    values.push(daysBetween(closed.d, timeline.date));
     groups.set(key, values);
   }
 
@@ -113,7 +138,7 @@ function computeBurnRate(timelines: Timeline[], today: string): BurnRate[] {
       weekday: Number(day),
       slot,
       dir,
-      medianDays: median(values),
+      medianDaysBefore: median(values),
       sample: values.length,
     });
   }
@@ -195,6 +220,17 @@ function computeErosion(timelines: Timeline[], today: string): ErosionCurve[] {
         avg: cell.n === 0 ? 0 : cell.oui / cell.n,
         sample: cell.n,
       }));
+
+    /*
+     * Une courbe doit couvrir la fenetre pour meriter son nom. Au demarrage de
+     * l'archive, les seules dates de voyage deja passees sont celles des
+     * premiers jours : leurs points se collent a J-0 et dessinent trois pixels
+     * qu'on lirait comme une erosion.
+     */
+    const first = points[0];
+    const last = points.at(-1);
+    if (!first || !last || last.daysBefore - first.daysBefore < MIN_EROSION_SPAN) continue;
+
     curves.push({ weekday: Number(day), dir, points });
   }
 

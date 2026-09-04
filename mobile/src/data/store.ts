@@ -5,6 +5,7 @@ import type {
   State,
   Stats,
   TrainRecord,
+  TrainTrends,
   Watchlist,
 } from '../../../src/types.ts';
 
@@ -13,6 +14,8 @@ export interface Bundle {
   latest: TrainRecord[];
   history: History;
   stats: Stats | null;
+  /** Disponibilite jour apres jour, train par train. */
+  trains: TrainTrends;
   watchlist: Watchlist;
   reservations: Reservations;
 }
@@ -29,6 +32,7 @@ export const EMPTY_BUNDLE: Bundle = {
   latest: [],
   history: {},
   stats: null,
+  trains: { dates: [], series: {} },
   watchlist: { watch: [], rules: [] },
   reservations: { slots: [] },
 };

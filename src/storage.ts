@@ -1,7 +1,15 @@
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import type { History, Snapshot, State, Stats, TrainRecord, Watchlist } from './types.ts';
+import type {
+  History,
+  Snapshot,
+  State,
+  Stats,
+  TrainRecord,
+  TrainTrends,
+  Watchlist,
+} from './types.ts';
 
 /**
  * Racine des donnees.
@@ -95,6 +103,34 @@ export const readStats = (): Stats | null => readJson<Stats | null>('data/stats.
  */
 export const readWatchlist = (): Watchlist =>
   readJson<Watchlist>('watchlist.json', { watch: [], rules: [] });
+
+/**
+ * `data/trains.json` avec un creneau par ligne.
+ *
+ * Meme raison que pour `history.json`, en plus marque : en indentation
+ * complete, deux mille series de train occupent autant de lignes, et ajouter
+ * une date de collecte fait un diff de deux mille lignes ou l'on ne voit rien.
+ * Un creneau par ligne en fait une soixantaine, ou chaque train modifie se lit.
+ */
+export function writeTrains(trends: TrainTrends): void {
+  const blocks = Object.keys(trends.series)
+    .sort()
+    .map((key) => {
+      const byTrain = trends.series[key] ?? {};
+      const trains = Object.keys(byTrain)
+        .sort()
+        .map((trainNo) => `${JSON.stringify(trainNo)}:${JSON.stringify(byTrain[trainNo])}`)
+        .join(',');
+      return `    ${JSON.stringify(key)}: {${trains}}`;
+    });
+
+  const file = join(DATA_DIR, 'trains.json');
+  ensureDir(file);
+  writeFileSync(
+    file,
+    `{\n  "dates": ${JSON.stringify(trends.dates)},\n  "series": {\n${blocks.join(',\n')}\n  }\n}\n`,
+  );
+}
 
 /**
  * `history.json` avec les series d'observations sur une seule ligne.

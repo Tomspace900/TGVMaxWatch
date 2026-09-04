@@ -129,11 +129,23 @@ export const DRAIN_MIN_DROP = 3;
 export const DRAIN_MAX_LEFT = 3;
 
 /**
- * Nombre de snapshots requis avant de publier la moindre prevision.
- * ~8 semaines : en dessous, on affiche les donnees brutes plutot qu'une
- * estimation inventee.
+ * Amplitude minimale d'une courbe d'erosion, en jours.
+ *
+ * Il n'y a plus de seuil global sur le nombre de snapshots : chaque
+ * statistique porte sa propre garde, et un compteur unique cale sur huit
+ * semaines retenait une courbe lisible des le premier mois. Celle-ci demande
+ * qu'une courbe couvre reellement la fenetre avant de s'appeler « erosion » —
+ * trois points colles a J-0 n'en sont pas une.
  */
-export const MIN_SNAPSHOTS_FOR_STATS = 56;
+export const MIN_EROSION_SPAN = 24;
+
+/**
+ * Nombre de dates de collecte conservees dans `data/trains.json`.
+ *
+ * Un mois de recul par train : au-dela, la tendance recente se noie, et le
+ * fichier est relu en entier par l'application a chaque ouverture.
+ */
+export const TRAIN_TREND_DAYS = 30;
 
 /**
  * Echelle de disponibilite : borne basse de chaque palier de couleur.

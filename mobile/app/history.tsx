@@ -57,7 +57,7 @@ export default function HistoryScreen() {
         <Text style={[styles.dirText, { color: theme.text }]}>{dirLabel(dir)}</Text>
       </Pressable>
 
-      {!bundle.stats?.ready && (
+      {!bundle.stats?.ready.erosion && (
         <Text style={[styles.muted, { color: theme.muted, marginTop: space.lg }]}>
           Pas encore assez de recul. En dessous de huit semaines de collecte, aucune prévision n’est
           publiée — des données brutes valent mieux qu’une estimation inventée sur trois
