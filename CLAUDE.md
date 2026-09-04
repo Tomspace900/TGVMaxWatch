@@ -64,9 +64,25 @@ partait a 18:24. Aucun traitement ne doit donc dependre de l'heure a laquelle
 il croit tourner. Le rappel de confirmation exigeait 16h pile a Paris, ne
 comptant que l'heure d'ecart entre l'ete et l'hiver : il a trouve 19h et 20h,
 s'est retire quatre fois de suite, et n'est jamais parti — sans qu'un run ne
-devienne rouge, puisqu'un garde-fou qui refuse sort en code 0. Viser tot,
-accepter une fenetre (`isParisHourWithin`), et deduire le doublon d'un marqueur
-dans `state.json`.
+devienne rouge, puisqu'un garde-fou qui refuse sort en code 0.
+
+La premiere reponse fut une fenetre horaire (`isParisHourWithin`) et un marqueur
+dans `state.json`. Elle reduisait la probabilite de l'echec sans le supprimer,
+et le laissait muet. **La bonne reponse etait de sortir la tache du cron** :
+un traitement a echeance horaire appartient a l'appareil, dont l'heure locale
+est celle de l'utilisateur. Le rappel est aujourd'hui une alarme posee par
+`mobile/src/data/reminders.ts`, et il ne reste dans les workflows que `collect`,
+dont l'idempotence rend le retard sans consequence.
+
+**Ce qui est personnel ne va pas dans le depot.** Il est public — l'application
+lit ses donnees sur `raw.githubusercontent.com` sans authentification — et
+`reservations.json` y publiait dates, sens et numeros de train, c'est-a-dire
+quand son proprietaire n'est pas chez lui. Les reservations vivent desormais
+dans le stockage local de l'application (`mobile/src/data/local.ts`), avec un
+export manuel comme seule sortie. La watchlist, elle, reste versionnee : le
+collecteur ne peut pas filtrer sur un fichier qu'il ne lit pas. C'est la ligne
+de partage — le depot porte ce dont le collecteur a besoin, l'appareil garde le
+reste.
 
 **Une notification doit porter ce qu'on ne peut pas deviner.** Les lignes
 d'ouverture donnaient la date, l'heure, le numero de train et la duree, mais

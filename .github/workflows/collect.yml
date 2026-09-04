@@ -45,7 +45,9 @@ jobs:
           set -euo pipefail
           git config user.name 'tgvmax-watch bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data watchlist.json reservations.json
+          # Les reservations ne sont plus ici : elles vivent dans le stockage
+          # local de l'application, et le collecteur n'en a plus l'usage.
+          git add data watchlist.json
 
           if git diff --cached --quiet; then
             echo 'Aucun changement, donnee deja a jour.'

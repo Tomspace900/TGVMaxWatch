@@ -31,18 +31,30 @@ export default function CalendarScreen() {
 
   /*
    * Alternance de sens. Les trajets sont unitaires, pas des allers-retours,
-   * mais ils alternent : si le dernier trajet etait Paris -> Bordeaux, le
+   * mais ils alternent : si le dernier trajet est Paris -> Bordeaux, le
    * prochain sera l'inverse. L'app s'ouvre sur le sens attendu.
+   *
+   * Le sens se deduit du creneau de plus grande date, il n'est plus stocke.
+   * Un champ `lastDir` ecrit au moment de la reservation mentait des qu'on
+   * reservait un trajet lointain puis un plus proche : c'est la date du
+   * voyage qui ordonne, pas celle de la reservation.
    */
+  const lastDir = useMemo(() => {
+    let latest: { date: string; dir: string } | null = null;
+    for (const slot of bundle.reservations.slots) {
+      if (latest === null || slot.date > latest.date) latest = slot;
+    }
+    return latest?.dir ?? null;
+  }, [bundle.reservations.slots]);
+
   useEffect(() => {
-    const last = bundle.reservations.lastDir;
-    if (!last) return;
-    const expected = DIRECTIONS.indexOf(reverseDir(last) as (typeof DIRECTIONS)[number]);
+    if (!lastDir) return;
+    const expected = DIRECTIONS.indexOf(reverseDir(lastDir) as (typeof DIRECTIONS)[number]);
     if (expected >= 0) {
       setIndex(expected);
       progress.value = expected;
     }
-  }, [bundle.reservations.lastDir, progress]);
+  }, [lastDir, progress]);
 
   const dir = DIRECTIONS[index]!;
   const todayDay = calendar.get(today)?.get(dir) ?? emptyDay(today, dir);

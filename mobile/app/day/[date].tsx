@@ -8,6 +8,7 @@ import { slotOf } from '../../../src/stats.ts';
 import { matchesWatchlist } from '../../../src/watchlist.ts';
 import { useStore } from '../../src/data/store.ts';
 import { writeFile } from '../../src/data/github.ts';
+import { scheduleConfirmReminder } from '../../src/data/reminders.ts';
 import { buildCalendar, emptyDay } from '../../src/model.ts';
 import { dirLabel, longDate } from '../../src/format.ts';
 import { Sparkline } from '../../src/ui/Sparkline.tsx';
@@ -84,21 +85,28 @@ export default function DayScreen() {
     void persist('watchlist.json', next, `watchlist: ${already === -1 ? 'surveille' : 'retire'} ${date} ${depart}`);
   };
 
+  /**
+   * Enregistrer une reservation.
+   *
+   * Le quota TGVmax porte sur les reservations *simultanees* : un creneau se
+   * libere quand le train est passe. Compter les voyages deja faits afficherait
+   * « 6 / 6 » avec un quota reel vide, et bloquerait l'enregistrement.
+   */
   const book = (trainNo: string, depart: string, arrivee: string) => {
-    if (bundle.reservations.slots.length >= MAX_RESERVATIONS) {
+    const today = todayInParis();
+    const upcoming = bundle.reservations.slots.filter((slot) => slot.date >= today);
+    if (upcoming.length >= MAX_RESERVATIONS) {
       router.push('/settings');
       return;
     }
 
-    const next: Reservations = {
-      lastDir: dir,
-      slots: [
-        ...bundle.reservations.slots,
-        { date, dir, trainNo, depart, arrivee, bookedAt: todayInParis(), confirmed: false },
-      ],
-    };
+    const slot = { date, dir, trainNo, depart, arrivee, bookedAt: today, confirmed: false };
+    const next: Reservations = { slots: [...bundle.reservations.slots, slot] };
     setReservations(next);
-    void persist('reservations.json', next, `resa: ${date} ${depart}`);
+
+    // Le rappel part du telephone, pas d'une Action : il ne peut ni arriver en
+    // retard, ni se retirer en silence comme le cron qu'il remplace.
+    void scheduleConfirmReminder(slot);
   };
 
   const forecast = useMemo(() => {

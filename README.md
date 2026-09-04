@@ -28,15 +28,23 @@ partent en combien de jours ? ». Le reste du projet se refait ; elle, non.
 src/            collecteur, diff, statistiques, envoi push
 mobile/         application Expo
 data/
-  state.json          fraicheur de la donnee, dernier envoi, dernier rappel
+  state.json          fraicheur de la donnee, dernier envoi
   latest.json         dernier snapshot brut, non compresse
   history.json        observations OUI/NON par date de voyage et par sens
   stats.json          previsions, vide tant que l'echantillon est trop petit
   push-token.json     jeton Expo de l'appareil
   snapshots/          archive quotidienne gzippee (~12 ko/jour)
 watchlist.json        dates et regles surveillees
-reservations.json     les 6 creneaux simultanes de l'abonnement
 ```
+
+**Les reservations ne sont pas ici.** Elles vivent dans le stockage local de
+l'application, et rien ne les en sort sans un geste — un export manuel, depuis
+les reglages. Elles disent quand on n'est pas chez soi, et le depot est public.
+Le collecteur n'en a plus l'usage depuis que le rappel de confirmation est une
+alarme posee par le telephone.
+
+La watchlist, elle, reste versionnee : le collecteur ne peut pas filtrer ses
+notifications sur un fichier qu'il ne lit pas.
 
 `data/snapshots/` est la source de verite. `history.json` et `stats.json` en
 sont des vues, **entierement recalculees a chaque execution** : un bug
@@ -44,12 +52,11 @@ d'agregation se repare en relancant le job, sans corrompre l'archive.
 
 ## Les flux
 
-Cinq workflows, dont deux seulement se declenchent tout seuls.
+Quatre workflows, dont un seul se declenche tout seul.
 
 | Workflow | Declenchement | Role |
 |---|---|---|
 | `collect` | cron `15 6` et `15 8` UTC, ou manuel | Collecte, archive, recalcule les agregats, notifie, commite |
-| `remind` | cron `0 6` et `0 9` UTC, ou manuel | Rappelle de confirmer une reservation pour le lendemain |
 | `ci` | push sur `main`, pull request | Typecheck et tests, cote collecteur *et* cote application |
 | `update` | push sur `main` touchant `mobile/**` ou `src/**` | Publie une mise a jour OTA, apres les tests |
 | `notify-test` | manuel | Envoie une notification de verification, sans rien ecrire |
@@ -59,9 +66,10 @@ passages quotidiens sont donc idempotents. Il ecrit l'archive **avant** de
 notifier, et son etape de commit est en `always()` — une panne du canal
 d'alerte fait echouer le job sans emporter la journee.
 
-**`remind`** vise le milieu de matinee alors que l'echeance est a 17h, et le
-code n'accepte qu'une fenetre horaire parisienne. La raison est au paragraphe
-suivant.
+**Il n'y a plus de workflow `remind`.** Le rappel de confirmation est une alarme
+locale posee par le telephone au moment ou l'on enregistre une reservation. La
+raison est au paragraphe suivant : un cron qui part avec cinq heures de retard
+ne peut pas tenir une echeance horaire, et sa facon d'echouer etait muette.
 
 **`update`** attend les tests du collecteur avant de publier : `ci` tourne sur
 le meme push, mais en parallele, et une mise a jour OTA arrivee sur le
@@ -86,8 +94,13 @@ Mesure sur ce depot, pas suppose :
 **Aucun traitement ne doit donc dependre de l'heure a laquelle il croit
 tourner.** Le rappel de confirmation exigeait 16h pile a Paris : il a trouve
 19h et 20h, s'est retire quatre fois de suite, et n'est jamais parti — sans
-qu'un seul run ne devienne rouge. Viser tot et accepter une fenetre est la
-seule forme qui survit.
+qu'un seul run ne devienne rouge, puisqu'un garde-fou qui refuse sort en code 0.
+
+Elargir la fenetre n'aurait fait que reduire la probabilite de l'echec, pas le
+supprimer. **Un traitement a echeance horaire n'a rien a faire dans un cron
+GitHub** : le rappel est desormais pose par l'appareil, dont l'heure locale est
+celle de l'utilisateur. Il reste `collect`, dont l'idempotence rend le retard
+sans consequence — c'est la seule forme de tache qui survive ici.
 
 ## Developpement
 

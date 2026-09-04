@@ -22,7 +22,6 @@ export const EMPTY_BUNDLE: Bundle = {
     dataProcessed: null,
     collectedAt: null,
     lastPushOk: null,
-    lastRemindOn: null,
     latestSnapshot: null,
     snapshotCount: 0,
     recordCount: 0,
@@ -31,7 +30,7 @@ export const EMPTY_BUNDLE: Bundle = {
   history: {},
   stats: null,
   watchlist: { watch: [], rules: [] },
-  reservations: { lastDir: null, slots: [] },
+  reservations: { slots: [] },
 };
 
 export interface Store {
