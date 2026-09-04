@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { loadJson } from './remote.ts';
 import { readReservations, writeReservations } from './local.ts';
-import { syncConfirmReminders } from './reminders.ts';
+import { scheduleStaleAlarm, syncConfirmReminders } from './reminders.ts';
 import { EMPTY_BUNDLE, StoreContext, type Bundle, type Store } from './store.ts';
 import type { Reservations, Watchlist } from '../../../src/types.ts';
 
@@ -41,6 +41,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setLoading(false);
 
     void syncConfirmReminders(reservations.slots);
+    // Repoussee a chaque collecte fraiche : tant que la donnee arrive, cette
+    // alarme ne sonne jamais. Elle ne part que si le collecteur se tait.
+    if (!state.stale) void scheduleStaleAlarm(state.value.collectedAt);
   }, []);
 
   useEffect(() => {
