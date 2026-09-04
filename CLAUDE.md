@@ -171,6 +171,36 @@ contre un faux endpoint, et `TGVMAX_ROOT` de le faire sans toucher a l'archive.
 
 ## Livrer
 
+**On travaille directement sur `main`, et seulement sur `main`.** Pas de
+branche de fonctionnalite, pas de pull request, pas de revue. Le proprietaire
+de ce depot n'ouvre jamais l'editeur : tout est demande depuis un telephone, et
+c'est l'assistant qui ecrit, verifie, commite et pousse. Les commits s'empilent
+sur `main`, et le push livre dans la foulee — OTA pour le JS, collecte au cron
+suivant. Une PR n'aurait personne pour la relire ; elle ne serait qu'une
+ceremonie de plus.
+
+**En echange, la verification n'est pas negociable, et elle passe avant le
+push.** C'est la seule chose qui protege quoi que ce soit ici, et il faut voir
+pourquoi elle n'est pas symetrique :
+
+- L'application est couverte toute seule. `update.yml` fait tourner son propre
+  `verify` — typecheck et tests — **avant** de publier : du JS casse ne peut
+  pas atteindre le telephone.
+- **Le collecteur ne l'est pas.** `collect.yml` part au cron sans rien
+  demander a personne, et `ci.yml` tourne en parallele du push sans pouvoir
+  l'arreter. Un collecteur casse sur `main` fait une journee manquee, et une
+  journee manquee est perdue pour toujours — c'est l'invariant de ce projet.
+
+D'ou la sequence, dans cet ordre, systematiquement :
+
+```sh
+npm test && npm run typecheck
+cd mobile && npx tsc --noEmit && npx expo export --platform android --output-dir /tmp/export
+```
+
+Puis seulement le commit et le push. « Pas de securite » vaut pour le
+processus, jamais pour l'archive.
+
 **Changement JS** — interface, gestes, mise en page, logique metier : un push
 sur `main` touchant `mobile/**` ou `src/**` declenche `update.yml`, qui publie
 une mise a jour OTA de quelques centaines de kilo-octets. Elle s'applique au
