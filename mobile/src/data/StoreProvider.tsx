@@ -10,6 +10,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [bundle, setBundle] = useState<Bundle>(EMPTY_BUNDLE);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
+  const [storageOk, setStorageOk] = useState(true);
 
   /**
    * Sept fichiers viennent du depot, les reservations du stockage local.
@@ -38,14 +39,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       stats: stats.value,
       trains: trains.value,
       watchlist: watchlist.value,
-      reservations,
+      reservations: reservations.reservations,
       pushToken: pushToken.value,
     });
+    setStorageOk(reservations.ok);
     // Le snapshot est la seule ressource dont l'absence se voit vraiment.
     setOffline(latest.stale);
     setLoading(false);
 
-    void syncConfirmReminders(reservations.slots);
+    void syncConfirmReminders(reservations.reservations.slots);
     // Repoussee a chaque collecte fraiche : tant que la donnee arrive, cette
     // alarme ne sonne jamais. Elle ne part que si le collecteur se tait.
     if (!state.stale) void scheduleStaleAlarm(state.value.collectedAt);
@@ -55,24 +57,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
+  /*
+   * La persistance est un effet du changement d'etat, pas une consequence du
+   * geste qui l'a provoque.
+   *
+   * Ecrire dans le gestionnaire, c'est ecrire une valeur calculee depuis le
+   * rendu precedent ; ici on ecrit ce que l'application affiche reellement. Et
+   * si la lecture initiale a echoue, on n'ecrit rien du tout : remplacer une
+   * liste peut-etre recuperable par une liste vide serait la seule perte
+   * irreversible que cette application puisse causer.
+   */
+  useEffect(() => {
+    if (loading || !storageOk) return;
+    void writeReservations(bundle.reservations).then((written) => {
+      if (!written) setStorageOk(false);
+    });
+  }, [bundle.reservations, loading, storageOk]);
+
   const value = useMemo<Store>(
     () => ({
       bundle,
       loading,
       offline,
+      storageOk,
       refresh,
       // Ecriture optimiste : le depot fait foi, mais l'interface ne doit pas
       // attendre un aller-retour reseau pour repondre au doigt.
       setWatchlist: (watchlist: Watchlist) =>
         setBundle((current) => ({ ...current, watchlist })),
-      // Les reservations ne transitant plus par le depot, le store porte leur
-      // persistance : aucun ecran n'a plus a y penser, ni a gerer de conflit.
-      setReservations: (reservations: Reservations) => {
-        setBundle((current) => ({ ...current, reservations }));
-        void writeReservations(reservations);
+      // L'ecran decrit la transformation, jamais le resultat : c'est ce qui
+      // rend impossible d'ecraser un creneau enregistre une fraction de seconde
+      // plus tot.
+      setReservations: (update: (current: Reservations) => Reservations) => {
+        setBundle((current) => ({ ...current, reservations: update(current.reservations) }));
       },
     }),
-    [bundle, loading, offline, refresh],
+    [bundle, loading, offline, storageOk, refresh],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

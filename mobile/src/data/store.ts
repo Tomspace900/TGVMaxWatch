@@ -47,9 +47,22 @@ export interface Store {
   loading: boolean;
   /** Vrai quand tout vient du cache : le reseau n'a pas repondu. */
   offline: boolean;
+  /**
+   * Faux quand le stockage local des reservations n'a pas pu etre lu ou ecrit.
+   * Les ecritures sont alors bloquees : mieux vaut ne rien enregistrer que
+   * remplacer une liste peut-etre recuperable par une liste vide.
+   */
+  storageOk: boolean;
   refresh: () => Promise<void>;
   setWatchlist: (watchlist: Watchlist) => void;
-  setReservations: (reservations: Reservations) => void;
+  /**
+   * Prend une fonction, jamais une valeur.
+   *
+   * Une valeur calculee depuis le `bundle` d'un ecran est une valeur calculee
+   * depuis l'etat d'avant le dernier rendu : deux gestes rapproches et le
+   * second effacait le premier.
+   */
+  setReservations: (update: (current: Reservations) => Reservations) => void;
 }
 
 export const StoreContext = createContext<Store | null>(null);

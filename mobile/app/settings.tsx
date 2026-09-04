@@ -21,7 +21,7 @@ import { currentPushState, requestPushToken, type PushState } from '../src/data/
 import { dirLabel, instantLabel, longDate, maskToken, weekdayName } from '../src/format.ts';
 import { Action, Actions, Note, Row, Section, Status } from '../src/ui/Settings.tsx';
 import { radius, space, useTheme } from '../src/theme.ts';
-import type { Reservations, Watchlist } from '../../src/types.ts';
+import type { Watchlist } from '../../src/types.ts';
 
 /** Chaque refus de GitHub demande un geste different : il faut donc les nommer. */
 const TOKEN_ERRORS: Record<Exclude<TokenCheck, { ok: true }>['reason'], string> = {
@@ -35,7 +35,7 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { bundle, setWatchlist, setReservations } = useStore();
+  const { bundle, storageOk, setWatchlist, setReservations } = useStore();
 
   const [message, setMessage] = useState<string | null>(null);
   const [restore, setRestore] = useState('');
@@ -66,10 +66,7 @@ export default function SettingsScreen() {
   /** Le creneau disparait, et le rappel qui l'accompagnait avec lui. */
   const release = (index: number) => {
     const removed = bundle.reservations.slots[index];
-    const next: Reservations = {
-      slots: bundle.reservations.slots.filter((_, i) => i !== index),
-    };
-    setReservations(next);
+    setReservations((current) => ({ slots: current.slots.filter((_, i) => i !== index) }));
     if (removed) void cancelConfirmReminder(removed);
   };
 
@@ -83,11 +80,9 @@ export default function SettingsScreen() {
   const confirm = (index: number) => {
     const slot = bundle.reservations.slots[index];
     if (!slot) return;
-    setReservations({
-      slots: bundle.reservations.slots.map((entry, i) =>
-        i === index ? { ...entry, confirmed: true } : entry,
-      ),
-    });
+    setReservations((current) => ({
+      slots: current.slots.map((entry, i) => (i === index ? { ...entry, confirmed: true } : entry)),
+    }));
     void cancelConfirmReminder(slot);
   };
 
@@ -194,7 +189,7 @@ export default function SettingsScreen() {
       setMessage('Sauvegarde illisible : rien n’a été modifié.');
       return;
     }
-    setReservations(parsed.reservations);
+    setReservations(() => parsed.reservations);
     setWatchlist(parsed.watchlist);
     void syncConfirmReminders(parsed.reservations.slots);
     void persist('watchlist.json', parsed.watchlist, 'watchlist: restauration');
@@ -231,6 +226,15 @@ export default function SettingsScreen() {
       )}
 
       <Section title={`Quota — ${used} / ${MAX_RESERVATIONS}`}>
+        {/* Une panne du stockage local est la seule perte irreversible que
+            cette application puisse causer : elle ne peut pas rester muette. */}
+        {!storageOk && (
+          <Status
+            attention
+            text="Le stockage de cet appareil est illisible. Rien n’est enregistré tant que ce n’est pas résolu — restaure une sauvegarde ou réinstalle l’application."
+          />
+        )}
+
         <View style={styles.slots}>
           {Array.from({ length: MAX_RESERVATIONS }, (_, i) => (
             <View

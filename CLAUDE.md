@@ -112,6 +112,26 @@ remontee franche dans la derniere semaine, ou le 06/09 est passe de 1 a 17
 places en un jour ; et croiser vitesse **et** rarete ramene le volume a une a
 quatre lignes. Deux jours de recul seulement : a reconfirmer.
 
+**Deplacer un stockage, c'est ecrire la migration dans le meme commit.** Les
+reservations sont passees du depot au stockage local de l'application sans
+qu'aucun code ne transporte l'existant : a l'arrivee de la mise a jour, l'app a
+cesse de lire `reservations.json` et s'est mise a lire une cle vide. Le creneau
+enregistre a disparu, et le fichier ayant ete supprime dans le meme commit,
+l'application ne pouvait meme plus le retrouver.
+
+**Une lecture qui echoue n'est pas une liste vide.** Le meme code rendait une
+liste vide dans les deux cas. Une lecture en erreur affichait donc « aucun
+creneau », et la premiere ecriture suivante ecrasait definitivement le stockage
+par cette liste vide augmentee d'un element. `readReservations` distingue
+desormais les deux, et l'application **refuse d'ecrire** tant que la lecture n'a
+pas reussi — c'est le seul endroit du projet ou la donnee n'est pas
+reconstituable depuis l'archive.
+
+**Une ecriture d'etat local se declenche sur le changement d'etat, pas dans le
+gestionnaire du geste.** Ecrire dans le gestionnaire, c'est ecrire une valeur
+calculee depuis le rendu precedent : deux gestes rapproches et le second efface
+le premier. `setReservations` prend une fonction, jamais une valeur.
+
 **Une regle qui amortit le bruit d'un signal ne doit pas filtrer les autres.**
 La watchlist etait appliquee aux ouvertures de train *et* aux dates entrantes.
 Taillee pour le premier cas, qui produit des centaines d'evenements, elle

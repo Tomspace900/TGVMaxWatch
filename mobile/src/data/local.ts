@@ -16,24 +16,39 @@ const RESERVATIONS_KEY = 'tgvmax.reservations';
 
 export const EMPTY_RESERVATIONS: Reservations = { slots: [] };
 
-export async function readReservations(): Promise<Reservations> {
+/**
+ * Une lecture qui echoue n'est pas une liste vide.
+ *
+ * C'est la distinction qui manquait, et elle ouvrait une perte definitive :
+ * une lecture en erreur rendait une liste vide, l'interface affichait « aucun
+ * creneau », et la premiere reservation suivante ecrasait le stockage avec
+ * cette liste vide augmentee d'un seul element. Tout le reste disparaissait
+ * sans que rien ne l'annonce — le mode de panne que ce projet combat partout
+ * ailleurs, place au seul endroit ou la donnee n'est pas reconstituable.
+ */
+export interface ReservationsRead {
+  reservations: Reservations;
+  /** Faux quand le stockage n'a pas pu etre lu. L'appelant doit alors refuser d'ecrire. */
+  ok: boolean;
+}
+
+export async function readReservations(): Promise<ReservationsRead> {
   try {
     const raw = await AsyncStorage.getItem(RESERVATIONS_KEY);
-    if (!raw) return EMPTY_RESERVATIONS;
-    return normalizeReservations(JSON.parse(raw));
+    if (!raw) return { reservations: EMPTY_RESERVATIONS, ok: true };
+    return { reservations: normalizeReservations(JSON.parse(raw)), ok: true };
   } catch {
-    // Un stockage illisible ne doit jamais empecher l'application de s'ouvrir :
-    // le calendrier, lui, vient du depot et reste parfaitement utilisable.
-    return EMPTY_RESERVATIONS;
+    return { reservations: EMPTY_RESERVATIONS, ok: false };
   }
 }
 
-export async function writeReservations(reservations: Reservations): Promise<void> {
+/** Rend `false` si l'ecriture a echoue : l'appelant doit le rendre visible. */
+export async function writeReservations(reservations: Reservations): Promise<boolean> {
   try {
     await AsyncStorage.setItem(RESERVATIONS_KEY, JSON.stringify(reservations));
+    return true;
   } catch {
-    // L'ecriture optimiste a deja mis a jour l'interface. Perdre la
-    // persistance d'un creneau est desagreable ; planter dessus le serait plus.
+    return false;
   }
 }
 

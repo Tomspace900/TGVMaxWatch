@@ -14,7 +14,7 @@ import { dirLabel, longDate } from '../../src/format.ts';
 import { Sparkline } from '../../src/ui/Sparkline.tsx';
 import { TrainRow } from '../../src/ui/TrainRow.tsx';
 import { radius, space, useTheme } from '../../src/theme.ts';
-import type { Reservations, Watchlist } from '../../../src/types.ts';
+import type { Watchlist } from '../../../src/types.ts';
 
 export default function DayScreen() {
   const theme = useTheme();
@@ -113,8 +113,7 @@ export default function DayScreen() {
     }
 
     const slot = { date, dir, trainNo, depart, arrivee, bookedAt: today, confirmed: false };
-    const next: Reservations = { slots: [...bundle.reservations.slots, slot] };
-    setReservations(next);
+    setReservations((current) => ({ slots: [...current.slots, slot] }));
 
     // Le rappel part du telephone, pas d'une Action : il ne peut ni arriver en
     // retard, ni se retirer en silence comme le cron qu'il remplace.
