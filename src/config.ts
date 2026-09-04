@@ -91,6 +91,21 @@ export const CONFIRM_URL = 'https://www.maxjeune-tgvinoui.sncf/sncf-connect/mes-
 export const STALE_DATA_HOURS = 36;
 
 /**
+ * Delai apres lequel l'appareil s'alarme lui-meme d'une collecte muette.
+ *
+ * Le silence est le mode de panne de ce projet : un workflow qui ne se
+ * declenche pas n'envoie aucun mail d'echec, et la collecte du 2026-09-03 a
+ * ainsi disparu sans un seul run rouge. Une notification push ne peut pas
+ * combler ce trou — elle est envoyee *par* le collecteur, et un collecteur mort
+ * ne peut pas annoncer sa propre mort.
+ *
+ * L'appareil, lui, le peut : il repose une alarme locale a chaque
+ * rafraichissement reussi. Quatre heures de marge au-dela du bandeau de
+ * fraicheur, pour qu'un retard de cron ne la declenche pas pour rien.
+ */
+export const STALE_ALARM_HOURS = 40;
+
+/**
  * Seuils des deux alertes qui ne dependent d'aucune preference.
  *
  * Mesures sur l'archive reelle, diff du 01 au 03 septembre : notifier chaque

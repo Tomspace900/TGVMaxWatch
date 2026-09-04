@@ -58,6 +58,28 @@ export default function CalendarScreen() {
 
   const dir = DIRECTIONS[index]!;
   const todayDay = calendar.get(today)?.get(dir) ?? emptyDay(today, dir);
+
+  /*
+   * Ce qui a bouge depuis hier.
+   *
+   * Volontairement different de ce que la notification a envoye : elle ne
+   * retient que ce qui meritait de deranger, ce bandeau montre le mouvement
+   * brut, y compris quand rien n'a declenche d'alerte. Le bandeau est la vue
+   * continue, la notification l'exception.
+   *
+   * `Day.delta` est deja calcule par `buildCalendar` — il n'y a rien de plus a
+   * derouler que le tri.
+   */
+  const moved = useMemo(() => {
+    const rows: { date: string; delta: number; available: number }[] = [];
+    for (const [date, byDir] of calendar) {
+      if (date < today) continue;
+      const day = byDir.get(dir);
+      if (!day || day.delta === null || day.delta === 0) continue;
+      rows.push({ date, delta: day.delta, available: day.available });
+    }
+    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 3);
+  }, [calendar, dir, today]);
   const processed = bundle.state.dataProcessed;
   const stale = processed !== null && hoursSince(processed) > STALE_DATA_HOURS;
 
@@ -106,6 +128,29 @@ export default function CalendarScreen() {
             <Text style={[styles.bannerText, { color: theme.inverseText }]}>
               Donnée vieille de plus de {STALE_DATA_HOURS} h : le collecteur ne tourne plus.
             </Text>
+          </View>
+        )}
+
+        {moved.length > 0 && (
+          <View style={styles.moved}>
+            {moved.map((row) => (
+              <Pressable
+                key={row.date}
+                onPress={() => router.push({ pathname: '/day/[date]', params: { date: row.date, dir } })}
+                style={styles.movedLine}
+              >
+                {/* Le signe porte le sens du mouvement. La couleur, elle, reste
+                    reservee a l'echelle de disponibilite — elle n'encode jamais
+                    autre chose. */}
+                <Text style={[styles.movedDelta, { color: theme.text }]}>
+                  {row.delta > 0 ? '+' : ''}
+                  {row.delta}
+                </Text>
+                <Text style={[styles.movedText, { color: theme.muted }]}>
+                  {longDate(row.date)} · {row.available} place{row.available > 1 ? 's' : ''}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         )}
       </View>
@@ -182,6 +227,12 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12 },
   banner: { marginTop: space.md, padding: space.md },
   bannerText: { fontSize: 12.5, fontWeight: '500' },
+  moved: { marginTop: space.md, gap: 2 },
+  movedLine: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  // Chiffres tabulaires : une colonne de nombres qui ne s'alignent pas
+  // verticalement se lit comme un defaut d'affichage.
+  movedDelta: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'], minWidth: 28 },
+  movedText: { fontSize: 12.5 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

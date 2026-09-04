@@ -1,5 +1,11 @@
 import * as Notifications from 'expo-notifications';
-import { CONFIRM_DAYS_BEFORE, CONFIRM_REMINDER_HOUR, CONFIRM_URL } from '../../../src/config.ts';
+import {
+  APP_URL,
+  CONFIRM_DAYS_BEFORE,
+  CONFIRM_REMINDER_HOUR,
+  CONFIRM_URL,
+  STALE_ALARM_HOURS,
+} from '../../../src/config.ts';
 import { addDays } from '../../../src/dates.ts';
 import type { Reservation } from '../../../src/types.ts';
 import { CHANNEL_ID } from './notifications.ts';
@@ -74,6 +80,48 @@ export async function cancelConfirmReminder(
     await Notifications.cancelScheduledNotificationAsync(confirmId(slot));
   } catch {
     // Annuler un rappel qui n'existe pas n'est pas une erreur.
+  }
+}
+
+const STALE_ID = 'stale';
+
+/**
+ * Alarme de collecte muette.
+ *
+ * C'est le seul dispositif capable de signaler une collecte morte. Une
+ * notification push part du collecteur : s'il ne tourne plus, il ne peut pas
+ * prevenir qu'il ne tourne plus. Le bandeau de fraicheur, lui, suppose qu'on
+ * ouvre l'application.
+ *
+ * Reposee a chaque rafraichissement reussi : tant que la donnee arrive,
+ * l'echeance recule et l'alarme ne sonne jamais.
+ */
+export async function scheduleStaleAlarm(collectedAt: string | null): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(STALE_ID);
+    if (!collectedAt) return;
+
+    const when = new Date(Date.parse(collectedAt) + STALE_ALARM_HOURS * 3_600_000);
+    // Deja perime : le bandeau le dit a l'ecran, sous les yeux de qui vient
+    // d'ouvrir l'application. Une alarme dans le passe ne partirait pas, et
+    // reveiller quelqu'un pour ce qu'il est en train de lire n'aiderait pas.
+    if (when.getTime() <= Date.now()) return;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: STALE_ID,
+      content: {
+        title: 'Plus de collecte depuis deux jours',
+        body: 'Le collecteur ne publie plus. Verifie le workflow sur GitHub.',
+        data: { url: APP_URL },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: when,
+        channelId: CHANNEL_ID,
+      },
+    });
+  } catch {
+    // Permission refusee : le bandeau de fraicheur reste le temoin visible.
   }
 }
 
