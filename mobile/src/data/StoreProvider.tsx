@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { loadJson } from './remote.ts';
+import { readReservations, writeReservations } from './local.ts';
+import { syncConfirmReminders } from './reminders.ts';
 import { EMPTY_BUNDLE, StoreContext, type Bundle, type Store } from './store.ts';
 import type { Reservations, Watchlist } from '../../../src/types.ts';
 
@@ -9,6 +11,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
 
+  /**
+   * Cinq fichiers viennent du depot, les reservations du stockage local.
+   *
+   * C'est la seule asymetrie de ce chargement, et elle est voulue : le depot
+   * porte la donnee publique SNCF et la watchlist que le collecteur doit lire ;
+   * l'appareil garde ce qui ne regarde que son proprietaire.
+   */
   const refresh = useCallback(async () => {
     const [state, latest, history, stats, watchlist, reservations] = await Promise.all([
       loadJson('data/state.json', EMPTY_BUNDLE.state),
@@ -16,7 +25,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loadJson('data/history.json', EMPTY_BUNDLE.history),
       loadJson('data/stats.json', EMPTY_BUNDLE.stats),
       loadJson('watchlist.json', EMPTY_BUNDLE.watchlist),
-      loadJson('reservations.json', EMPTY_BUNDLE.reservations),
+      readReservations(),
     ]);
 
     setBundle({
@@ -25,11 +34,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       history: history.value,
       stats: stats.value,
       watchlist: watchlist.value,
-      reservations: reservations.value,
+      reservations,
     });
     // Le snapshot est la seule ressource dont l'absence se voit vraiment.
     setOffline(latest.stale);
     setLoading(false);
+
+    void syncConfirmReminders(reservations.slots);
   }, []);
 
   useEffect(() => {
@@ -46,8 +57,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // attendre un aller-retour reseau pour repondre au doigt.
       setWatchlist: (watchlist: Watchlist) =>
         setBundle((current) => ({ ...current, watchlist })),
-      setReservations: (reservations: Reservations) =>
-        setBundle((current) => ({ ...current, reservations })),
+      // Les reservations ne transitant plus par le depot, le store porte leur
+      // persistance : aucun ecran n'a plus a y penser, ni a gerer de conflit.
+      setReservations: (reservations: Reservations) => {
+        setBundle((current) => ({ ...current, reservations }));
+        void writeReservations(reservations);
+      },
     }),
     [bundle, loading, offline, refresh],
   );

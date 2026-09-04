@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MAX_RESERVATIONS } from '../../src/config.ts';
+import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
 import { getToken, setToken, writeFile } from '../src/data/github.ts';
+import { exportLocalState, parseExport } from '../src/data/local.ts';
+import { cancelConfirmReminder, syncConfirmReminders } from '../src/data/reminders.ts';
 import { requestPushToken, type PushStatus } from '../src/data/push.ts';
 import { dirLabel, longDate, weekdayName } from '../src/format.ts';
 import { radius, space, useTheme } from '../src/theme.ts';
@@ -20,6 +23,7 @@ export default function SettingsScreen() {
   const [saved, setSaved] = useState(false);
   const [push, setPush] = useState<PushStatus>('off');
   const [message, setMessage] = useState<string | null>(null);
+  const [restore, setRestore] = useState('');
 
   useEffect(() => {
     void getToken().then((stored) => {
@@ -30,7 +34,15 @@ export default function SettingsScreen() {
     });
   }, []);
 
-  const used = bundle.reservations.slots.length;
+  const today = todayInParis();
+
+  /*
+   * Le quota TGVmax porte sur les reservations *simultanees* : un creneau se
+   * libere quand le train est passe. Les voyages deja faits restent affiches —
+   * c'est un historique qu'on ne jette pas — mais ils ne comptent plus.
+   */
+  const upcoming = bundle.reservations.slots.filter((slot) => slot.date >= today);
+  const used = upcoming.length;
 
   const persist = async (path: string, value: unknown, note: string) => {
     try {
@@ -50,13 +62,53 @@ export default function SettingsScreen() {
     void persist('watchlist.json', next, 'watchlist: retrait');
   };
 
+  /** Le creneau disparait, et le rappel qui l'accompagnait avec lui. */
   const release = (index: number) => {
+    const removed = bundle.reservations.slots[index];
     const next: Reservations = {
-      ...bundle.reservations,
       slots: bundle.reservations.slots.filter((_, i) => i !== index),
     };
     setReservations(next);
-    void persist('reservations.json', next, 'resa: creneau libere');
+    if (removed) void cancelConfirmReminder(removed);
+  };
+
+  /**
+   * « C'est confirmé ».
+   *
+   * Le champ `confirmed` etait ecrit `false` a la creation et jamais relu :
+   * il porte desormais un vrai geste, dont le seul effet visible est de faire
+   * taire un rappel devenu inutile.
+   */
+  const confirm = (index: number) => {
+    const slot = bundle.reservations.slots[index];
+    if (!slot) return;
+    const next: Reservations = {
+      slots: bundle.reservations.slots.map((entry, i) =>
+        i === index ? { ...entry, confirmed: true } : entry,
+      ),
+    };
+    setReservations(next);
+    void cancelConfirmReminder(slot);
+  };
+
+  const exportState = () => {
+    void Share.share({
+      message: exportLocalState(bundle.reservations, bundle.watchlist),
+    });
+  };
+
+  const importState = () => {
+    const parsed = parseExport(restore.trim());
+    if (!parsed) {
+      setMessage('Sauvegarde illisible : rien n’a été modifié.');
+      return;
+    }
+    setReservations(parsed.reservations);
+    setWatchlist(parsed.watchlist);
+    void syncConfirmReminders(parsed.reservations.slots);
+    void persist('watchlist.json', parsed.watchlist, 'watchlist: restauration');
+    setRestore('');
+    setMessage(`${parsed.reservations.slots.length} créneaux restaurés.`);
   };
 
   return (
@@ -96,7 +148,7 @@ export default function SettingsScreen() {
         ) : (
           bundle.reservations.slots.map((slot, index) => (
             <View
-              key={`${slot.date}-${slot.trainNo}`}
+              key={`${slot.date}-${slot.dir}-${slot.trainNo}`}
               style={[styles.line, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}
             >
               <View style={{ flex: 1 }}>
@@ -105,10 +157,21 @@ export default function SettingsScreen() {
                 </Text>
                 <Text style={[styles.muted, { color: theme.muted }]}>
                   {dirLabel(slot.dir)} · n{slot.trainNo}
+                  {slot.date < today ? ' · voyage passé' : slot.confirmed ? ' · confirmé' : ''}
                 </Text>
               </View>
+
+              {/* Le geste n'a de sens que sur un voyage a venir pas encore confirme. */}
+              {slot.date >= today && !slot.confirmed && (
+                <Pressable onPress={() => confirm(index)} hitSlop={8}>
+                  <Text style={[styles.muted, { color: theme.text }]}>confirmé</Text>
+                </Pressable>
+              )}
+
               <Pressable onPress={() => release(index)} hitSlop={8}>
-                <Text style={[styles.muted, { color: theme.muted }]}>libérer</Text>
+                <Text style={[styles.muted, { color: theme.muted }]}>
+                  {slot.date < today ? 'oublier' : 'libérer'}
+                </Text>
               </Pressable>
             </View>
           ))
@@ -159,9 +222,48 @@ export default function SettingsScreen() {
         ))}
       </Section>
 
+      <Section title="Sauvegarde" theme={theme}>
+        <Text style={[styles.muted, { color: theme.muted }]}>
+          Tes r\u00e9servations vivent sur cet appareil et nulle part ailleurs. L\u2019export les copie, avec
+          la surveillance, dans un texte que tu partages o\u00f9 tu veux. Rien ne sort d\u2019ici sans ce
+          geste \u2014 et sans export r\u00e9cent, un t\u00e9l\u00e9phone perdu emporte la liste (les r\u00e9servations
+          elles-m\u00eames restent chez SNCF).
+        </Text>
+
+        <Pressable
+          style={[styles.button, { backgroundColor: theme.inverseBg, borderRadius: radius.sm }]}
+          onPress={exportState}
+        >
+          <Text style={[styles.buttonText, { color: theme.inverseText }]}>Exporter</Text>
+        </Pressable>
+
+        <TextInput
+          value={restore}
+          onChangeText={setRestore}
+          placeholder="Coller une sauvegarde pour la restaurer"
+          placeholderTextColor={theme.muted}
+          multiline
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={[
+            styles.field,
+            { backgroundColor: theme.sunken, color: theme.text, borderRadius: radius.sm, minHeight: 72 },
+          ]}
+        />
+
+        {restore.trim().length > 0 && (
+          <Pressable
+            style={[styles.button, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}
+            onPress={importState}
+          >
+            <Text style={[styles.buttonText, { color: theme.text }]}>Restaurer</Text>
+          </Pressable>
+        )}
+      </Section>
+
       <Section title="Notifications" theme={theme}>
         <Text style={[styles.muted, { color: theme.muted }]}>
-          {push === 'ready' && 'Jeton obtenu. Le collecteur ne l\u2019envoie pas encore : la bascule vers Expo Push attend les identifiants FCM.'}
+          {push === 'ready' && 'Jeton enregistr\u00e9. Le collecteur signe ses envois et pousse les alertes sur cet appareil.'}
           {push === 'off' && "Pas encore de jeton sur cet appareil."}
           {push === 'denied' && 'Permission refusée.'}
           {push === 'unsupported' && "Indisponible ici : il faut un vrai appareil et un build EAS."}

@@ -60,29 +60,15 @@ export function todayInParis(now: Date = new Date()): string {
   }).format(now);
 }
 
-/** Heure locale a Paris, 0-23. Sert a valider qu'un cron UTC tombe bien a 16h. */
-export function hourInParis(now: Date = new Date()): number {
-  return Number(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Paris',
-      hour: '2-digit',
-      hour12: false,
-    }).format(now),
-  );
-}
-
-/**
- * L'heure parisienne tombe-t-elle dans la fenetre `[from, until]`, bornes
- * comprises ?
+/*
+ * Il n'y a plus d'helper d'heure parisienne, et c'est voulu.
  *
- * Les executions planifiees partent avec plusieurs heures de retard : comparer
- * l'heure a une valeur unique revient a n'accepter presque jamais, et rejeter
- * tout un declenchement quotidien sans que rien ne devienne rouge.
+ * Le rappel de confirmation exigeait une fenetre horaire cote collecteur parce
+ * qu'il partait d'un cron UTC en retard de trois a cinq heures. Il est
+ * desormais pose par le telephone, dont l'heure locale *est* l'heure de
+ * l'utilisateur : plus aucun traitement du depot n'a besoin de savoir quelle
+ * heure il est a Paris.
  */
-export function isParisHourWithin(from: number, until: number, now: Date = new Date()): boolean {
-  const hour = hourInParis(now);
-  return hour >= from && hour <= until;
-}
 
 /** `HH:MM` -> minutes depuis minuit. */
 export function timeToMinutes(time: string): number {

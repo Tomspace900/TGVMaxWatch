@@ -60,8 +60,32 @@ export const DURATION_INTERMEDIATE_MAX = 180; // 3h00
 /** Quota de reservations simultanees de l'abonnement TGVmax. */
 export const MAX_RESERVATIONS = 6;
 
-/** Nombre de jours avant le voyage ou la reservation doit etre confirmee. */
+/**
+ * Nombre de jours avant le voyage ou la reservation doit etre confirmee.
+ *
+ * L'echeance retenue est 17h la veille du voyage. Elle vient de l'utilisateur,
+ * pas d'une source SNCF verifiable : tout le rappel repose dessus, et c'est la
+ * seule ligne a changer si elle se revele fausse.
+ */
 export const CONFIRM_DAYS_BEFORE = 1;
+
+/**
+ * Heure locale a laquelle le telephone pose le rappel de confirmation.
+ *
+ * Sept heures avant l'echeance de 17h. Le rappel est une alarme posee par
+ * l'appareil, dont l'heure locale est celle de l'utilisateur : contrairement au
+ * cron qu'il remplace, il ne peut pas arriver en retard ni se retirer en
+ * silence.
+ */
+export const CONFIRM_REMINDER_HOUR = 10;
+
+/**
+ * Ou se confirme une reservation.
+ *
+ * L'espace MAX JEUNE, et non `sncf-connect.com/app/mes-voyages` vers lequel le
+ * rappel pointait : c'est la page ou le geste demande se fait reellement.
+ */
+export const CONFIRM_URL = 'https://www.maxjeune-tgvinoui.sncf/sncf-connect/mes-voyages';
 
 /** Au-dela, la donnee affichee est consideree comme perimee (collecteur en panne). */
 export const STALE_DATA_HOURS = 36;

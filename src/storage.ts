@@ -1,15 +1,7 @@
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import type {
-  History,
-  Reservations,
-  Snapshot,
-  State,
-  Stats,
-  TrainRecord,
-  Watchlist,
-} from './types.ts';
+import type { History, Snapshot, State, Stats, TrainRecord, Watchlist } from './types.ts';
 
 /**
  * Racine des donnees.
@@ -27,7 +19,6 @@ export const EMPTY_STATE: State = {
   dataProcessed: null,
   collectedAt: null,
   lastPushOk: null,
-  lastRemindOn: null,
   latestSnapshot: null,
   snapshotCount: 0,
   recordCount: 0,
@@ -95,14 +86,15 @@ export const writeState = (state: State): void => writeJson('data/state.json', s
 export const readHistory = (): History => readJson<History>('data/history.json', {});
 export const readStats = (): Stats | null => readJson<Stats | null>('data/stats.json', null);
 
+/**
+ * Seul fichier de preference que le collecteur lit encore.
+ *
+ * Les reservations, elles, ne passent plus par le depot : elles vivent dans le
+ * stockage local de l'application. Le collecteur ne peut en revanche pas
+ * filtrer sur une watchlist qu'il ne lirait pas — celle-ci reste donc ici.
+ */
 export const readWatchlist = (): Watchlist =>
   readJson<Watchlist>('watchlist.json', { watch: [], rules: [] });
-
-export const readReservations = (): Reservations =>
-  readJson<Reservations>('reservations.json', { lastDir: null, slots: [] });
-
-export const writeReservations = (reservations: Reservations): void =>
-  writeJson('reservations.json', reservations);
 
 /**
  * `history.json` avec les series d'observations sur une seule ligne.

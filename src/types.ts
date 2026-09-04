@@ -28,8 +28,6 @@ export interface State {
   collectedAt: string | null;
   /** Date du dernier envoi push reussi, affichee dans l'application. */
   lastPushOk: string | null;
-  /** Jour parisien du dernier rappel de confirmation envoye, `YYYY-MM-DD`. */
-  lastRemindOn: string | null;
   /** Date de collecte du dernier snapshot, `YYYY-MM-DD`. */
   latestSnapshot: string | null;
   snapshotCount: number;
@@ -102,7 +100,13 @@ export interface Watchlist {
   rules: WatchRule[];
 }
 
-/** Un des 6 creneaux de reservation simultanee. */
+/**
+ * Un des 6 creneaux de reservation simultanee.
+ *
+ * Ces donnees ne quittent pas l'appareil : elles vivent dans le stockage local
+ * de l'application, jamais dans le depot. Le collecteur n'en a plus l'usage
+ * depuis que le rappel de confirmation est une alarme posee par le telephone.
+ */
 export interface Reservation {
   date: string;
   dir: Dir;
@@ -111,16 +115,11 @@ export interface Reservation {
   arrivee: string;
   /** Date d'enregistrement, `YYYY-MM-DD`. */
   bookedAt: string;
-  /** Passe a true une fois la confirmation faite dans SNCF Connect. */
+  /** Passe a true par le geste « c'est confirme », qui annule le rappel. */
   confirmed: boolean;
 }
 
 export interface Reservations {
-  /**
-   * Sens du dernier trajet effectue. Les trajets sont unitaires mais alternent :
-   * l'app s'ouvre par defaut sur le sens attendu ensuite.
-   */
-  lastDir: Dir | null;
   slots: Reservation[];
 }
 
