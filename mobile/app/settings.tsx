@@ -1,17 +1,35 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { MAX_RESERVATIONS } from '../../src/config.ts';
 import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
-import { getToken, setToken, writeFile } from '../src/data/github.ts';
+import {
+  getToken,
+  getTokenVerifiedAt,
+  setToken,
+  verifyToken,
+  writeFile,
+  type TokenCheck,
+} from '../src/data/github.ts';
 import { exportLocalState, parseExport } from '../src/data/local.ts';
 import { cancelConfirmReminder, syncConfirmReminders } from '../src/data/reminders.ts';
-import { requestPushToken, type PushStatus } from '../src/data/push.ts';
-import { dirLabel, longDate, weekdayName } from '../src/format.ts';
+import { currentPushState, requestPushToken, type PushState } from '../src/data/push.ts';
+import { dirLabel, instantLabel, longDate, maskToken, weekdayName } from '../src/format.ts';
+import { Action, Actions, Note, Row, Section, Status } from '../src/ui/Settings.tsx';
 import { radius, space, useTheme } from '../src/theme.ts';
 import type { Reservations, Watchlist } from '../../src/types.ts';
+
+/** Chaque refus de GitHub demande un geste different : il faut donc les nommer. */
+const TOKEN_ERRORS: Record<Exclude<TokenCheck, { ok: true }>['reason'], string> = {
+  invalid: 'Jeton refusé par GitHub : expiré, révoqué, ou incomplet à la copie.',
+  'no-access': 'Ce jeton ne donne pas accès à ce dépôt. Vérifie le dépôt choisi à sa création.',
+  'read-only': 'Ce jeton est en lecture seule. Il lui faut la permission Contents: write.',
+  network: 'GitHub est injoignable pour le moment.',
+};
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -19,20 +37,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { bundle, setWatchlist, setReservations } = useStore();
 
-  const [token, setLocalToken] = useState('');
-  const [saved, setSaved] = useState(false);
-  const [push, setPush] = useState<PushStatus>('off');
   const [message, setMessage] = useState<string | null>(null);
   const [restore, setRestore] = useState('');
-
-  useEffect(() => {
-    void getToken().then((stored) => {
-      if (stored) {
-        setLocalToken(stored);
-        setSaved(true);
-      }
-    });
-  }, []);
 
   const today = todayInParis();
 
@@ -44,23 +50,18 @@ export default function SettingsScreen() {
   const upcoming = bundle.reservations.slots.filter((slot) => slot.date >= today);
   const used = upcoming.length;
 
-  const persist = async (path: string, value: unknown, note: string) => {
+  const persist = useCallback(async (path: string, value: unknown, note: string) => {
     try {
       await writeFile(path, value, note);
-      setMessage('Enregistré dans le dépôt.');
+      setMessage(null);
+      return true;
     } catch (error) {
       setMessage((error as Error).message);
+      return false;
     }
-  };
+  }, []);
 
-  const unwatch = (index: number) => {
-    const next: Watchlist = {
-      ...bundle.watchlist,
-      watch: bundle.watchlist.watch.filter((_, i) => i !== index),
-    };
-    setWatchlist(next);
-    void persist('watchlist.json', next, 'watchlist: retrait');
-  };
+  // ---------------------------------------------------------------- quota
 
   /** Le creneau disparait, et le rappel qui l'accompagnait avec lui. */
   const release = (index: number) => {
@@ -75,26 +76,116 @@ export default function SettingsScreen() {
   /**
    * « C'est confirmé ».
    *
-   * Le champ `confirmed` etait ecrit `false` a la creation et jamais relu :
-   * il porte desormais un vrai geste, dont le seul effet visible est de faire
+   * Le champ `confirmed` etait ecrit `false` a la creation et jamais relu : il
+   * porte desormais un vrai geste, dont le seul effet visible est de faire
    * taire un rappel devenu inutile.
    */
   const confirm = (index: number) => {
     const slot = bundle.reservations.slots[index];
     if (!slot) return;
-    const next: Reservations = {
+    setReservations({
       slots: bundle.reservations.slots.map((entry, i) =>
         i === index ? { ...entry, confirmed: true } : entry,
       ),
-    };
-    setReservations(next);
+    });
     void cancelConfirmReminder(slot);
   };
 
+  // -------------------------------------------------------- notifications
+
+  const published = bundle.pushToken?.expoPushToken ?? null;
+  const [push, setPush] = useState<PushState>({ status: 'off', token: null });
+
+  /*
+   * L'etat se lit au montage, sans jamais ouvrir de fenetre de permission.
+   *
+   * C'est le defaut que cet ecran avait : l'etat partait de « off » a chaque
+   * ouverture, et le bouton « activer les notifications » se reproposait
+   * indefiniment alors qu'elles etaient deja actives.
+   */
+  useEffect(() => {
+    void currentPushState(published).then(setPush);
+  }, [published]);
+
+  const enablePush = async () => {
+    const next = await requestPushToken(published);
+    setPush(next);
+    if (!next.token || next.token === published) return;
+
+    const ok = await persist(
+      'data/push-token.json',
+      { expoPushToken: next.token, updatedAt: new Date().toISOString() },
+      'push: jeton Expo',
+    );
+    if (ok) setPush({ ...next, status: 'ready' });
+  };
+
+  // ------------------------------------------------------------ jeton PAT
+
+  const [token, setStoredToken] = useState<string | null>(null);
+  const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
+  const [editingToken, setEditingToken] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getToken().then(setStoredToken);
+    void getTokenVerifiedAt().then(setVerifiedAt);
+  }, []);
+
+  /**
+   * Un jeton ne s'enregistre qu'apres avoir prouve qu'il fonctionne.
+   *
+   * Un PAT tronque a la copie se comportait exactement comme un jeton absent :
+   * l'ecriture echouait en silence, et l'edition faite depuis le telephone
+   * disparaissait au rafraichissement suivant sans que rien ne l'explique.
+   */
+  const saveToken = async () => {
+    const value = draft.trim();
+    if (!value) return;
+
+    setChecking(true);
+    const check = await verifyToken(value);
+    setChecking(false);
+
+    if (!check.ok) {
+      setTokenError(TOKEN_ERRORS[check.reason]);
+      return;
+    }
+
+    await setToken(value);
+    setStoredToken(value);
+    setVerifiedAt(new Date().toISOString());
+    setEditingToken(false);
+    setDraft('');
+    setTokenError(null);
+  };
+
+  const forgetToken = async () => {
+    await setToken(null);
+    setStoredToken(null);
+    setVerifiedAt(null);
+    setEditingToken(false);
+    setDraft('');
+    setTokenError(null);
+  };
+
+  // ------------------------------------------------------------- watchlist
+
+  const unwatch = (index: number) => {
+    const next: Watchlist = {
+      ...bundle.watchlist,
+      watch: bundle.watchlist.watch.filter((_, i) => i !== index),
+    };
+    setWatchlist(next);
+    void persist('watchlist.json', next, 'watchlist: retrait');
+  };
+
+  // ------------------------------------------------------------ sauvegarde
+
   const exportState = () => {
-    void Share.share({
-      message: exportLocalState(bundle.reservations, bundle.watchlist),
-    });
+    void Share.share({ message: exportLocalState(bundle.reservations, bundle.watchlist) });
   };
 
   const importState = () => {
@@ -111,6 +202,11 @@ export default function SettingsScreen() {
     setMessage(`${parsed.reservations.slots.length} créneaux restaurés.`);
   };
 
+  // ----------------------------------------------------------- mises a jour
+
+  const updates = Updates.useUpdates();
+  const running = updates.currentlyRunning;
+
   return (
     <ScrollView
       style={{ backgroundColor: theme.bg }}
@@ -119,6 +215,7 @@ export default function SettingsScreen() {
         paddingBottom: insets.bottom + space.xl,
         paddingHorizontal: space.lg,
       }}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.head}>
         <Text style={[styles.title, { color: theme.text }]}>Réglages</Text>
@@ -127,24 +224,27 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
-      <Section title={`Quota — ${used} / ${MAX_RESERVATIONS} reservations`} theme={theme}>
+      {message && (
+        <View style={[styles.message, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}>
+          <Text style={[styles.messageText, { color: theme.text }]}>{message}</Text>
+        </View>
+      )}
+
+      <Section title={`Quota — ${used} / ${MAX_RESERVATIONS}`}>
         <View style={styles.slots}>
           {Array.from({ length: MAX_RESERVATIONS }, (_, i) => (
             <View
               key={i}
               style={[
                 styles.slot,
-                {
-                  backgroundColor: i < used ? theme.avail[3] : theme.sunken,
-                  borderRadius: radius.sm,
-                },
+                { backgroundColor: i < used ? theme.avail[3] : theme.sunken, borderRadius: radius.sm },
               ]}
             />
           ))}
         </View>
 
         {bundle.reservations.slots.length === 0 ? (
-          <Text style={[styles.muted, { color: theme.muted }]}>Aucun créneau occupé.</Text>
+          <Note>Aucun créneau enregistré.</Note>
         ) : (
           bundle.reservations.slots.map((slot, index) => (
             <View
@@ -155,21 +255,21 @@ export default function SettingsScreen() {
                 <Text style={[styles.lineTitle, { color: theme.text }]}>
                   {slot.depart} · {longDate(slot.date)}
                 </Text>
-                <Text style={[styles.muted, { color: theme.muted }]}>
+                <Text style={[styles.lineSub, { color: theme.muted }]}>
                   {dirLabel(slot.dir)} · n{slot.trainNo}
-                  {slot.date < today ? ' · voyage passé' : slot.confirmed ? ' · confirmé' : ''}
+                  {slot.date < today ? ' · passé' : slot.confirmed ? ' · confirmé' : ''}
                 </Text>
               </View>
 
               {/* Le geste n'a de sens que sur un voyage a venir pas encore confirme. */}
               {slot.date >= today && !slot.confirmed && (
                 <Pressable onPress={() => confirm(index)} hitSlop={8}>
-                  <Text style={[styles.muted, { color: theme.text }]}>confirmé</Text>
+                  <Text style={[styles.lineAction, { color: theme.text }]}>confirmé</Text>
                 </Pressable>
               )}
 
               <Pressable onPress={() => release(index)} hitSlop={8}>
-                <Text style={[styles.muted, { color: theme.muted }]}>
+                <Text style={[styles.lineAction, { color: theme.muted }]}>
                   {slot.date < today ? 'oublier' : 'libérer'}
                 </Text>
               </Pressable>
@@ -178,11 +278,83 @@ export default function SettingsScreen() {
         )}
       </Section>
 
-      <Section title="Surveillance" theme={theme}>
-        {bundle.watchlist.watch.length === 0 && bundle.watchlist.rules.length === 0 && (
-          <Text style={[styles.muted, { color: theme.muted }]}>
-            Rien de surveillé : aucune notification ne partira.
-          </Text>
+      <Section title="Notifications">
+        {push.status === 'ready' && (
+          <>
+            <Status text="Actives sur cet appareil." />
+            {bundle.pushToken && (
+              <Row label="jeton enregistré" value={instantLabel(bundle.pushToken.updatedAt)} />
+            )}
+            {bundle.state.lastPushOk && (
+              <Row label="dernier envoi" value={instantLabel(bundle.state.lastPushOk)} />
+            )}
+          </>
+        )}
+
+        {push.status === 'stale' && (
+          <>
+            <Status
+              attention
+              text={
+                bundle.pushToken
+                  ? 'Le dépôt porte le jeton d’une autre installation : le collecteur pousse dans le vide.'
+                  : 'Cet appareil n’est pas encore enregistré dans le dépôt.'
+              }
+            />
+            <Action
+              label={bundle.pushToken ? 'Réenregistrer cet appareil' : 'Enregistrer cet appareil'}
+              onPress={() => void enablePush()}
+              primary
+              disabled={!token}
+            />
+            {!token && <Note>Il faut d’abord un jeton GitHub : c’est lui qui écrit dans le dépôt.</Note>}
+          </>
+        )}
+
+        {push.status === 'off' && (
+          <>
+            <Note>
+              Une date qui rouvre, un créneau qui se vide, tes créneaux suivis. Au plus un message
+              par collecte.
+            </Note>
+            <Action
+              label="Activer les notifications"
+              onPress={() => void enablePush()}
+              primary
+              disabled={!token}
+            />
+            {!token && <Note>Il faut d’abord un jeton GitHub : c’est lui qui écrit dans le dépôt.</Note>}
+          </>
+        )}
+
+        {push.status === 'denied' && (
+          <>
+            <Status attention text="Permission refusée. Elle se réautorise dans les réglages Android." />
+            <Action label="Ouvrir les réglages système" onPress={() => void Linking.openSettings()} />
+          </>
+        )}
+
+        {push.status === 'unknown' && (
+          <Note>
+            Hors ligne : impossible de vérifier que le dépôt porte bien le jeton de cet appareil.
+          </Note>
+        )}
+
+        {push.status === 'unsupported' && (
+          <Note>Indisponible ici : il faut un appareil réel et un build EAS.</Note>
+        )}
+      </Section>
+
+      <Section title="Surveillance">
+        {bundle.watchlist.watch.length === 0 && bundle.watchlist.rules.length === 0 ? (
+          <Note>
+            Rien de suivi. Les deux alertes générales — une date qui rouvre, un créneau qui se vide
+            — partent quand même : elles ne dépendent d’aucune préférence.
+          </Note>
+        ) : (
+          <Note>
+            S’ajoute aux deux alertes générales, qui partent de toute façon.
+          </Note>
         )}
 
         {bundle.watchlist.watch.map((entry, index) => (
@@ -192,13 +364,13 @@ export default function SettingsScreen() {
           >
             <View style={{ flex: 1 }}>
               <Text style={[styles.lineTitle, { color: theme.text }]}>{longDate(entry.date)}</Text>
-              <Text style={[styles.muted, { color: theme.muted }]}>
+              <Text style={[styles.lineSub, { color: theme.muted }]}>
                 {entry.dir ? dirLabel(entry.dir) : 'les deux sens'}
                 {entry.after ? ` · ${entry.after}` : ''}
               </Text>
             </View>
             <Pressable onPress={() => unwatch(index)} hitSlop={8}>
-              <Text style={[styles.muted, { color: theme.muted }]}>retirer</Text>
+              <Text style={[styles.lineAction, { color: theme.muted }]}>retirer</Text>
             </Pressable>
           </View>
         ))}
@@ -212,30 +384,79 @@ export default function SettingsScreen() {
               <Text style={[styles.lineTitle, { color: theme.text }]}>
                 chaque {weekdayName(rule.weekday)}
               </Text>
-              <Text style={[styles.muted, { color: theme.muted }]}>
+              <Text style={[styles.lineSub, { color: theme.muted }]}>
                 {rule.dir ? dirLabel(rule.dir) : 'les deux sens'}
-                {rule.after ? ` · apres ${rule.after}` : ''}
+                {rule.after ? ` · après ${rule.after}` : ''}
               </Text>
             </View>
-            <Text style={[styles.muted, { color: theme.muted }]}>règle</Text>
+            <Text style={[styles.lineAction, { color: theme.muted }]}>règle</Text>
           </View>
         ))}
       </Section>
 
-      <Section title="Sauvegarde" theme={theme}>
-        <Text style={[styles.muted, { color: theme.muted }]}>
-          Tes r\u00e9servations vivent sur cet appareil et nulle part ailleurs. L\u2019export les copie, avec
-          la surveillance, dans un texte que tu partages o\u00f9 tu veux. Rien ne sort d\u2019ici sans ce
-          geste \u2014 et sans export r\u00e9cent, un t\u00e9l\u00e9phone perdu emporte la liste (les r\u00e9servations
-          elles-m\u00eames restent chez SNCF).
-        </Text>
+      <Section title="Application">
+        <Row label="version" value={Constants.expoConfig?.version ?? '—'} />
+        {running.runtimeVersion && <Row label="runtime" value={running.runtimeVersion} />}
+        <Row
+          label="code exécuté"
+          value={
+            running.isEmbeddedLaunch
+              ? 'embarqué dans l’APK'
+              : running.createdAt
+                ? instantLabel(running.createdAt)
+                : '—'
+          }
+        />
+        {updates.lastCheckForUpdateTimeSinceRestart && (
+          <Row
+            label="dernière vérification"
+            value={instantLabel(updates.lastCheckForUpdateTimeSinceRestart)}
+          />
+        )}
 
-        <Pressable
-          style={[styles.button, { backgroundColor: theme.inverseBg, borderRadius: radius.sm }]}
-          onPress={exportState}
-        >
-          <Text style={[styles.buttonText, { color: theme.inverseText }]}>Exporter</Text>
-        </Pressable>
+        {updates.isUpdatePending ? (
+          <>
+            <Status text="Mise à jour téléchargée." />
+            <Action
+              label="Redémarrer pour l’appliquer"
+              primary
+              onPress={() => void Updates.reloadAsync()}
+            />
+          </>
+        ) : updates.isUpdateAvailable ? (
+          <>
+            <Status text="Une mise à jour est disponible." />
+            <Action
+              label={updates.isDownloading ? 'Téléchargement…' : 'Télécharger'}
+              primary
+              disabled={updates.isDownloading}
+              onPress={() => void Updates.fetchUpdateAsync()}
+            />
+          </>
+        ) : (
+          <Action
+            label={updates.isChecking ? 'Vérification…' : 'Chercher une mise à jour'}
+            disabled={updates.isChecking}
+            onPress={() => void Updates.checkForUpdateAsync()}
+          />
+        )}
+
+        {updates.checkError && <Note>Vérification impossible : {updates.checkError.message}</Note>}
+
+        <Note>
+          L’application cherche déjà une mise à jour à chaque lancement et la télécharge en fond ;
+          elle s’applique au redémarrage suivant. Ce bouton ne sert qu’à ne pas attendre.
+        </Note>
+      </Section>
+
+      <Section title="Sauvegarde">
+        <Note>
+          Tes réservations vivent sur cet appareil et nulle part ailleurs. L’export les copie, avec
+          la surveillance, dans un texte que tu partages où tu veux. Sans export récent, un
+          téléphone perdu emporte la liste — les réservations elles-mêmes restent chez SNCF.
+        </Note>
+
+        <Action label="Exporter" onPress={exportState} />
 
         <TextInput
           value={restore}
@@ -247,116 +468,125 @@ export default function SettingsScreen() {
           autoCorrect={false}
           style={[
             styles.field,
-            { backgroundColor: theme.sunken, color: theme.text, borderRadius: radius.sm, minHeight: 72 },
+            {
+              backgroundColor: theme.sunken,
+              color: theme.text,
+              borderRadius: radius.sm,
+              minHeight: 72,
+            },
           ]}
         />
 
-        {restore.trim().length > 0 && (
-          <Pressable
-            style={[styles.button, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}
-            onPress={importState}
-          >
-            <Text style={[styles.buttonText, { color: theme.text }]}>Restaurer</Text>
-          </Pressable>
-        )}
+        {restore.trim().length > 0 && <Action label="Restaurer" onPress={importState} />}
       </Section>
 
-      <Section title="Notifications" theme={theme}>
-        <Text style={[styles.muted, { color: theme.muted }]}>
-          {push === 'ready' && 'Jeton enregistr\u00e9. Le collecteur signe ses envois et pousse les alertes sur cet appareil.'}
-          {push === 'off' && "Pas encore de jeton sur cet appareil."}
-          {push === 'denied' && 'Permission refusée.'}
-          {push === 'unsupported' && "Indisponible ici : il faut un vrai appareil et un build EAS."}
-        </Text>
-
-        {push !== 'ready' && (
-          <Pressable
-            style={[styles.button, { backgroundColor: theme.inverseBg, borderRadius: radius.sm }]}
-            onPress={() => {
-              void requestPushToken().then(async ({ status, token: expoToken }) => {
-                setPush(status);
-                if (expoToken) {
-                  await persist(
-                    'data/push-token.json',
-                    { expoPushToken: expoToken, updatedAt: new Date().toISOString() },
-                    'push: jeton Expo',
-                  );
-                }
-              });
-            }}
-          >
-            <Text style={[styles.buttonText, { color: theme.inverseText }]}>Activer les notifications</Text>
-          </Pressable>
+      <Section title="Jeton GitHub">
+        {!editingToken && token && (
+          <>
+            <Row label="jeton" value={maskToken(token)} mono />
+            {verifiedAt && <Row label="vérifié le" value={instantLabel(verifiedAt)} />}
+            <Actions>
+              <View style={{ flex: 1 }}>
+                <Action
+                  label="Modifier"
+                  onPress={() => {
+                    setDraft('');
+                    setTokenError(null);
+                    setEditingToken(true);
+                  }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Action label="Retirer" onPress={() => void forgetToken()} />
+              </View>
+            </Actions>
+          </>
         )}
+
+        {!editingToken && !token && (
+          <>
+            <Note>
+              Un PAT fine-grained avec Contents: write sur ce seul dépôt. Il sert à écrire ta
+              surveillance depuis le téléphone — la lecture, elle, n’en a pas besoin.
+            </Note>
+            <Action
+              label="Enregistrer un jeton"
+              primary
+              onPress={() => {
+                setDraft('');
+                setTokenError(null);
+                setEditingToken(true);
+              }}
+            />
+          </>
+        )}
+
+        {editingToken && (
+          <>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="github_pat_…"
+              placeholderTextColor={theme.muted}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              style={[
+                styles.field,
+                { backgroundColor: theme.sunken, color: theme.text, borderRadius: radius.sm },
+              ]}
+            />
+
+            {tokenError && <Status attention text={tokenError} />}
+
+            <Actions>
+              <View style={{ flex: 1 }}>
+                <Action
+                  label={checking ? 'Vérification…' : 'Vérifier et enregistrer'}
+                  primary
+                  disabled={checking || draft.trim().length === 0}
+                  onPress={() => void saveToken()}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Action
+                  label="Annuler"
+                  onPress={() => {
+                    setEditingToken(false);
+                    setDraft('');
+                    setTokenError(null);
+                  }}
+                />
+              </View>
+            </Actions>
+          </>
+        )}
+
+        <Note>Rangé dans le keystore Android. À révoquer sur GitHub en cas de perte de l’appareil.</Note>
       </Section>
 
-      <Section title="Jeton GitHub" theme={theme}>
-        <Text style={[styles.muted, { color: theme.muted }]}>
-          Un PAT fine-grained avec Contents: write sur ce seul dépôt. Il est rangé dans le keystore
-          Android, pas dans un simple stockage clé-valeur. À révoquer en cas de perte de l’appareil.
-        </Text>
-
-        <TextInput
-          value={token}
-          onChangeText={setLocalToken}
-          placeholder="github_pat_..."
-          placeholderTextColor={theme.muted}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[
-            styles.field,
-            { backgroundColor: theme.sunken, color: theme.text, borderRadius: radius.sm },
-          ]}
+      <Section title="Archive">
+        <Row label="snapshots" value={String(bundle.state.snapshotCount)} />
+        <Row label="lignes au dernier" value={String(bundle.state.recordCount)} />
+        {bundle.state.collectedAt && (
+          <Row label="dernière collecte" value={instantLabel(bundle.state.collectedAt)} />
+        )}
+        {/* Chaque statistique est publiee des qu'elle a un echantillon, pas
+            toutes ensemble : elles ne murissent pas au meme rythme. */}
+        <Row
+          label="taux de réouverture"
+          value={
+            bundle.stats?.ready.reopen
+              ? `${Object.keys(bundle.stats.reopen).length} trains`
+              : 'en attente'
+          }
         />
-
-        <Pressable
-          style={[styles.button, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}
-          onPress={() => {
-            const trimmed = token.trim();
-            void setToken(trimmed || null);
-            setSaved(trimmed.length > 0);
-            setMessage(trimmed ? 'Jeton enregistré.' : 'Jeton effacé.');
-          }}
-        >
-          <Text style={[styles.buttonText, { color: theme.text }]}>
-            {saved ? 'Remplacer le jeton' : 'Enregistrer'}
-          </Text>
-        </Pressable>
-
-        {message && <Text style={[styles.muted, { color: theme.muted }]}>{message}</Text>}
-      </Section>
-
-      <Section title="Archive" theme={theme}>
-        <Text style={[styles.muted, { color: theme.muted }]}>
-          {bundle.state.snapshotCount} snapshots collectés, {bundle.state.recordCount} lignes au
-          dernier.
-          {bundle.stats?.ready.erosion
-            ? ' Courbe d’érosion publiée.'
-            : ' Courbe d’érosion en attente : il faut une arche complète J+30 → J-0.'}
-        </Text>
-        <Text style={[styles.muted, { color: theme.muted, marginTop: space.md }]}>
-          Données TGVmax, SNCF Voyageurs, licence ODbL.
-        </Text>
+        <Row label="courbe d’érosion" value={bundle.stats?.ready.erosion ? 'publiée' : 'en attente'} />
+        <Row label="délais de fonte" value={bundle.stats?.ready.burnRate ? 'publiés' : 'en attente'} />
+        <Note>Données TGVmax, SNCF Voyageurs, licence ODbL.</Note>
       </Section>
     </ScrollView>
-  );
-}
-
-function Section({
-  title,
-  theme,
-  children,
-}: {
-  title: string;
-  theme: { text: string; line: string };
-  children: React.ReactNode;
-}) {
-  return (
-    <View style={[styles.section, { borderBottomColor: theme.line }]}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-      {children}
-    </View>
   );
 }
 
@@ -364,9 +594,9 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   close: { fontSize: 14, fontWeight: '500' },
-  section: { paddingVertical: space.lg, borderBottomWidth: StyleSheet.hairlineWidth, gap: space.sm },
-  sectionTitle: { fontSize: 13, fontWeight: '700', marginBottom: space.xs },
-  slots: { flexDirection: 'row', gap: space.sm, marginBottom: space.sm },
+  message: { padding: space.md, marginTop: space.md },
+  messageText: { fontSize: 12.5, lineHeight: 18 },
+  slots: { flexDirection: 'row', gap: space.sm, marginBottom: space.xs },
   slot: { flex: 1, height: 30 },
   line: {
     flexDirection: 'row',
@@ -375,8 +605,7 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   lineTitle: { fontSize: 14, fontWeight: '600' },
-  muted: { fontSize: 12.5, lineHeight: 18 },
+  lineSub: { fontSize: 12, marginTop: 2 },
+  lineAction: { fontSize: 12.5, fontWeight: '500' },
   field: { padding: 13, fontSize: 13, fontFamily: 'monospace' },
-  button: { padding: 13, alignItems: 'center' },
-  buttonText: { fontSize: 14, fontWeight: '600' },
 });

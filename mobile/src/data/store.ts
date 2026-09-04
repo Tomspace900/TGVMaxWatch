@@ -3,6 +3,7 @@ import type {
   History,
   Reservations,
   State,
+  PushTokenRecord,
   Stats,
   TrainRecord,
   TrainTrends,
@@ -18,6 +19,8 @@ export interface Bundle {
   trains: TrainTrends;
   watchlist: Watchlist;
   reservations: Reservations;
+  /** Jeton que le collecteur utilisera. Compare a celui de cet appareil. */
+  pushToken: PushTokenRecord | null;
 }
 
 export const EMPTY_BUNDLE: Bundle = {
@@ -35,6 +38,7 @@ export const EMPTY_BUNDLE: Bundle = {
   trains: { dates: [], series: {} },
   watchlist: { watch: [], rules: [] },
   reservations: { slots: [] },
+  pushToken: null,
 };
 
 export interface Store {
