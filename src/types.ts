@@ -61,18 +61,29 @@ export interface TrainEvent {
   tier: DurationTier;
 }
 
-/** Une date de voyage entrant dans la fenetre glissante (J+30). */
-export interface NewDate {
+/**
+ * Ce qui merite de deranger, independamment de toute preference.
+ *
+ * `REOPENED` : une date qui n'avait plus une seule place en a de nouveau.
+ * `DRAINING` : un creneau qui fond vite et dont il ne reste presque rien.
+ *
+ * Ces deux signaux portent sur le compte d'une (date, sens), pas sur un train :
+ * c'est la maille a laquelle se prend la decision de partir ou non.
+ */
+export type SignalKind = 'REOPENED' | 'DRAINING';
+
+export interface DateSignal {
+  kind: SignalKind;
   date: string;
   dir: Dir;
-  /** Nombre de trains eligibles a l'entree dans la fenetre. */
-  oui: number;
-  total: number;
+  /** Places eligibles au snapshot precedent, puis au snapshot courant. */
+  before: number;
+  after: number;
 }
 
 export interface DiffResult {
   events: TrainEvent[];
-  newDates: NewDate[];
+  signals: DateSignal[];
 }
 
 /** Une entree explicite de surveillance. */

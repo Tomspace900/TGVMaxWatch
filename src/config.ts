@@ -91,6 +91,29 @@ export const CONFIRM_URL = 'https://www.maxjeune-tgvinoui.sncf/sncf-connect/mes-
 export const STALE_DATA_HOURS = 36;
 
 /**
+ * Seuils des deux alertes qui ne dependent d'aucune preference.
+ *
+ * Mesures sur l'archive reelle, diff du 01 au 03 septembre : notifier chaque
+ * train qui s'ouvre produit 12 a 13 lignes par jour, soit un message tronque
+ * quotidien et un canal mort en trois semaines. Ces deux regles-la en donnent
+ * une a quatre, toutes actionnables.
+ *
+ * `REOPEN_MIN_TRAINS` filtre l'amplitude : une date entre dans la fenetre a
+ * zero place — les quatre mesurees sont entrees a 0/35, 0/39, 0/33 et 0/29 —
+ * puis se remplit le lendemain. Elle se remplit de dix trains ou d'un seul, et
+ * seul le premier cas est une nouvelle.
+ *
+ * `DRAIN_MAX_LEFT` croise la vitesse et la rarete : un creneau qui fond alors
+ * qu'il en reste vingt n'a rien d'urgent, et un creneau qui passe de 1 a 0 est
+ * deja perdu. C'est entre les deux que l'information a de la valeur.
+ *
+ * A retoucher en octobre, avec un vrai recul.
+ */
+export const REOPEN_MIN_TRAINS = 5;
+export const DRAIN_MIN_DROP = 3;
+export const DRAIN_MAX_LEFT = 3;
+
+/**
  * Nombre de snapshots requis avant de publier la moindre prevision.
  * ~8 semaines : en dessous, on affiche les donnees brutes plutot qu'une
  * estimation inventee.
