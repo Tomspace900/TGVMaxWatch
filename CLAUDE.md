@@ -3,6 +3,11 @@
 Suivi quotidien des disponibilites TGVmax sur Paris Montparnasse <-> Bordeaux
 Saint-Jean : archivage, alertes, application Android.
 
+Ce document porte les **regles apprises a nos depens** et les pieges a ne pas
+rejouer. Deux autres documents, a tenir a jour avec le code : `README.md` decrit
+ce qui tourne et ce qu'on fait des donnees, `GUIDE.md` explique l'application a
+son utilisateur, sans jargon.
+
 ## L'invariant du projet
 
 **La source ecrase son dataset a chaque publication.** Un jour non collecte est

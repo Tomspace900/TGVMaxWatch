@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MAX_RESERVATIONS } from '../../../src/config.ts';
+import { todayInParis } from '../../../src/dates.ts';
 import { dirLabel, longDate, weekdayName } from '../format.ts';
 import type { Calendar } from '../model.ts';
 import { radius, space, useTheme } from '../theme.ts';
@@ -21,7 +22,16 @@ export function QuotaCard({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const used = reservations.slots.length;
+
+  /*
+   * Le quota TGVmax porte sur les reservations *simultanees* : un creneau se
+   * libere quand le train est passe. Les voyages deja faits restent dans la
+   * liste — c'est un historique qu'on ne jette pas — mais les compter afficherait
+   * « 6 sur 6 » avec un quota reel vide.
+   */
+  const today = todayInParis();
+  const upcoming = reservations.slots.filter((slot) => slot.date >= today);
+  const used = upcoming.length;
 
   return (
     <Pressable
@@ -52,7 +62,7 @@ export function QuotaCard({
           Aucun créneau occupé. Balaie une ligne de train vers la droite après avoir réservé.
         </Text>
       ) : (
-        reservations.slots.slice(0, 3).map((slot) => (
+        upcoming.slice(0, 3).map((slot) => (
           <Text key={`${slot.date}-${slot.trainNo}`} style={[styles.row, { color: theme.text }]}>
             {slot.depart} · {longDate(slot.date)}
             <Text style={{ color: theme.muted }}>  {dirLabel(slot.dir)}</Text>
