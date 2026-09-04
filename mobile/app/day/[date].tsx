@@ -35,6 +35,18 @@ export default function DayScreen() {
   const day = calendar.get(date)?.get(dir) ?? emptyDay(date, dir);
   const series = bundle.history[date]?.[dir] ?? [];
 
+  /*
+   * Disponibilite jour apres jour de chaque train de cette date.
+   *
+   * C'est la seule vue que la source ne pourra jamais donner : elle ecrase son
+   * dataset chaque jour. Un train encore libre qui vient de rouvrir apres
+   * plusieurs jours complets ne se lit nulle part ailleurs.
+   */
+  const traces = useMemo(
+    () => bundle.trains.series[`${date}|${dir}`] ?? {},
+    [bundle.trains.series, date, dir],
+  );
+
   const booked = useMemo(
     () =>
       new Set(
@@ -110,7 +122,7 @@ export default function DayScreen() {
   };
 
   const forecast = useMemo(() => {
-    if (!bundle.stats?.ready) return null;
+    if (!bundle.stats?.ready.burnRate) return null;
     const first = day.trains.find((train) => train.available);
     if (!first) return null;
 
@@ -122,9 +134,7 @@ export default function DayScreen() {
 
     // Toujours montrer la taille d'echantillon : une mediane sur trois
     // observations et une sur trente ne se lisent pas pareil.
-    return `Ce créneau part en général en ${row.medianDays} jour${
-      row.medianDays > 1 ? 's' : ''
-    } — sur ${row.sample} observations.`;
+    return `Ce créneau part en général vers J-${row.medianDaysBefore} — sur ${row.sample} observations.`;
   }, [bundle.stats, day.trains, date, dir]);
 
   return (
@@ -192,6 +202,7 @@ export default function DayScreen() {
             train={item}
             watched={isWatched(item.depart)}
             booked={booked.has(item.trainNo)}
+            trace={traces[item.trainNo]}
             onWatch={() => toggleWatch(item.depart)}
             onBook={() => book(item.trainNo, item.depart, item.arrivee)}
           />

@@ -199,7 +199,7 @@ export default function CalendarScreen() {
           onPress={() => router.push('/settings')}
         />
 
-        {bundle.stats?.ready && (
+        {bundle.stats?.ready.erosion && (
           <Pressable
             onPress={() => router.push('/history')}
             style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.line, borderRadius: radius.md }]}

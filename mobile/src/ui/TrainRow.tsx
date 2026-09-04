@@ -10,6 +10,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { formatDuration } from '../format.ts';
 import type { Train } from '../model.ts';
+import { Trace } from './Trace.tsx';
 import { motion, radius, space, useTheme } from '../theme.ts';
 
 /** Distance a partir de laquelle l'action est validee au relachement. */
@@ -20,11 +21,13 @@ interface Props {
   train: Train;
   watched: boolean;
   booked: boolean;
+  /** Disponibilite jour apres jour, absente tant que l'archive est trop courte. */
+  trace?: string;
   onWatch: () => void;
   onBook: () => void;
 }
 
-export function TrainRow({ train, watched, booked, onWatch, onBook }: Props) {
+export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Props) {
   const theme = useTheme();
   const dx = useSharedValue(0);
   const armed = useSharedValue(false);
@@ -107,6 +110,7 @@ export function TrainRow({ train, watched, booked, onWatch, onBook }: Props) {
               </Text>
             )}
             <Text style={[styles.metaText, { color: theme.muted }]}>n{train.trainNo}</Text>
+            {trace && <Trace trace={trace} />}
             {watched && (
               <Text style={[styles.chip, { color: theme.availInk[3], backgroundColor: theme.avail[3] }]}>
                 suivi

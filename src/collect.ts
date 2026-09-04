@@ -6,6 +6,7 @@ import { buildNotification } from './notify.ts';
 import { sendPush } from './push.ts';
 import { fetchDatasetInfo, fetchSnapshot, selectFor } from './sncf.ts';
 import { createStatsBuilder } from './stats.ts';
+import { createTrainsBuilder } from './trains.ts';
 import {
   listSnapshotDates,
   readSnapshot,
@@ -16,6 +17,7 @@ import {
   writeRecords,
   writeSnapshot,
   writeState,
+  writeTrains,
 } from './storage.ts';
 import { filterEvents } from './watchlist.ts';
 import type { Snapshot, State } from './types.ts';
@@ -110,6 +112,7 @@ function rebuildDerived(today: string): void {
   const dates = listSnapshotDates();
   const history = createHistoryBuilder();
   const stats = createStatsBuilder(today);
+  const trains = createTrainsBuilder(today);
 
   for (const collectionDate of dates) {
     // Les snapshots anterieurs au filtrage contiennent encore des gares hors
@@ -117,10 +120,12 @@ function rebuildDerived(today: string): void {
     const snapshot = readSnapshot(collectionDate).filter(isTracked);
     history.add(collectionDate, snapshot);
     stats.add(collectionDate, snapshot);
+    trains.add(collectionDate, snapshot);
   }
 
   writeHistory(history.finish(today));
   writeJson('data/stats.json', stats.finish(today, dates.length));
+  writeTrains(trains.finish());
   console.log(`[collect] agregats reconstruits sur ${dates.length} snapshots`);
 }
 

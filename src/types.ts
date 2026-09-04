@@ -134,13 +134,28 @@ export interface Reservations {
   slots: Reservation[];
 }
 
-/** Statistiques derivees de l'archive. Vides tant que l'echantillon est trop petit. */
+/**
+ * Ce qui est publiable, metrique par metrique.
+ *
+ * Un booleen unique gouvernait les trois, cale sur huit semaines d'archive.
+ * Elles ne murissent pas au meme rythme : l'erosion demande une arche complete
+ * J+30 -> J-0, soit environ un mois ; le taux de reouverture demande cinq
+ * fermetures observees sur un meme train ; seules les medianes de fonte ont
+ * reellement besoin du long terme. Chaque metrique porte deja sa propre garde
+ * d'echantillon — ce drapeau ne fait que dire si quelque chose y a survecu.
+ */
+export interface StatsReady {
+  burnRate: boolean;
+  reopen: boolean;
+  erosion: boolean;
+}
+
+/** Statistiques derivees de l'archive. */
 export interface Stats {
   generatedAt: string;
   snapshotCount: number;
-  /** false tant qu'on n'a pas assez de recul : la PWA n'affiche alors aucune prevision. */
-  ready: boolean;
-  /** Delai median entre l'entree d'une date a J+30 et le passage du train a NON. */
+  ready: StatsReady;
+  /** A combien de jours du depart un train passe a NON, par creneau. */
   burnRate: BurnRate[];
   /** Par numero de train : frequence de reouverture apres une fermeture. */
   reopen: Record<string, ReopenStat>;
@@ -154,8 +169,29 @@ export interface BurnRate {
   /** Tranche horaire de depart, `HH` arrondi a 2h : `06`, `08`, ... */
   slot: string;
   dir: Dir;
-  medianDays: number;
+  /**
+   * Mediane du nombre de jours restant avant le depart au moment ou le train
+   * passe a NON : « les vendredis 19h partent vers J-18 ».
+   */
+  medianDaysBefore: number;
   sample: number;
+}
+
+/**
+ * Disponibilite jour apres jour, train par train.
+ *
+ * `history.json` ne compte que des places par date et par sens ; repondre a
+ * « ce train-la se vide-t-il vite ? » demande la maille du train.
+ *
+ * `dates` porte les dates de collecte, et chaque serie est une chaine alignee
+ * dessus : `O` disponible, `N` complet, `-` absent du dataset ce jour-la. Une
+ * chaine plutot qu'un tableau parce que le fichier est relu entierement par
+ * l'application a chaque ouverture.
+ */
+export interface TrainTrends {
+  dates: string[];
+  /** `<date de voyage>|<sens>` -> `<numero de train>` -> serie. */
+  series: Record<string, Record<string, string>>;
 }
 
 export interface ReopenStat {

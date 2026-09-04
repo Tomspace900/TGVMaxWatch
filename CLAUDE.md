@@ -31,9 +31,9 @@ data/         archive et agregats, commites par le bot
 | Donnees cote app | lues sur `raw.githubusercontent.com`, cache fichier pour le hors ligne |
 | Alertes | service Expo Push, jeton dans `data/push-token.json` |
 
-`data/snapshots/` est la source de verite. `history.json` et `stats.json` en
-sont des vues **entierement recalculees a chaque execution** : un bug
-d'agregation se repare en relancant le job.
+`data/snapshots/` est la source de verite. `history.json`, `stats.json` et
+`trains.json` en sont des vues **entierement recalculees a chaque execution** :
+un bug d'agregation se repare en relancant le job.
 
 ## Regles a ne pas casser
 
@@ -148,7 +148,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 70 tests sur fixtures, aucun acces reseau
+npm test              # 76 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
@@ -199,17 +199,25 @@ l'appareil, message recu, tap qui ouvre le bon jour — le 2026-09-03. Le rappel
 de confirmation, lui, n'a encore jamais eu de reservation a signaler a la
 bonne heure : son premier vrai passage reste a observer.
 
-**Statistiques.** `stats.ts` calcule taux de reouverture, delai median de
-disparition et courbe d'erosion, mais ne publie rien sous huit semaines de
-collecte : des donnees brutes valent mieux qu'une estimation sur trois
-observations. L'ecran `mobile/app/history.tsx` restera donc vide jusque-la.
+**Statistiques.** Chaque metrique est publiee des qu'elle a un echantillon,
+plus toutes ensemble derriere un compteur de snapshots : l'erosion demande une
+arche complete J+30 -> J-0, soit environ un mois ; le taux de reouverture
+demande cinq fermetures observees sur un meme train ; seules les medianes de
+fonte ont besoin du long terme. La regle de fond ne bouge pas — jamais
+d'estimation inventee, et toujours la taille d'echantillon a cote du chiffre.
 L'archive a demarre le 2026-09-01.
 
 **Le silence est le mode de panne du projet.** Un workflow qui ne se declenche
 pas n'envoie pas de mail d'echec, et une collecte manquee ne se voit nulle part
-ailleurs. Le seul temoin est le bandeau de fraicheur de l'application, au-dela
-de 36h. Les workflows planifies etant desactives apres une longue inactivite du
-depot, verifier vers le 2026-11-01 que `collect` tourne toujours.
+ailleurs. Une notification push n'y peut rien : elle est envoyee *par* le
+collecteur, et un collecteur mort ne peut pas annoncer sa propre mort.
+
+L'appareil, lui, le peut. `scheduleStaleAlarm` repose a chaque rafraichissement
+reussi une alarme locale a 40h : tant que la donnee arrive, l'echeance recule.
+C'est le seul dispositif qui survive a la panne qu'il surveille, et il ne
+demande aucun service tiers. Reste vraie la contrainte de fond : les workflows
+planifies sont desactives apres une longue inactivite du depot — verifier vers
+le 2026-11-01 que `collect` tourne toujours.
 
 ## Source et licence
 

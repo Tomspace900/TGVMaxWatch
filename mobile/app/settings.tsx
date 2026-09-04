@@ -331,9 +331,9 @@ export default function SettingsScreen() {
         <Text style={[styles.muted, { color: theme.muted }]}>
           {bundle.state.snapshotCount} snapshots collectés, {bundle.state.recordCount} lignes au
           dernier.
-          {bundle.stats?.ready
-            ? ' Prévisions actives.'
-            : " Prévisions inactives : pas encore assez de recul, les données brutes sont affichées telles quelles."}
+          {bundle.stats?.ready.erosion
+            ? ' Courbe d’érosion publiée.'
+            : ' Courbe d’érosion en attente : il faut une arche complète J+30 → J-0.'}
         </Text>
         <Text style={[styles.muted, { color: theme.muted, marginTop: space.md }]}>
           Données TGVmax, SNCF Voyageurs, licence ODbL.

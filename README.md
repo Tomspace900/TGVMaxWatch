@@ -31,7 +31,8 @@ data/
   state.json          fraicheur de la donnee, dernier envoi
   latest.json         dernier snapshot brut, non compresse
   history.json        observations OUI/NON par date de voyage et par sens
-  stats.json          previsions, vide tant que l'echantillon est trop petit
+  stats.json          previsions, publiees metrique par metrique
+  trains.json         disponibilite jour apres jour, train par train
   push-token.json     jeton Expo de l'appareil
   snapshots/          archive quotidienne gzippee (~12 ko/jour)
 watchlist.json        dates et regles surveillees
@@ -46,9 +47,9 @@ alarme posee par le telephone.
 La watchlist, elle, reste versionnee : le collecteur ne peut pas filtrer ses
 notifications sur un fichier qu'il ne lit pas.
 
-`data/snapshots/` est la source de verite. `history.json` et `stats.json` en
-sont des vues, **entierement recalculees a chaque execution** : un bug
-d'agregation se repare en relancant le job, sans corrompre l'archive.
+`data/snapshots/` est la source de verite. `history.json`, `stats.json` et
+`trains.json` en sont des vues, **entierement recalculees a chaque execution** :
+un bug d'agregation se repare en relancant le job, sans corrompre l'archive.
 
 ## Les flux
 
@@ -82,7 +83,9 @@ decouvre qu'il est mort qu'en manquant l'evenement qu'il devait signaler.
 
 ### Le cron GitHub part avec plusieurs heures de retard
 
-Mesure sur ce depot, pas suppose :
+Mesure sur ce depot, pas suppose. Les lignes `remind` sont conservees comme
+preuve : c'est ce workflow qui a paye ce retard, et c'est pour ca qu'il
+n'existe plus.
 
 | Workflow | Cron | Depart reel | Retard |
 |---|---|---|---|
@@ -106,7 +109,7 @@ sans consequence — c'est la seule forme de tache qui survive ici.
 
 ```sh
 npm install
-npm test          # 70 tests sur fixtures, aucun acces reseau
+npm test          # 76 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed      # archive synthetique de 70 jours, si besoin de recul
 
@@ -159,16 +162,22 @@ tant que le collecteur n'est pas sur `main`.
 ## Limites connues
 
 - Les places liberees faute de confirmation apres 17h n'apparaissent que dans
-  le snapshot du lendemain matin. **Ce systeme ne peut pas faire d'alerte de
-  derniere minute** ; c'est une limite de la source, pas de l'implementation.
+  le snapshot du lendemain matin. **Ce systeme ne peut pas faire d'alerte a
+  l'heure pres** ; c'est une limite de la source, pas de l'implementation. Il
+  fait en revanche tres bien l'alerte a la journee pres, et c'est la que se
+  trouve le gisement : la disponibilite remonte franchement dans la derniere
+  semaine avant le depart — le 06/09 Paris > Bordeaux est passe de 1 a 17
+  places en un jour, a trois jours du depart.
 - La donnee affichee peut avoir plus de 24h. L'application montre toujours sa
   date de publication, et alerte au-dela de 36h. C'est le seul temoin d'une
   collecte en panne : un workflow qui ne se declenche pas n'envoie pas de mail
   d'echec.
 - Les workflows planifies sont desactives apres une longue inactivite du depot.
   **Verifier au bout de deux mois que la tache tourne encore.**
-- `stats.json` reste vide sous huit semaines de collecte. L'archive a demarre
-  le 2026-09-01.
+- Chaque statistique est publiee des qu'elle a un echantillon, pas toutes
+  ensemble : l'erosion demande une arche complete J+30 -> J-0, le taux de
+  reouverture cinq fermetures sur un meme train, et seules les medianes de
+  fonte ont besoin du long terme. L'archive a demarre le 2026-09-01.
 
 ## Source et licence
 
