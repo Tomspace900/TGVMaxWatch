@@ -6,7 +6,8 @@ import Animated, {
   withSpring,
   type SharedValue,
 } from 'react-native-reanimated';
-import { motion, radius, useTheme } from '../theme.ts';
+import { Wash } from './rail.tsx';
+import { motion, radius, typo, useTheme } from '../theme.ts';
 
 interface Props {
   labels: string[];
@@ -39,24 +40,33 @@ export function Segmented({ labels, index, progress, onChange }: Props) {
         width.value = event.nativeEvent.layout.width - 6;
       }}
     >
+      {/* Le curseur porte le degrade Carmillon : c'est le seul element
+          permanent de l'ecran ou la marque a de la place pour se deployer. */}
       <Animated.View
         style={[
           styles.thumb,
           thumb,
+          // L'accent plein sert de fond de secours : si le degrade ne se
+          // peint pas, le curseur reste visible plutot que de disparaitre.
           {
             width: `${100 / labels.length}%`,
-            backgroundColor: theme.raised,
             borderRadius: radius.pill,
+            backgroundColor: theme.accent,
             shadowColor: '#000',
           },
         ]}
-      />
+      >
+        <Wash diagonal={false} />
+      </Animated.View>
 
       {labels.map((label, i) => (
         <Pressable key={label} style={styles.option} onPress={() => onChange(i)}>
           <Text
             numberOfLines={1}
-            style={[styles.label, { color: i === index ? theme.text : theme.muted }]}
+            style={[
+              i === index ? typo.section : typo.body,
+              { color: i === index ? theme.onBrand : theme.muted },
+            ]}
           >
             {label}
           </Text>
@@ -69,7 +79,7 @@ export function Segmented({ labels, index, progress, onChange }: Props) {
 const styles = StyleSheet.create({
   track: {
     flexDirection: 'row',
-    height: 42,
+    height: 40,
     padding: 3,
   },
   thumb: {
@@ -77,7 +87,8 @@ const styles = StyleSheet.create({
     top: 3,
     bottom: 3,
     left: 3,
-    shadowOpacity: 0.16,
+    overflow: 'hidden',
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
@@ -86,9 +97,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  label: {
-    fontSize: 13.5,
-    fontWeight: '600',
   },
 });

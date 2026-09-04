@@ -60,6 +60,48 @@ l'application affichait alors « PASUDOUEST » sur quatre lignes sur cinq. Le
 champ `entity` du dataset porte un axe commercial pour les TGV INOUI et le
 service pour les OUIGO : seul le second apprend quelque chose.
 
+**Ce projet compte des trains, jamais des places.** `od_happy_card = OUI` dit
+qu'un *train* est ouvert au TGVmax ; la source ne publie aucun stock de sieges
+et n'en publiera jamais. « places » etait pourtant ecrit partout — dans
+l'application comme dans les notifications, ou « 57 places ouvertes » annoncait
+57 trains. L'erreur passait inapercue sur le calendrier, ou le chiffre est nu,
+et devenait absurde des qu'il touchait un horaire : « 8 places » en face du
+07h12 se lisait comme huit sieges dans ce train-la. Le mot vit dans
+`src/label.ts`, avec les autres lecteurs de la source — pas dans l'interface,
+qu'on remplace.
+
+**Deux familles de couleur, et elles ne se croisent jamais.** `avail` est la
+seule echelle qui porte de l'information : plus il y a de trains ouverts, plus
+la case est dense. `brand` est le degrade Carmillon de SNCF Voyageurs — violet,
+framboise, vermillon — et il ne sert qu'a l'habillage : navbar, materiel
+roulant, action principale, alerte. Melanger les deux rend l'echelle illisible,
+l'oeil ne sachant plus si une case est coloree parce qu'elle est pleine ou parce
+que c'est la couleur du produit. Le sens de la faute va dans les deux
+directions : les creneaux de quota etaient peints en `avail[3]`, ce qui les
+faisait lire comme une mesure de disponibilite alors qu'ils n'en sont pas une.
+
+La charte TGV INOUI n'est pas publique et sa police, Achemine, est
+proprietaire : ni l'une ni l'autre n'est utilisable ici. Les valeurs retenues
+viennent de la palette publiee de SNCF Voyageurs, et les polices sont Archivo et
+Share Tech Mono, sous licence SIL Open Font.
+
+**Un degrade ne coute pas un APK, une police non plus — mais il faut le
+verifier.** `react-native-svg` est deja embarque et sait faire un
+`LinearGradient` : passer par `expo-linear-gradient` aurait demande un nouveau
+build de ~108 Mo pour un fond. Meme raisonnement pour `expo-font`, qui est deja
+dans le binaire parce qu'il est une dependance du paquet `expo` lui-meme. La
+verification est `npx expo-updates fingerprint:generate --platform android`,
+avant et apres : l'empreinte est restee identique en ajoutant les `.ttf` **et**
+en declarant `expo-font` en dependance directe. Sans cette mesure, une
+dependance ajoutee a l'aveugle change l'empreinte, et l'installation existante
+cesse simplement de recevoir les mises a jour — en silence, comme toujours ici.
+
+**Sur Android, `fontWeight` ne synthetise rien face a une famille embarquee.**
+Demander du gras a « Archivo » rend du romain. Chaque graisse est donc une
+famille nommee, et les styles passent par les presets de `typo` plutot que par
+`fontWeight`. Corollaire : un `<Text>` sans `fontFamily` retombe sur Roboto, et
+un seul oubli fait cohabiter deux polices sur le meme ecran.
+
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
 convertir. Seul le cron est en UTC.
 
@@ -173,7 +215,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 76 tests sur fixtures, aucun acces reseau
+npm test              # 78 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 

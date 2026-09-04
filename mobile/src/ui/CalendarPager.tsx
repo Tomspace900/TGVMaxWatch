@@ -11,7 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { weekday } from '../../../src/dates.ts';
 import { availabilityBucket, emptyDay, horizonDates, type Calendar } from '../model.ts';
 import { dayNumber } from '../format.ts';
-import { motion, radius, space, useTheme } from '../theme.ts';
+import { motion, radius, space, typo, useTheme } from '../theme.ts';
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 /** Largeur de bord captee par le geste de retour d'Android. */
@@ -153,7 +153,7 @@ function Grid({ width, dates, today, dir, calendar, onSelect }: GridProps) {
                   transform: [{ scale: pressed ? 0.93 : 1 }],
                 },
               ]}
-              accessibilityLabel={`${date}, ${day.available} trains`}
+              accessibilityLabel={`${date}, ${day.available} trains ouverts`}
             >
               {/* Toutes les places du jour sont sur des trains de plus de 3h :
                   sans ce marqueur, la couleur mentirait. */}
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   track: { flexDirection: 'row' },
   panel: {},
   weekdays: { flexDirection: 'row', gap: space.sm, marginBottom: space.sm },
-  weekday: { textAlign: 'center', fontSize: 11, fontWeight: '500' },
+  weekday: { ...typo.chip, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   cell: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   corner: {
@@ -203,7 +203,9 @@ const styles = StyleSheet.create({
     borderRightColor: 'transparent',
     opacity: 0.5,
   },
-  dayNumber: { fontSize: 11, fontWeight: '500', opacity: 0.72, lineHeight: 13 },
-  count: { fontSize: 20, fontWeight: '700', lineHeight: 24 },
-  delta: { position: 'absolute', right: 4, bottom: 3, fontSize: 9.5, fontWeight: '600', opacity: 0.75 },
+  dayNumber: { ...typo.small, fontSize: 10.5, opacity: 0.72, lineHeight: 13 },
+  // Le compte se lit comme un afficheur : chiffres de largeur egale, une
+  // colonne de cases qui ne s'alignent pas se lit comme un defaut.
+  count: { ...typo.clock, fontSize: 21, lineHeight: 25, letterSpacing: 0 },
+  delta: { ...typo.digits, position: 'absolute', right: 4, bottom: 3, fontSize: 9.5, opacity: 0.8 },
 });

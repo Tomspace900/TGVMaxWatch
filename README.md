@@ -47,7 +47,7 @@ GET .../datasets/tgvmax/exports/json
 | | |
 |---|---|
 | Volume | ~2 150 lignes par jour, sur les deux sens |
-| Champ decisif | `od_happy_card` : `OUI` / `NON`, binaire — **ni nombre de places, ni prix** |
+| Champ decisif | `od_happy_card` : `OUI` / `NON`, binaire — **ni nombre de places, ni prix**. Tout ce que ce projet compte, ce sont donc des *trains* ouverts au TGVmax |
 | Colonnes optionnelles | `entity`, `axe` : demandees seulement si le dataset les declare, un `select` sur une colonne inconnue renvoyant 400 |
 | Licence | ODbL, mention obligatoire dans l'application |
 
@@ -161,8 +161,8 @@ Ils **contournent la watchlist** : ils ne dependent d'aucune preference.
 
 | Signal | Condition | Constantes |
 |---|---|---|
-| `REOPENED` | la veille 0 place, aujourd'hui ≥ 5 | `REOPEN_MIN_TRAINS = 5` |
-| `DRAINING` | perte ≥ 3 places **et** il en reste ≤ 3 | `DRAIN_MIN_DROP = 3`, `DRAIN_MAX_LEFT = 3` |
+| `REOPENED` | la veille 0 train ouvert, aujourd'hui ≥ 5 | `REOPEN_MIN_TRAINS = 5` |
+| `DRAINING` | perte ≥ 3 trains **et** il en reste ≤ 3 | `DRAIN_MIN_DROP = 3`, `DRAIN_MAX_LEFT = 3` |
 
 Les seuils viennent de l'archive reelle, pas d'une intuition. Mesure sur le diff
 du 1er au 3 septembre : notifier chaque train qui s'ouvre donne **12 a 13 lignes
@@ -171,14 +171,14 @@ Ces deux regles en donnent **une a quatre**, toutes actionnables.
 
 **Le pari initial du projet etait faux.** Le plan misait sur l'entree d'une date
 a J+30, supposee arriver avec dix a quinze trains. Les quatre dates mesurees sont
-entrees a **zero place** (0/35, 0/39, 0/33, 0/29) et se sont remplies le
+entrees a **zero train ouvert** (0/35, 0/39, 0/33, 0/29) et se sont remplies le
 lendemain. L'alerte batie dessus exigeait `oui > 0` a l'entree : elle ne pouvait
 litteralement jamais partir. On regarde donc la **transition**, jamais l'entree.
 
 **Le message** (`src/notify.ts`) : un seul par execution, six lignes maximum puis
 « +N autres », plafonne a 3 500 octets. Chaque ligne porte le **sens** — la seule
-chose qu'on ne peut pas deviner — et l'**avant/apres** : « 9 places hier, 2
-aujourd'hui » decide, « 7 places parties » non. Les suppressions de train ne sont
+chose qu'on ne peut pas deviner — et l'**avant/apres** : « 9 trains hier, 2
+aujourd'hui » decide, « 7 trains partis » non. Les suppressions de train ne sont
 jamais poussees, trop de bruit pour leur interet.
 
 **L'envoi** passe par le service Expo Push, signe avec `EXPO_TOKEN`. Le job cron
@@ -194,7 +194,7 @@ murissent pas au meme rythme, et un seuil global retenait la plus rapide.
 | Metrique | Ce qu'elle dit | Garde |
 |---|---|---|
 | `reopen` | par numero de train, frequence de reouverture apres fermeture | 5 fermetures observees (`MIN_REOPEN_SAMPLE`) |
-| `erosion` | places restantes en moyenne selon la distance au depart | courbe couvrant ≥ 24 jours (`MIN_EROSION_SPAN`) |
+| `erosion` | trains ouverts en moyenne selon la distance au depart | courbe couvrant ≥ 24 jours (`MIN_EROSION_SPAN`) |
 | `burnRate` | mediane du **nombre de jours avant le depart** ou le train passe a `NON` | 3 instances (`MIN_BURN_SAMPLE`) |
 
 `burnRate` mesure la **distance au depart**, pas le delai depuis la premiere
@@ -364,11 +364,11 @@ Le cron ne se declenche que sur la branche par defaut.
 
 ## 11. Limites connues
 
-- Les places liberees faute de confirmation apres 17 h n'apparaissent que dans le
+- Les trains liberes faute de confirmation apres 17 h n'apparaissent que dans le
   snapshot du lendemain matin. **Pas d'alerte a l'heure pres** — limite de la
   source. L'alerte a la journee pres, elle, fonctionne, et c'est la que se trouve
   le gisement : la disponibilite remonte franchement dans la derniere semaine
-  avant le depart (le 06/09 Paris → Bordeaux est passe de 1 a 17 places en un
+  avant le depart (le 06/09 Paris → Bordeaux est passe de 1 a 17 trains en un
   jour, a trois jours du depart).
 - **Aucune vision au-dela de J+30.**
 - La donnee affichee peut avoir plus de 24 h ; l'application montre toujours sa

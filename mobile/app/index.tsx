@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { DIRECTIONS, STALE_DATA_HOURS } from '../../src/config.ts';
 import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
-import { buildCalendar, emptyDay } from '../src/model.ts';
-import { ageLabel, dirLabel, hoursSince, longDate, reverseDir } from '../src/format.ts';
-import { QuotaCard, WatchCard } from '../src/ui/Cards.tsx';
+import { buildCalendar } from '../src/model.ts';
+import { ageLabel, dirLabel, hoursSince, reverseDir } from '../src/format.ts';
+import { QuotaCard, StatsCard, WatchCard } from '../src/ui/Cards.tsx';
 import { CalendarPager } from '../src/ui/CalendarPager.tsx';
+import { Locomotive, RailTrack, Wash } from '../src/ui/rail.tsx';
 import { Segmented } from '../src/ui/Segmented.tsx';
-import { radius, space, useTheme } from '../src/theme.ts';
+import { BAR_HEIGHT, StickyBar } from '../src/ui/StickyBar.tsx';
+import { radius, space, typo, useTheme } from '../src/theme.ts';
 
 export default function CalendarScreen() {
   const theme = useTheme();
@@ -27,7 +32,12 @@ export default function CalendarScreen() {
 
   const [index, setIndex] = useState(0);
   const progress = useSharedValue(0);
+  const scrollY = useSharedValue(0);
   const [refreshing, setRefreshing] = useState(false);
+
+  const onScroll = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
 
   /*
    * Alternance de sens. Les trajets sont unitaires, pas des allers-retours,
@@ -57,198 +67,149 @@ export default function CalendarScreen() {
   }, [lastDir, progress]);
 
   const dir = DIRECTIONS[index]!;
-  const todayDay = calendar.get(today)?.get(dir) ?? emptyDay(today, dir);
-
-  /*
-   * Ce qui a bouge depuis hier.
-   *
-   * Volontairement different de ce que la notification a envoye : elle ne
-   * retient que ce qui meritait de deranger, ce bandeau montre le mouvement
-   * brut, y compris quand rien n'a declenche d'alerte. Le bandeau est la vue
-   * continue, la notification l'exception.
-   *
-   * `Day.delta` est deja calcule par `buildCalendar` — il n'y a rien de plus a
-   * derouler que le tri.
-   */
-  const moved = useMemo(() => {
-    const rows: { date: string; delta: number; available: number }[] = [];
-    for (const [date, byDir] of calendar) {
-      if (date < today) continue;
-      const day = byDir.get(dir);
-      if (!day || day.delta === null || day.delta === 0) continue;
-      rows.push({ date, delta: day.delta, available: day.available });
-    }
-    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 3);
-  }, [calendar, dir, today]);
   const processed = bundle.state.dataProcessed;
   const stale = processed !== null && hoursSince(processed) > STALE_DATA_HOURS;
 
+  /*
+   * Le bandeau des trois plus gros mouvements a disparu d'ici.
+   *
+   * Trois lignes sur trente et une dates, c'est un classement arbitraire : ni
+   * le mouvement du jour qu'on surveille, ni la vue d'ensemble. Or `Day.delta`
+   * est deja peint sur chaque case du calendrier, ou il se lit a cote du
+   * compte qu'il corrige — c'est-a-dire au seul endroit ou il veut dire quelque
+   * chose. Le bandeau n'ajoutait donc rien qu'un doublon partiel.
+   *
+   * La carte « places aujourd'hui » est partie avec, pour une autre raison :
+   * personne n'ouvre cette application pour le train de ce soir. La fenetre
+   * utile est J+2 a J+30, et le calendrier la couvre entierement.
+   */
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.bg }}
-      contentContainerStyle={{ paddingTop: insets.top + space.md, paddingBottom: insets.bottom + space.lg }}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          tintColor={theme.muted}
-          onRefresh={() => {
-            setRefreshing(true);
-            void refresh().finally(() => setRefreshing(false));
-          }}
-        />
-      }
-    >
-      <View style={{ paddingHorizontal: space.lg }}>
-        <Segmented
-          labels={DIRECTIONS.map(dirLabel)}
-          index={index}
-          progress={progress}
-          onChange={setIndex}
-        />
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{
+          paddingTop: insets.top + BAR_HEIGHT,
+          paddingBottom: insets.bottom + space.xl,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={theme.muted}
+            progressViewOffset={insets.top + BAR_HEIGHT}
+            onRefresh={() => {
+              setRefreshing(true);
+              void refresh().finally(() => setRefreshing(false));
+            }}
+          />
+        }
+      >
+        {/* Le bandeau d'identite : la seule surface ou le degrade Carmillon se
+            deploie en entier. La motrice regarde dans le sens du voyage. */}
+        <View style={styles.hero}>
+          <Wash />
 
-        <View style={styles.status}>
-          {/* La donnee peut avoir plus de 24 h : sa date de publication est la
-              seule information d'etat du produit. */}
-          <Text style={[styles.statusText, { color: theme.muted }]}>
+          <View style={styles.heroTop}>
+            <Text style={[typo.hero, styles.heroTitle, { color: theme.onBrand }]}>
+              {dirLabel(dir)}
+            </Text>
+            <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
+              <Text style={[typo.chip, { color: theme.onBrand, opacity: 0.85 }]}>RÉGLAGES</Text>
+            </Pressable>
+          </View>
+
+          {/* La date de publication est la seule information d'etat du produit :
+              la donnee peut avoir plus de 24 h sans que rien d'autre ne le dise. */}
+          <Text style={[typo.digits, styles.heroMeta, { color: theme.onBrand }]}>
             {loading
-              ? 'chargement'
+              ? 'CHARGEMENT'
               : processed
-                ? `données du ${processed.slice(8, 10)}/${processed.slice(5, 7)} · ${ageLabel(processed)}`
-                : 'aucune donnée'}
-            {offline ? ' · hors ligne' : ''}
+                ? `${processed.slice(8, 10)}/${processed.slice(5, 7)} · ${ageLabel(processed)}`
+                : 'AUCUNE DONNÉE'}
+            {offline ? ' · HORS LIGNE' : ''}
           </Text>
 
-          <Pressable onPress={() => router.push('/settings')} hitSlop={10}>
-            <Text style={[styles.statusText, { color: theme.muted }]}>réglages</Text>
-          </Pressable>
+          <View
+            style={[
+              styles.loco,
+              // Un aller et un retour ne se dessinent pas pareil : la motrice
+              // pointe vers la gare d'arrivee.
+              { transform: [{ scaleX: index === 0 ? 1 : -1 }] },
+            ]}
+          >
+            <Locomotive height={54} />
+          </View>
         </View>
 
         {stale && (
-          <View style={[styles.banner, { backgroundColor: theme.inverseBg, borderRadius: radius.sm }]}>
-            <Text style={[styles.bannerText, { color: theme.inverseText }]}>
+          <View style={[styles.banner, { backgroundColor: theme.accent, marginHorizontal: space.lg }]}>
+            <Text style={[typo.strong, { color: theme.onBrand }]}>
               Donnée vieille de plus de {STALE_DATA_HOURS} h : le collecteur ne tourne plus.
             </Text>
           </View>
         )}
 
-        {moved.length > 0 && (
-          <View style={styles.moved}>
-            {moved.map((row) => (
-              <Pressable
-                key={row.date}
-                onPress={() => router.push({ pathname: '/day/[date]', params: { date: row.date, dir } })}
-                style={styles.movedLine}
-              >
-                {/* Le signe porte le sens du mouvement. La couleur, elle, reste
-                    reservee a l'echelle de disponibilite — elle n'encode jamais
-                    autre chose. */}
-                <Text style={[styles.movedDelta, { color: theme.text }]}>
-                  {row.delta > 0 ? '+' : ''}
-                  {row.delta}
-                </Text>
-                <Text style={[styles.movedText, { color: theme.muted }]}>
-                  {longDate(row.date)} · {row.available} place{row.available > 1 ? 's' : ''}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-      </View>
+        <View style={{ marginTop: space.lg }}>
+          <CalendarPager
+            calendar={calendar}
+            today={today}
+            directions={DIRECTIONS}
+            index={index}
+            progress={progress}
+            onIndexChange={setIndex}
+            onSelect={(date, selectedDir) =>
+              router.push({ pathname: '/day/[date]', params: { date, dir: selectedDir } })
+            }
+          />
+        </View>
 
-      <View style={{ marginTop: space.lg }}>
-        <CalendarPager
-          calendar={calendar}
-          today={today}
-          directions={DIRECTIONS}
-          index={index}
-          progress={progress}
-          onIndexChange={setIndex}
-          onSelect={(date, selectedDir) =>
-            router.push({ pathname: '/day/[date]', params: { date, dir: selectedDir } })
-          }
-        />
-      </View>
+        <RailTrack style={{ marginTop: space.xl, marginHorizontal: space.lg }} />
 
-      <View style={{ paddingHorizontal: space.lg, marginTop: space.xl, gap: space.sm }}>
-        <Pressable
-          onPress={() => router.push({ pathname: '/day/[date]', params: { date: today, dir } })}
-          style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.line, borderRadius: radius.md }]}
-        >
-          <Text style={[styles.cardCount, { color: theme.text }]}>{todayDay.available}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>
-              {todayDay.available > 1 ? "places aujourd'hui" : "place aujourd'hui"}
-            </Text>
-            <Text style={[styles.cardSub, { color: theme.muted }]}>{longDate(today)}</Text>
-          </View>
-          {todayDay.onlyLong && (
-            <Text style={[styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
-              longs
-            </Text>
+        <View style={{ paddingHorizontal: space.lg, marginTop: space.lg, gap: space.md }}>
+          <WatchCard
+            watchlist={bundle.watchlist}
+            calendar={calendar}
+            trains={bundle.trains}
+            onPress={() => router.push('/settings')}
+          />
+
+          <QuotaCard reservations={bundle.reservations} onPress={() => router.push('/settings')} />
+
+          {bundle.stats?.ready.erosion && (
+            <StatsCard
+              snapshotCount={bundle.state.snapshotCount}
+              onPress={() => router.push('/history')}
+            />
           )}
-        </Pressable>
+        </View>
+      </Animated.ScrollView>
 
-        <WatchCard
-          watchlist={bundle.watchlist}
-          calendar={calendar}
-          onPress={() => router.push('/settings')}
-        />
-
-        <QuotaCard
-          reservations={bundle.reservations}
-          onPress={() => router.push('/settings')}
-        />
-
-        {bundle.stats?.ready.erosion && (
-          <Pressable
-            onPress={() => router.push('/history')}
-            style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.line, borderRadius: radius.md }]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Érosion et prévisions</Text>
-              <Text style={[styles.cardSub, { color: theme.muted }]}>
-                {bundle.state.snapshotCount} jours d'archive
-              </Text>
-            </View>
-          </Pressable>
-        )}
-      </View>
-    </ScrollView>
+      <StickyBar scrollY={scrollY}>
+        <View style={{ paddingHorizontal: space.lg }}>
+          <Segmented
+            labels={DIRECTIONS.map(dirLabel)}
+            index={index}
+            progress={progress}
+            onChange={setIndex}
+          />
+        </View>
+      </StickyBar>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  status: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: space.md,
-  },
-  statusText: { fontSize: 12 },
-  banner: { marginTop: space.md, padding: space.md },
-  bannerText: { fontSize: 12.5, fontWeight: '500' },
-  moved: { marginTop: space.md, gap: 2 },
-  movedLine: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
-  // Chiffres tabulaires : une colonne de nombres qui ne s'alignent pas
-  // verticalement se lit comme un defaut d'affichage.
-  movedDelta: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'], minWidth: 28 },
-  movedText: { fontSize: 12.5 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.lg,
-    padding: space.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  cardCount: { fontSize: 32, fontWeight: '800' },
-  cardTitle: { fontSize: 15, fontWeight: '600' },
-  cardSub: { fontSize: 12.5, marginTop: 2 },
-  chip: {
-    fontSize: 10,
-    fontWeight: '700',
+  hero: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.md,
     overflow: 'hidden',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
   },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
+  heroTitle: { flexShrink: 1 },
+  heroMeta: { marginTop: 2, opacity: 0.9 },
+  // La motrice deborde volontairement a droite : une rame ne tient pas dans
+  // l'ecran, et la couper rappelle qu'elle continue.
+  loco: { alignSelf: 'flex-end', marginRight: -space.xl, marginTop: -space.sm },
+  banner: { marginTop: space.md, padding: space.md, borderRadius: radius.sm },
 });

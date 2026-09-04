@@ -50,7 +50,7 @@ describe('construction du message', () => {
     )!;
 
     assert.match(notification.title, /16\/11 Paris > Bordeaux rouvre : 10 trains/);
-    assert.equal(notification.body.split('\n')[0], 'rouvre 16/11 Paris > Bordeaux : 10 places, 0 hier');
+    assert.equal(notification.body.split('\n')[0], 'rouvre 16/11 Paris > Bordeaux : 10 trains, 0 hier');
     assert.match(notification.url, /date=2026-11-16/);
   });
 
@@ -59,10 +59,10 @@ describe('construction du message', () => {
     assert.match(notification.title, /30\/09 Bordeaux > Paris : plus que 2 trains/);
   });
 
-  it('accorde le singulier quand il ne reste qu une place', () => {
+  it('accorde le singulier quand il ne reste qu un train', () => {
     const notification = buildNotification([], [signal('DRAINING', '2026-09-30', 5, 1)])!;
     assert.match(notification.title, /plus que 1 train$/);
-    assert.match(notification.body, /1 place, 5 hier/);
+    assert.match(notification.body, /1 train, 5 hier/);
   });
 
   it('agrege le titre au-dela d un signal, sans perdre les lignes', () => {
@@ -76,10 +76,10 @@ describe('construction du message', () => {
   });
 
   it('porte l avant et l apres, pas seulement la variation', () => {
-    // « 7 places parties » ne dit pas s'il en reste vingt ou deux, et c'est la
+    // « 7 trains partis » ne dit pas s'il en reste vingt ou deux, et c'est la
     // seule chose qui decide s'il faut ouvrir l'application maintenant.
     const notification = buildNotification([], [signal('DRAINING', '2026-09-30', 9, 2)])!;
-    assert.match(notification.body, /2 places, 9 hier/);
+    assert.match(notification.body, /2 trains, 9 hier/);
   });
 
   it('regroupe une meme date et un meme sens sur une seule ligne', () => {
@@ -96,7 +96,7 @@ describe('construction du message', () => {
 
   /*
    * Le sens etait la seule information absente des lignes d'ouverture, et la
-   * seule qu'on ne puisse pas deviner : « 57 places ouvertes » ne dit pas s'il
+   * seule qu'on ne puisse pas deviner : « 57 trains ouverts » ne dit pas s'il
    * s'agit de l'aller ou du retour.
    */
   it('porte le sens sur chaque ligne', () => {

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { radius, space, useTheme } from '../theme.ts';
+import { radius, space, typo, useTheme } from '../theme.ts';
 
 /**
  * Briques de l'ecran de reglages.
@@ -9,9 +9,11 @@ import { radius, space, useTheme } from '../theme.ts';
  * fois : sept sections construites chacune a sa facon donnaient sept alignements
  * differents, ce qui se lit exactement comme le desordre que c'est.
  *
- * Aucune couleur saturee ici. Dans ce projet la couleur n'encode qu'une chose,
- * l'echelle de disponibilite ; un etat de reglage se dit par le contraste et le
- * poids typographique.
+ * La seule couleur admise ici est l'accent de la marque, et uniquement pour
+ * « quelque chose ne va pas » ou « c'est l'action principale ». L'echelle de
+ * disponibilite, elle, ne sort jamais du calendrier : un creneau de quota peint
+ * en vert se lirait comme une mesure de disponibilite alors qu'il n'en est pas
+ * une.
  */
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -52,9 +54,9 @@ export function Row({ label, value, mono }: { label: string; value: string; mono
 /**
  * Etat d'un reglage, en une ligne.
  *
- * `attention` inverse le fond, exactement comme le bandeau de fraicheur du
- * calendrier : c'est le seul registre visuel du projet pour « quelque chose ne
- * va pas », et il ne coute pas une couleur de plus.
+ * `attention` prend l'accent de la marque, exactement comme le bandeau de
+ * fraicheur du calendrier : c'est le seul registre visuel du projet pour
+ * « quelque chose ne va pas ».
  */
 export function Status({ text, attention }: { text: string; attention?: boolean }) {
   const theme = useTheme();
@@ -62,8 +64,8 @@ export function Status({ text, attention }: { text: string; attention?: boolean 
     return <Text style={[styles.status, { color: theme.text }]}>{text}</Text>;
   }
   return (
-    <View style={[styles.alert, { backgroundColor: theme.inverseBg, borderRadius: radius.sm }]}>
-      <Text style={[styles.alertText, { color: theme.inverseText }]}>{text}</Text>
+    <View style={[styles.alert, { backgroundColor: theme.accent, borderRadius: radius.sm }]}>
+      <Text style={[styles.alertText, { color: theme.onBrand }]}>{text}</Text>
     </View>
   );
 }
@@ -86,14 +88,14 @@ export function Action({
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: primary ? theme.inverseBg : theme.sunken,
+          backgroundColor: primary ? theme.accent : theme.sunken,
           borderRadius: radius.sm,
           opacity: disabled ? 0.4 : pressed ? 0.75 : 1,
         },
       ]}
     >
       <Text
-        style={[styles.buttonText, { color: primary ? theme.inverseText : theme.text }]}
+        style={[styles.buttonText, { color: primary ? theme.onBrand : theme.text }]}
       >
         {label}
       </Text>
@@ -112,16 +114,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: space.sm,
   },
-  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: space.xs },
-  note: { fontSize: 12.5, lineHeight: 18 },
+  sectionTitle: { ...typo.chip, fontSize: 11, letterSpacing: 0.9, marginBottom: space.xs },
+  note: { ...typo.small, lineHeight: 18 },
   row: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.md },
-  rowLabel: { fontSize: 12.5 },
-  rowValue: { fontSize: 12.5, fontWeight: '600', fontVariant: ['tabular-nums'], flexShrink: 1 },
-  rowMono: { fontFamily: 'monospace', fontWeight: '400' },
-  status: { fontSize: 13.5, fontWeight: '600' },
+  rowLabel: { ...typo.small },
+  // La valeur est en Share Tech Mono : une colonne de valeurs qui ne s'alignent
+  // pas verticalement se lit comme un defaut d'affichage.
+  rowValue: { ...typo.digits, flexShrink: 1 },
+  rowMono: { ...typo.digits },
+  status: { ...typo.section, fontSize: 13.5 },
   alert: { padding: space.md },
-  alertText: { fontSize: 12.5, fontWeight: '500', lineHeight: 18 },
+  alertText: { ...typo.strong, lineHeight: 18 },
   button: { paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { fontSize: 14, fontWeight: '600' },
+  buttonText: { ...typo.section, fontSize: 14 },
   actions: { flexDirection: 'row', gap: space.sm },
 });

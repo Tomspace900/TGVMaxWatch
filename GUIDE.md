@@ -2,18 +2,24 @@
 
 ## À quoi ça sert
 
-L'abonnement MAX JEUNE donne des trajets gratuits, mais le nombre de places est
-limité sur chaque train et il change tous les jours. La SNCF publie l'état du
+L'abonnement MAX JEUNE donne des trajets gratuits, mais tous les trains ne sont
+pas ouverts à ce tarif, et ça change tous les jours. La SNCF publie l'état du
 jour et **efface celui de la veille** : personne ne peut savoir si un train
-complet rouvre souvent, ni à quel moment les places partent.
+fermé rouvre souvent, ni à quel moment il se ferme.
 
 Cette application regarde tous les jours, garde tout, et te prévient quand
 quelque chose bouge sur Paris Montparnasse ↔ Bordeaux Saint-Jean.
 
+**Un mot sur ce qui est compté.** Partout où tu vois un nombre, ce sont des
+**trains ouverts au TGVmax**, jamais des sièges. La SNCF ne publie aucun stock
+de places : pour chaque train elle dit seulement oui ou non. « 12 » sur une case
+du calendrier veut donc dire « douze trains réservables ce jour-là », et pas
+douze sièges.
+
 Trois questions auxquelles elle répond, et que rien d'autre ne sait faire :
 
-- **Est-ce qu'il reste des places le 17 octobre ?** — le calendrier, d'un coup d'œil.
-- **Est-ce que ça part vite ?** — l'historique, jour après jour, train par train.
+- **Est-ce qu'il reste des trains le 17 octobre ?** — le calendrier, d'un coup d'œil.
+- **Est-ce que ça se ferme vite ?** — l'historique, jour après jour, train par train.
 - **Est-ce que je dois réserver maintenant ?** — les alertes viennent te chercher.
 
 ---
@@ -23,48 +29,59 @@ Trois questions auxquelles elle répond, et que rien d'autre ne sait faire :
 ### L'écran principal : le calendrier
 
 Trente jours, une case par jour. **Plus la case est colorée, plus il y a de
-places.** Une case vide veut dire zéro place ce jour-là, dans le sens affiché.
+trains ouverts.** Une case vide veut dire aucun train ce jour-là, dans le sens
+affiché. Le petit `+3` ou `-2` en bas d'une case dit ce qui a bougé depuis la
+veille.
 
-En haut, le sens du trajet — Paris → Bordeaux ou Bordeaux → Paris.
+Tout en haut, le sélecteur de sens — Paris → Bordeaux ou Bordeaux → Paris.
+**Il reste en place quand tu fais défiler l'écran** : c'est le contexte de tout
+ce qui est affiché en dessous, et le perdre obligeait à remonter.
 **Glisse horizontalement sur le calendrier pour changer de sens**, le sélecteur
 suit ton doigt.
 
 L'application s'ouvre toute seule sur le sens que tu vas probablement chercher :
 si ton dernier trajet enregistré descend à Bordeaux, elle s'ouvre sur le retour.
 
-Sous le sélecteur : la date de publication des données et leur âge. Et juste
-en dessous, **ce qui a bougé depuis hier** — les trois plus gros mouvements du
-sens affiché, avec le nombre de places gagnées ou perdues. Touche une ligne pour
-ouvrir le jour.
+Juste sous la barre, le bandeau coloré porte le sens en grand, la date de
+publication des données, et une motrice qui **pointe dans le sens du voyage**.
 
 En bas de l'écran :
 
-- **Places aujourd'hui** — raccourci vers la journée en cours.
-- **Surveillance** — ce que tu suis, avec le nombre de places restantes.
-- **Réservations** — tes créneaux occupés sur les 6 que permet l'abonnement.
+- **Surveillance** — ce que tu suis. En face de chaque créneau, la frise qui
+  montre jour après jour si *ce train-là* était ouvert ou fermé — c'est ce
+  qu'on veut savoir devant un train qu'on attend, bien plus que le nombre de
+  trains qui circulent ce jour-là.
+- **Réservations** — une voiture par créneau, pleine ou vide, sur les 6 que
+  permet l'abonnement.
 - **Érosion et prévisions** — apparaît seulement quand il y a assez de recul.
 
 ### L'écran d'un jour
 
-Tous les trains de la journée, dans l'ordre des départs. Pour chacun :
+En haut, une barre qui ne bouge pas : le retour au calendrier, la date, et
+**deux flèches pour passer au jour précédent ou suivant** sans repasser par le
+calendrier — c'est le geste qu'on fait vraiment quand un créneau ne convient
+pas.
 
-- l'heure de départ et d'arrivée, le numéro de train ;
-- **la durée du trajet, en gras si elle dépasse 3 h** — sur cet axe les temps
+Ensuite le total : combien de trains sont ouverts, sur combien qui circulent,
+une courbe de l'évolution, et — quand il y a assez d'historique — une phrase du
+genre « ce créneau part en général vers J-18 », toujours avec le nombre
+d'observations sur lequel elle repose.
+
+Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
+
+- l'heure de départ, l'heure d'arrivée en dessous, le numéro de train ;
+- **la durée du trajet, en couleur si elle dépasse 3 h** — sur cet axe les temps
   vont de 2 h 05 à 3 h 30 pour le même prix, et un omnibus reste réservable sans
   être un bon choix ;
-- **une petite frise** qui montre jour après jour si ce train était libre ou
-  complet — c'est là qu'on voit un train qui vient de rouvrir ;
+- **une petite frise** qui montre jour après jour si ce train était ouvert ou
+  fermé — c'est là qu'on voit un train qui vient de rouvrir ;
 - un badge **suivi** ou **réservé** si tu l'as marqué ;
-- un train complet est barré et grisé.
-
-En haut, le total de places du jour, une courbe de son évolution, et — quand il
-y a assez d'historique — une phrase du genre « ce créneau part en général vers
-J-18 », toujours avec le nombre d'observations sur lequel elle repose.
+- un train fermé est barré et grisé.
 
 ### L'écran d'érosion
 
-Une courbe par jour de la semaine : combien de places restent en moyenne selon
-la distance au départ. Elle n'apparaît qu'à partir du moment où l'archive couvre
+Une courbe par jour de la semaine : combien de trains restent ouverts en
+moyenne selon la distance au départ. Elle n'apparaît qu'à partir du moment où l'archive couvre
 une fenêtre complète, soit environ un mois de collecte.
 
 ---
@@ -103,9 +120,9 @@ regroupe tout ce qui s'est passé.
 
 Trois raisons de te déranger :
 
-1. **Une date rouvre.** Une journée qui n'avait plus une seule place en a de
+1. **Une date rouvre.** Une journée qui n'avait plus un seul train en a de
    nouveau au moins cinq. C'est le moment où le choix est le plus large.
-2. **Un créneau se vide.** Une journée a perdu au moins trois places et il en
+2. **Un créneau se vide.** Une journée a perdu au moins trois trains et il en
    reste trois ou moins. Autrement dit : ça part, et il faut décider maintenant.
 3. **Un créneau que tu suis a bougé.**
 
@@ -147,7 +164,7 @@ téléphone.
 
 Autant le dire franchement, ce sont des limites de la source, pas des oublis :
 
-- **Pas d'alerte à la minute.** Les places libérées faute de confirmation après
+- **Pas d'alerte à la minute.** Les trains rouverts faute de confirmation après
   17 h n'apparaissent que dans la publication du lendemain matin. En revanche
   l'alerte à la journée près fonctionne très bien, et c'est même là qu'il y a le
   plus à gagner : la disponibilité remonte franchement dans la dernière semaine
@@ -168,6 +185,6 @@ l'export manuel comme seule sortie.
 Ce que tu surveilles, en revanche, est enregistré en ligne : c'est ce qui permet
 au système de savoir quoi te signaler pendant que ton téléphone est éteint.
 
-Les horaires et l'historique des places viennent des données publiques
+Les horaires et l'historique viennent des données publiques
 [TGVmax](https://ressources.data.sncf.com/explore/dataset/tgvmax/) de SNCF
 Voyageurs, sous licence ODbL.

@@ -91,6 +91,24 @@ export function availabilityBucket(count: number): number {
   return bucket;
 }
 
+/**
+ * Numero du train qui part a cette heure-la, ou `null`.
+ *
+ * Une entree de surveillance ne retient qu'une date, un sens et une heure de
+ * depart : c'est ce qui est stable d'un snapshot a l'autre, le numero de train
+ * ne l'etant pas. Pour retrouver la trace d'un train surveille il faut donc
+ * refaire le chemin inverse a la lecture.
+ */
+export function trainNoAt(
+  calendar: Calendar,
+  date: string,
+  dir: string,
+  depart: string,
+): string | null {
+  const train = calendar.get(date)?.get(dir)?.trains.find((entry) => entry.depart === depart);
+  return train?.trainNo ?? null;
+}
+
 export function emptyDay(date: string, dir: string): Day {
   return { date, dir, trains: [], available: 0, delta: null, onlyLong: false };
 }

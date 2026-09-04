@@ -6,7 +6,7 @@ import Svg, { Polygon, Polyline } from 'react-native-svg';
 import { DIRECTIONS, HORIZON_DAYS } from '../../src/config.ts';
 import { useStore } from '../src/data/store.ts';
 import { dirLabel } from '../src/format.ts';
-import { radius, space, useTheme } from '../src/theme.ts';
+import { radius, space, typo, useTheme } from '../src/theme.ts';
 
 const WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const CHART_HEIGHT = 110;
@@ -120,14 +120,14 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  close: { fontSize: 14, fontWeight: '500' },
+  title: { ...typo.hero },
+  close: { ...typo.body, fontSize: 14 },
   dirToggle: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, marginTop: space.md },
-  dirText: { fontSize: 13, fontWeight: '600' },
+  dirText: { ...typo.section, fontSize: 13 },
   card: { padding: space.lg, marginTop: space.md, borderWidth: StyleSheet.hairlineWidth },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: space.md },
-  cardTitle: { fontSize: 14, fontWeight: '700' },
-  muted: { fontSize: 12, lineHeight: 18 },
+  cardTitle: { ...typo.section, fontSize: 14 },
+  muted: { ...typo.small, lineHeight: 18 },
   axis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space.xs },
-  axisText: { fontSize: 10 },
+  axisText: { ...typo.digits, fontSize: 10 },
 });

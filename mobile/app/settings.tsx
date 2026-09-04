@@ -20,7 +20,7 @@ import { cancelConfirmReminder, syncConfirmReminders } from '../src/data/reminde
 import { currentPushState, requestPushToken, type PushState } from '../src/data/push.ts';
 import { dirLabel, instantLabel, longDate, maskToken, weekdayName } from '../src/format.ts';
 import { Action, Actions, Note, Row, Section, Status } from '../src/ui/Settings.tsx';
-import { radius, space, useTheme } from '../src/theme.ts';
+import { radius, space, typo, useTheme } from '../src/theme.ts';
 import type { Watchlist } from '../../src/types.ts';
 
 /** Chaque refus de GitHub demande un geste different : il faut donc les nommer. */
@@ -241,7 +241,9 @@ export default function SettingsScreen() {
               key={i}
               style={[
                 styles.slot,
-                { backgroundColor: i < used ? theme.avail[3] : theme.sunken, borderRadius: radius.sm },
+                // Un creneau occupe n'est pas une mesure de disponibilite :
+                // l'echelle verte reste au calendrier, l'accent dit le quota.
+                { backgroundColor: i < used ? theme.accent : theme.sunken, borderRadius: radius.sm },
               ]}
             />
           ))}
@@ -260,7 +262,7 @@ export default function SettingsScreen() {
                   {slot.depart} · {longDate(slot.date)}
                 </Text>
                 <Text style={[styles.lineSub, { color: theme.muted }]}>
-                  {dirLabel(slot.dir)} · n{slot.trainNo}
+                  {dirLabel(slot.dir)} · train {slot.trainNo}
                   {slot.date < today ? ' · passé' : slot.confirmed ? ' · confirmé' : ''}
                 </Text>
               </View>
@@ -596,10 +598,10 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  close: { fontSize: 14, fontWeight: '500' },
+  title: { ...typo.hero },
+  close: { ...typo.body, fontSize: 14 },
   message: { padding: space.md, marginTop: space.md },
-  messageText: { fontSize: 12.5, lineHeight: 18 },
+  messageText: { ...typo.small, lineHeight: 18 },
   slots: { flexDirection: 'row', gap: space.sm, marginBottom: space.xs },
   slot: { flex: 1, height: 30 },
   line: {
@@ -608,8 +610,8 @@ const styles = StyleSheet.create({
     gap: space.md,
     padding: space.md,
   },
-  lineTitle: { fontSize: 14, fontWeight: '600' },
-  lineSub: { fontSize: 12, marginTop: 2 },
-  lineAction: { fontSize: 12.5, fontWeight: '500' },
-  field: { padding: 13, fontSize: 13, fontFamily: 'monospace' },
+  lineTitle: { ...typo.section, fontSize: 14 },
+  lineSub: { ...typo.small, marginTop: 2 },
+  lineAction: { ...typo.strong },
+  field: { ...typo.digits, padding: 13, fontSize: 13 },
 });

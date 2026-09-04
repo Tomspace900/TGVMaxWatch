@@ -1,5 +1,6 @@
 import { APP_URL, STATION_LABELS } from './config.ts';
 import { formatDuration } from './duration.ts';
+import { trainsWord } from './label.ts';
 import type { DateSignal, TrainEvent } from './types.ts';
 
 /** Contenu d'une notification, tel qu'envoye au service worker. */
@@ -84,16 +85,18 @@ export function buildNotification(
 /**
  * Une ligne de signal porte l'avant et l'apres.
  *
- * « 7 places parties » ne dit pas s'il en reste vingt ou deux, et c'est la
+ * « 7 trains partis » ne dit pas s'il en reste vingt ou deux, et c'est la
  * seule chose qui decide s'il faut ouvrir l'application maintenant.
+ *
+ * Le compte porte des trains, jamais des sieges : voir `trainsWord`.
  */
 function signalLine(signal: DateSignal): string {
   const verb = signal.kind === 'REOPENED' ? 'rouvre' : 'se vide';
   // Pas de fleche pour la transition : `dirLabel` en porte deja une, et deux
   // fleches sur la meme ligne se lisent comme une seule suite de gares.
-  return `${verb} ${shortDate(signal.date)} ${dirLabel(signal.dir)} : ${signal.after} place${
-    signal.after > 1 ? 's' : ''
-  }, ${signal.before} hier`;
+  return `${verb} ${shortDate(signal.date)} ${dirLabel(signal.dir)} : ${signal.after} ${trainsWord(
+    signal.after,
+  )}, ${signal.before} hier`;
 }
 
 /**
@@ -174,7 +177,7 @@ function buildTitle(
   if (draining.length > 1) return `${draining.length} creneaux se vident`;
 
   if (opens > 0) {
-    return `${opens} place${opens > 1 ? 's' : ''} ouverte${opens > 1 ? 's' : ''}`;
+    return `${opens} ${trainsWord(opens)} ouvert${opens > 1 ? 's' : ''}`;
   }
   return `${closes} train${closes > 1 ? 's' : ''} parti${closes > 1 ? 's' : ''}`;
 }

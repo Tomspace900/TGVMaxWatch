@@ -11,7 +11,8 @@ import * as Haptics from 'expo-haptics';
 import { formatDuration } from '../format.ts';
 import type { Train } from '../model.ts';
 import { Trace } from './Trace.tsx';
-import { motion, radius, space, useTheme } from '../theme.ts';
+import { Wash } from './rail.tsx';
+import { motion, radius, space, typo, useTheme } from '../theme.ts';
 
 /** Distance a partir de laquelle l'action est validee au relachement. */
 const THRESHOLD = 88;
@@ -71,12 +72,15 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
 
   return (
     <View style={[styles.wrap, { borderRadius: radius.sm }]}>
-      <Animated.View style={[styles.actions, action, { backgroundColor: theme.inverseBg }]}>
-        <Animated.Text style={[styles.actionText, rightAction, { color: theme.inverseText }]}>
-          j'ai réservé
+      {/* Le degrade identitaire ne se montre qu'ici : sous le doigt, quand la
+          ligne s'ecarte. Nulle part il ne recouvre une donnee. */}
+      <Animated.View style={[styles.actions, action]}>
+        <Wash />
+        <Animated.Text style={[typo.chip, styles.actionText, rightAction, { color: theme.onBrand }]}>
+          J'AI RÉSERVÉ
         </Animated.Text>
-        <Animated.Text style={[styles.actionText, leftAction, { color: theme.inverseText }]}>
-          surveiller
+        <Animated.Text style={[typo.chip, styles.actionText, leftAction, { color: theme.onBrand }]}>
+          SURVEILLER
         </Animated.Text>
       </Animated.View>
 
@@ -95,50 +99,53 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
           {/* Un train de plus de 3h reste reservable et ne disparait jamais,
               mais il doit se voir immediatement comme un mauvais choix. */}
           {train.tier === 'long' && (
-            <View style={[styles.longBar, { backgroundColor: theme.text }]} />
+            <View style={[styles.longBar, { backgroundColor: theme.accent }]} />
           )}
 
-          <Text style={[styles.time, { color: dim ? theme.muted : theme.text }, dim && styles.struck]}>
-            {train.depart}
-          </Text>
+          <View style={styles.times}>
+            <Text
+              style={[typo.clock, { color: dim ? theme.muted : theme.text }, dim && styles.struck]}
+            >
+              {train.depart}
+            </Text>
+            <Text style={[typo.digits, { color: theme.muted }]}>{train.arrivee}</Text>
+          </View>
 
           <View style={styles.meta}>
-            <Text style={[styles.metaText, { color: theme.muted }]}>{train.arrivee}</Text>
-            {train.carrier && (
-              <Text style={[styles.chip, { color: theme.muted, backgroundColor: theme.sunken }]}>
-                {train.carrier}
+            <View style={styles.chips}>
+              {train.carrier && (
+                <Text style={[typo.chip, styles.chip, { color: theme.muted, backgroundColor: theme.sunken }]}>
+                  {train.carrier}
+                </Text>
+              )}
+              {/* Ni l'un ni l'autre ne prend l'echelle de disponibilite : ce
+                  sont des etats de l'utilisateur, pas une mesure. */}
+              {watched && (
+                <Text style={[typo.chip, styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
+                  SUIVI
+                </Text>
+              )}
+              {booked && (
+                <Text style={[typo.chip, styles.chip, { color: theme.onBrand, backgroundColor: theme.accent }]}>
+                  RÉSERVÉ
+                </Text>
+              )}
+              <Text style={[typo.digits, { color: theme.muted, opacity: 0.75 }]}>
+                {train.trainNo}
               </Text>
-            )}
-            <Text style={[styles.metaText, { color: theme.muted }]}>n{train.trainNo}</Text>
+            </View>
             {trace && <Trace trace={trace} />}
-            {watched && (
-              <Text style={[styles.chip, { color: theme.availInk[3], backgroundColor: theme.avail[3] }]}>
-                suivi
-              </Text>
-            )}
-            {booked && (
-              <Text style={[styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
-                réservé
-              </Text>
-            )}
           </View>
 
-          <View style={styles.right}>
-            <Text
-              style={[
-                styles.duration,
-                { color: train.tier === 'long' ? theme.text : dim ? theme.muted : theme.text },
-                train.tier === 'long' && styles.durationLong,
-              ]}
-            >
-              {formatDuration(train.durationMin)}
-            </Text>
-            {train.tier === 'long' && (
-              <Text style={[styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
-                long
-              </Text>
-            )}
-          </View>
+          <Text
+            style={[
+              typo.digits,
+              styles.duration,
+              { color: train.tier === 'long' ? theme.accent : dim ? theme.muted : theme.text },
+            ]}
+          >
+            {formatDuration(train.durationMin)}
+          </Text>
         </Animated.View>
       </GestureDetector>
     </View>
@@ -158,30 +165,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 18,
   },
-  actionText: { fontSize: 12, fontWeight: '700' },
+  actionText: { fontSize: 11 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    paddingVertical: 13,
+    paddingVertical: 11,
     paddingHorizontal: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
-  longBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
-  time: { fontSize: 17, fontWeight: '700' },
-  struck: { textDecorationLine: 'line-through', fontWeight: '500' },
-  meta: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.xs + 2 },
-  metaText: { fontSize: 12 },
+  longBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
+  // Depart et arrivee empiles : deux horaires sur une ligne se lisent comme un
+  // seul nombre coupe en deux.
+  times: { alignItems: 'flex-start', gap: 1 },
+  struck: { textDecorationLine: 'line-through' },
+  meta: { flex: 1, gap: space.xs },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.xs + 2 },
   chip: {
-    fontSize: 10,
-    fontWeight: '700',
     overflow: 'hidden',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
-  right: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  duration: { fontSize: 14, fontWeight: '600' },
-  durationLong: { fontWeight: '800' },
+  duration: { minWidth: 40, textAlign: 'right' },
 });
