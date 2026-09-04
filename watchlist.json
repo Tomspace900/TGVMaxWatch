@@ -1,6 +1,17 @@
 {
-  "watch": [],
+  "watch": [
+    {
+      "date": "2026-09-04",
+      "dir": "FRBOJ>FRPMO",
+      "after": "07:45",
+      "before": "07:45"
+    }
+  ],
   "rules": [
-    { "weekday": "fri", "dir": "FRPMO>FRBOJ", "after": "16:00" }
+    {
+      "weekday": "fri",
+      "dir": "FRPMO>FRBOJ",
+      "after": "16:00"
+    }
   ]
 }
