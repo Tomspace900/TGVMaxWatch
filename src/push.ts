@@ -1,5 +1,6 @@
 import { readJson } from './storage.ts';
 import type { Notification } from './notify.ts';
+import type { PushTokenRecord } from './types.ts';
 
 const TOKEN_PATH = 'data/push-token.json';
 
@@ -33,11 +34,6 @@ const MAX_PAYLOAD_BYTES = 4096;
 const RETRY_DELAYS_MS = [2_000, 4_000, 8_000];
 
 export type PushOutcome = 'sent' | 'no-subscription' | 'not-configured';
-
-export interface PushTokenRecord {
-  expoPushToken: string;
-  updatedAt: string;
-}
 
 
 interface PushTicket {

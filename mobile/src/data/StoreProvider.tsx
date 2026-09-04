@@ -12,22 +12,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [offline, setOffline] = useState(false);
 
   /**
-   * Six fichiers viennent du depot, les reservations du stockage local.
+   * Sept fichiers viennent du depot, les reservations du stockage local.
    *
    * C'est la seule asymetrie de ce chargement, et elle est voulue : le depot
    * porte la donnee publique SNCF et la watchlist que le collecteur doit lire ;
    * l'appareil garde ce qui ne regarde que son proprietaire.
    */
   const refresh = useCallback(async () => {
-    const [state, latest, history, stats, trains, watchlist, reservations] = await Promise.all([
-      loadJson('data/state.json', EMPTY_BUNDLE.state),
-      loadJson('data/latest.json', EMPTY_BUNDLE.latest),
-      loadJson('data/history.json', EMPTY_BUNDLE.history),
-      loadJson('data/stats.json', EMPTY_BUNDLE.stats),
-      loadJson('data/trains.json', EMPTY_BUNDLE.trains),
-      loadJson('watchlist.json', EMPTY_BUNDLE.watchlist),
-      readReservations(),
-    ]);
+    const [state, latest, history, stats, trains, watchlist, pushToken, reservations] =
+      await Promise.all([
+        loadJson('data/state.json', EMPTY_BUNDLE.state),
+        loadJson('data/latest.json', EMPTY_BUNDLE.latest),
+        loadJson('data/history.json', EMPTY_BUNDLE.history),
+        loadJson('data/stats.json', EMPTY_BUNDLE.stats),
+        loadJson('data/trains.json', EMPTY_BUNDLE.trains),
+        loadJson('watchlist.json', EMPTY_BUNDLE.watchlist),
+        loadJson('data/push-token.json', EMPTY_BUNDLE.pushToken),
+        readReservations(),
+      ]);
 
     setBundle({
       state: state.value,
@@ -37,6 +39,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       trains: trains.value,
       watchlist: watchlist.value,
       reservations,
+      pushToken: pushToken.value,
     });
     // Le snapshot est la seule ressource dont l'absence se voit vraiment.
     setOffline(latest.stale);

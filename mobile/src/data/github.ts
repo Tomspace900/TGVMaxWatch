@@ -3,6 +3,25 @@ import { REPO_BRANCH, REPO_NAME, REPO_OWNER } from '../../../src/config.ts';
 
 const API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents`;
 const TOKEN_KEY = 'tgvmax_pat';
+const VERIFIED_KEY = 'tgvmax_pat_verified';
+
+/** Date de la derniere verification reussie, pour dater ce qu'on affiche. */
+export async function getTokenVerifiedAt(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(VERIFIED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function setTokenVerifiedAt(iso: string | null): Promise<void> {
+  try {
+    if (iso) await SecureStore.setItemAsync(VERIFIED_KEY, iso);
+    else await SecureStore.deleteItemAsync(VERIFIED_KEY);
+  } catch {
+    // La date n'est qu'un confort d'affichage.
+  }
+}
 
 /**
  * Ecriture depuis le telephone.
@@ -26,6 +45,44 @@ export async function setToken(token: string | null): Promise<void> {
   } catch {
     // Keystore indisponible : l'application reste utilisable en lecture.
   }
+  await setTokenVerifiedAt(token ? new Date().toISOString() : null);
+}
+
+export type TokenCheck =
+  | { ok: true; scope: 'write' }
+  | { ok: false; reason: 'invalid' | 'no-access' | 'read-only' | 'network' };
+
+/**
+ * Verifie un jeton avant de l'enregistrer.
+ *
+ * Un PAT mal colle — tronque, avec un espace, expire, ou cree sur le mauvais
+ * depot — se comportait exactement comme un jeton absent : l'ecriture echouait
+ * en silence et l'edition ne survivait pas au rafraichissement suivant. Une
+ * seule requete tranche les quatre cas, et le droit d'ecriture se lit dans la
+ * reponse au lieu d'etre suppose.
+ */
+export async function verifyToken(token: string): Promise<TokenCheck> {
+  let response: Response;
+  try {
+    response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`, {
+      headers: { accept: 'application/vnd.github+json', authorization: `Bearer ${token}` },
+    });
+  } catch {
+    return { ok: false, reason: 'network' };
+  }
+
+  if (response.status === 401) return { ok: false, reason: 'invalid' };
+  if (response.status === 403 || response.status === 404) {
+    // Un PAT fine-grained qui ne porte pas sur ce depot le rend invisible : 404
+    // ne veut pas dire « n'existe pas », mais « pas pour ce jeton ».
+    return { ok: false, reason: 'no-access' };
+  }
+  if (!response.ok) return { ok: false, reason: 'network' };
+
+  const repo = (await response.json()) as { permissions?: { push?: boolean } };
+  if (!repo.permissions?.push) return { ok: false, reason: 'read-only' };
+
+  return { ok: true, scope: 'write' };
 }
 
 function encodeBase64(input: string): string {

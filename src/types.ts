@@ -207,9 +207,19 @@ export interface ErosionCurve {
   points: { daysBefore: number; avg: number; sample: number }[];
 }
 
-export interface PushSubscriptionRecord {
-  endpoint: string;
-  keys: { p256dh: string; auth: string };
-  /** Date d'enregistrement, pour reperer un abonnement qui a tourne. */
+/**
+ * `data/push-token.json` : le jeton Expo de l'appareil.
+ *
+ * Public dans le depot, et c'est pourquoi l'option « enhanced push security »
+ * du compte Expo doit rester activee — sans elle, quiconque lit le depot peut
+ * notifier l'appareil.
+ *
+ * Il tourne a chaque reinstallation de l'application. L'appareil garde donc une
+ * copie locale du sien : si les deux divergent, le collecteur pousse dans le
+ * vide et personne ne s'en apercevrait autrement.
+ */
+export interface PushTokenRecord {
+  expoPushToken: string;
+  /** Date d'enregistrement, pour reperer un jeton qui a tourne. */
   updatedAt: string;
 }

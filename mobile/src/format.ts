@@ -66,3 +66,26 @@ export function ageLabel(isoInstant: string): string {
 export function hoursSince(isoInstant: string): number {
   return (Date.now() - Date.parse(isoInstant)) / 3_600_000;
 }
+
+/** Instant date et heure : `4 sept. · 08:12`. */
+export function instantLabel(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  const month = MONTHS[date.getMonth()]?.slice(0, 4) ?? '';
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${date.getDate()} ${month}. · ${hh}:${mm}`;
+}
+
+/**
+ * Jeton masque : `github_pat_…a1b2`.
+ *
+ * Assez pour reconnaitre lequel est enregistre, jamais assez pour le recopier.
+ * Un secret affiché en clair dans un ecran qu'on ouvre devant quelqu'un n'a
+ * aucune raison de l'etre.
+ */
+export function maskToken(token: string): string {
+  const head = token.slice(0, 11);
+  const tail = token.slice(-4);
+  return token.length <= 15 ? '••••' : `${head}…${tail}`;
+}
