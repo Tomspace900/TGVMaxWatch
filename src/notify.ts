@@ -1,6 +1,6 @@
 import { APP_URL, STATION_LABELS } from './config.ts';
 import { formatDuration } from './duration.ts';
-import type { NewDate, TrainEvent } from './types.ts';
+import type { DateSignal, TrainEvent } from './types.ts';
 
 /** Contenu d'une notification, tel qu'envoye au service worker. */
 export interface Notification {
@@ -40,47 +40,60 @@ export function shortDate(iso: string): string {
  */
 export function buildNotification(
   events: TrainEvent[],
-  newDates: NewDate[],
+  signals: DateSignal[],
 ): Notification | null {
   const opens = events.filter((event) => event.kind === 'OPEN');
   const closes = events.filter((event) => event.kind === 'CLOSE');
+  const reopened = signals.filter((signal) => signal.kind === 'REOPENED');
+  const draining = signals.filter((signal) => signal.kind === 'DRAINING');
+
+  if (opens.length === 0 && closes.length === 0 && signals.length === 0) return null;
 
   /*
-   * Une date qui entre a J+30 sans une seule place n'est pas une nouvelle : il
-   * n'y a rien a reserver, et le titre des dates entrantes etant prioritaire,
-   * elle masquerait les ouvertures reelles du meme run derriere un « 0 train ».
-   * C'est le cas courant, pas le cas limite : le 2026-10-03 est entre avec
-   * soixante-deux trains, tous complets.
+   * Les signaux passent devant les evenements de train, et non l'inverse.
+   *
+   * Un signal porte sur une journee entiere — « le 30/09 vers Paris, il ne
+   * reste que deux trains » — la ou un evenement porte sur un train precis
+   * qu'on avait explicitement mis en suivi. Le premier decide d'un voyage, le
+   * second confirme une attente.
    */
-  const opened = newDates.filter((entry) => entry.oui > 0);
-
-  if (opens.length === 0 && closes.length === 0 && opened.length === 0) return null;
-
-  const title = buildTitle(opens.length, closes.length, opened);
-  const lines: string[] = [];
-
-  for (const entry of opened) {
-    lines.push(
-      `J+30 ${shortDate(entry.date)} ${dirLabel(entry.dir)} : ${entry.oui} train${
-        entry.oui > 1 ? 's' : ''
-      }`,
-    );
-  }
-
-  lines.push(...group(opens));
-  lines.push(...group(closes, 'parti '));
+  const lines = [
+    ...signals.map(signalLine),
+    ...group(opens),
+    ...group(closes, 'parti '),
+  ];
 
   const shown = lines.slice(0, MAX_LINES);
   if (lines.length > shown.length) {
     shown.push(`+${lines.length - shown.length} autres`);
   }
 
-  const focus = opened[0] ?? opens[0] ?? closes[0];
+  const focus = signals[0] ?? opens[0] ?? closes[0];
   const url = focus
     ? `${APP_URL}?date=${focus.date}&dir=${encodeURIComponent(focus.dir)}`
     : APP_URL;
 
-  return truncate({ title, body: shown.join('\n'), url, tag: 'tgvmax' });
+  return truncate({
+    title: buildTitle(reopened, draining, opens.length, closes.length),
+    body: shown.join('\n'),
+    url,
+    tag: 'tgvmax',
+  });
+}
+
+/**
+ * Une ligne de signal porte l'avant et l'apres.
+ *
+ * « 7 places parties » ne dit pas s'il en reste vingt ou deux, et c'est la
+ * seule chose qui decide s'il faut ouvrir l'application maintenant.
+ */
+function signalLine(signal: DateSignal): string {
+  const verb = signal.kind === 'REOPENED' ? 'rouvre' : 'se vide';
+  // Pas de fleche pour la transition : `dirLabel` en porte deja une, et deux
+  // fleches sur la meme ligne se lisent comme une seule suite de gares.
+  return `${verb} ${shortDate(signal.date)} ${dirLabel(signal.dir)} : ${signal.after} place${
+    signal.after > 1 ? 's' : ''
+  }, ${signal.before} hier`;
 }
 
 /**
@@ -133,11 +146,33 @@ function group(events: TrainEvent[], prefix = ''): string[] {
   });
 }
 
-function buildTitle(opens: number, closes: number, opened: NewDate[]): string {
-  if (opened.length > 0) {
-    const total = opened.reduce((sum, entry) => sum + entry.oui, 0);
-    return `Nouvelle date a J+30 : ${total} train${total > 1 ? 's' : ''}`;
+/**
+ * Le titre nomme l'evenement le plus fort, jamais un total.
+ *
+ * « Nouvelle date a J+30 : 0 train » a existe ici, et masquait derriere ce zero
+ * toutes les ouvertures reelles du meme run. Un titre qui agrege perd ce qui
+ * fait decider ; un titre qui designe une date et un sens le garde.
+ */
+function buildTitle(
+  reopened: DateSignal[],
+  draining: DateSignal[],
+  opens: number,
+  closes: number,
+): string {
+  const only = reopened[0];
+  if (only && reopened.length === 1) {
+    return `${shortDate(only.date)} ${dirLabel(only.dir)} rouvre : ${only.after} trains`;
   }
+  if (reopened.length > 1) return `${reopened.length} dates rouvrent`;
+
+  const tight = draining[0];
+  if (tight && draining.length === 1) {
+    return `${shortDate(tight.date)} ${dirLabel(tight.dir)} : plus que ${tight.after} train${
+      tight.after > 1 ? 's' : ''
+    }`;
+  }
+  if (draining.length > 1) return `${draining.length} creneaux se vident`;
+
   if (opens > 0) {
     return `${opens} place${opens > 1 ? 's' : ''} ouverte${opens > 1 ? 's' : ''}`;
   }

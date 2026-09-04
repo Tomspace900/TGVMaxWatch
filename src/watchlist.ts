@@ -1,5 +1,5 @@
 import { timeToMinutes, weekdayKey } from './dates.ts';
-import type { NewDate, TrainEvent, WatchEntry, Watchlist, WatchRule } from './types.ts';
+import type { TrainEvent, WatchEntry, Watchlist, WatchRule } from './types.ts';
 
 interface Candidate {
   date: string;
@@ -49,16 +49,18 @@ function withinWindow(window: { after?: string; before?: string }, depart?: stri
   return true;
 }
 
-/** Evenements de train retenus par la watchlist. */
+/**
+ * Evenements de train retenus par la watchlist.
+ *
+ * C'est desormais le **seul** usage de la watchlist dans les notifications :
+ * les creneaux qu'on a explicitement mis en suivi. Les deux autres alertes —
+ * une date qui rouvre, un creneau qui se vide — ne dependent d'aucune
+ * preference et ne passent pas par ici. Les melanger etait le defaut d'origine :
+ * une regle taillee pour amortir le bruit des ouvertures de train reduisait au
+ * silence, six jours sur sept, un signal qui n'en produisait aucun.
+ */
 export function filterEvents(watchlist: Watchlist, events: TrainEvent[]): TrainEvent[] {
   return events.filter((event) =>
     matchesWatchlist(watchlist, { date: event.date, dir: event.dir, depart: event.depart }),
-  );
-}
-
-/** Dates entrantes retenues par la watchlist, et qui ont au moins un train eligible. */
-export function filterNewDates(watchlist: Watchlist, newDates: NewDate[]): NewDate[] {
-  return newDates.filter(
-    (entry) => entry.oui > 0 && matchesWatchlist(watchlist, { date: entry.date, dir: entry.dir }),
   );
 }

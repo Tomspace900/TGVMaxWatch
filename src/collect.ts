@@ -17,7 +17,7 @@ import {
   writeSnapshot,
   writeState,
 } from './storage.ts';
-import { filterEvents, filterNewDates } from './watchlist.ts';
+import { filterEvents } from './watchlist.ts';
 import type { Snapshot, State } from './types.ts';
 
 /**
@@ -75,7 +75,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const pushedAt = await notify(previous, snapshot, state.lastPushOk);
+  const pushedAt = await notify(previous, snapshot, today, state.lastPushOk);
   if (pushedAt !== state.lastPushOk) {
     writeState({ ...nextState, lastPushOk: pushedAt });
   }
@@ -124,24 +124,29 @@ function rebuildDerived(today: string): void {
   console.log(`[collect] agregats reconstruits sur ${dates.length} snapshots`);
 }
 
-/** Diff, filtrage par la watchlist, puis au plus un message pousse. */
+/**
+ * Diff, puis au plus un message pousse.
+ *
+ * Deux chemins distincts, et c'est le coeur du reglage : les evenements de
+ * train passent par la watchlist — ce sont les creneaux qu'on suit — tandis que
+ * les signaux de date la contournent entierement. Les faire passer par le meme
+ * filtre reduisait au silence, six jours sur sept, la seule alerte qui n'ait
+ * besoin d'aucune preference pour etre utile.
+ */
 async function notify(
   previous: Snapshot,
   current: Snapshot,
+  today: string,
   lastPushOk: string | null,
 ): Promise<string | null> {
-  const { events, newDates } = diffSnapshots(previous, current);
-  console.log(
-    `[collect] ${events.length} evenements, ${newDates.length} dates entrantes`,
-  );
+  const { events, signals } = diffSnapshots(previous, current, today);
+  console.log(`[collect] ${events.length} evenements, ${signals.length} signaux`);
 
-  const watchlist = readWatchlist();
-  const watched = filterEvents(watchlist, events);
-  const watchedDates = filterNewDates(watchlist, newDates);
+  const watched = filterEvents(readWatchlist(), events);
 
-  const notification = buildNotification(watched, watchedDates);
+  const notification = buildNotification(watched, signals);
   if (!notification) {
-    console.log('[collect] rien ne matche la watchlist, aucune notification');
+    console.log('[collect] rien a signaler, aucune notification');
     return lastPushOk;
   }
 

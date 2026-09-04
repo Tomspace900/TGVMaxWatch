@@ -28,12 +28,18 @@ const [previousDate, currentDate] = dates.slice(-2) as [string, string];
 const previous = readSnapshot(previousDate).filter(isTracked);
 const current = readSnapshot(currentDate).filter(isTracked);
 
-const { events, newDates } = diffSnapshots(previous, current);
+/*
+ * Le diff est cadre sur la date de collecte du snapshot le plus recent, et non
+ * sur aujourd'hui : c'est l'horizon qu'avait le collecteur ce jour-la. Prendre
+ * la date du jour ecarterait, sur une archive un peu ancienne, toutes les dates
+ * de voyage entre-temps passees — et le test n'aurait plus rien a envoyer.
+ */
+const { events, signals } = diffSnapshots(previous, current, currentDate);
 console.log(
-  `[test] ${previousDate} -> ${currentDate} : ${events.length} evenements, ${newDates.length} dates entrantes`,
+  `[test] ${previousDate} -> ${currentDate} : ${events.length} evenements, ${signals.length} signaux`,
 );
 
-const notification = buildNotification(events, newDates);
+const notification = buildNotification(events, signals);
 
 if (!notification) {
   console.error('[test] aucun evenement entre ces deux snapshots, rien a envoyer');

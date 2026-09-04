@@ -88,9 +88,32 @@ reste.
 d'ouverture donnaient la date, l'heure, le numero de train et la duree, mais
 pas le sens : « 57 places ouvertes » ne disait pas s'il s'agissait de l'aller
 ou du retour. Le numero de train, lui, n'aide en rien d'un coup d'oeil. Meme
-piege sur les dates entrantes a J+30, dont le titre est prioritaire : une date
-qui entre complete — le cas courant — masquait toutes les ouvertures reelles
-du meme run derriere un « 0 train ».
+raison pour l'avant/apres d'un signal : « 7 places parties » ne dit pas s'il en
+reste vingt ou deux, et c'est la seule chose qui decide s'il faut ouvrir
+l'application maintenant.
+
+**Le pari du plan sur l'entree d'une date a J+30 etait faux, et l'alerte batie
+dessus ne pouvait litteralement jamais partir.** Le plan supposait qu'une date
+entre dans la fenetre avec dix a quinze trains eligibles ; les quatre mesurees
+sont entrees a **zero place** — 0/35, 0/39, 0/33, 0/29 — et se sont remplies le
+lendemain, a J+29. Or `filterNewDates` exigeait `oui > 0` a l'entree. On
+regarde donc la **transition**, jamais l'entree.
+
+Trois mesures a garder en tete, prises sur le diff du 1er au 3 septembre :
+notifier chaque train qui s'ouvre donne 12 a 13 lignes par jour, soit un
+message tronque quotidien ; la disponibilite dessine un U — zero a l'entree,
+montee, erosion au milieu (30 baisses contre 14 hausses entre J+12 et J+27),
+remontee franche dans la derniere semaine, ou le 06/09 est passe de 1 a 17
+places en un jour ; et croiser vitesse **et** rarete ramene le volume a une a
+quatre lignes. Deux jours de recul seulement : a reconfirmer.
+
+**Une regle qui amortit le bruit d'un signal ne doit pas filtrer les autres.**
+La watchlist etait appliquee aux ouvertures de train *et* aux dates entrantes.
+Taillee pour le premier cas, qui produit des centaines d'evenements, elle
+reduisait au silence six jours sur sept un signal qui en produit un par jour.
+Les deux alertes universelles — une date qui rouvre, un creneau qui se vide —
+contournent desormais la watchlist entierement ; elle ne sert plus qu'aux
+creneaux explicitement mis en suivi.
 
 **Les versions natives viennent de `mobile/node_modules/expo/bundledNativeModules.json`**,
 jamais du `latest` de npm. Le SDK 57 veut gesture-handler 2.32 et reanimated

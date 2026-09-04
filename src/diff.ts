@@ -1,14 +1,21 @@
+import { DRAIN_MAX_LEFT, DRAIN_MIN_DROP, REOPEN_MIN_TRAINS } from './config.ts';
 import { recordDir, recordDuration, recordKey, durationTier } from './duration.ts';
-import type { DiffResult, NewDate, Snapshot, TrainEvent, TrainRecord } from './types.ts';
+import { countSnapshot } from './history.ts';
+import type { DateSignal, DiffResult, Snapshot, TrainEvent, TrainRecord } from './types.ts';
 
 /**
  * Compare deux snapshots consecutifs.
  *
- * Quatre signaux, dont un que la source ne donne pas directement : un train qui
- * disparait du dataset n'est pas complet, il est supprime (travaux, greve,
- * changement de service). Confondre les deux fait croire a une saturation.
+ * Deux mailles differentes, et c'est voulu. Les evenements portent sur un train
+ * — dont un que la source ne donne pas : un train qui disparait du dataset
+ * n'est pas complet, il est supprime (travaux, greve, changement de service),
+ * et confondre les deux fait croire a une saturation. Les signaux, eux, portent
+ * sur le compte d'une (date, sens), la maille a laquelle on decide de partir.
+ *
+ * Ce module reste hors du graphe d'imports de `mobile/` : il tire `history.ts`,
+ * donc `storage.ts`, donc `node:`. Le bundle Metro de `ci.yml` le verifie.
  */
-export function diffSnapshots(previous: Snapshot, current: Snapshot): DiffResult {
+export function diffSnapshots(previous: Snapshot, current: Snapshot, today: string): DiffResult {
   const before = index(previous);
   const after = index(current);
 
@@ -35,37 +42,66 @@ export function diffSnapshots(previous: Snapshot, current: Snapshot): DiffResult
     if (!after.has(key)) events.push(toEvent('REMOVED', record));
   }
 
-  return { events: sortEvents(events), newDates: findNewDates(previous, current) };
+  return { events: sortEvents(events), signals: findSignals(previous, current, today) };
 }
 
 /**
- * Dates de voyage entrant dans la fenetre glissante.
+ * Les deux mouvements qui meritent de deranger, sans consulter de preference.
  *
- * C'est le signal a plus fort rendement du projet : une date entre a J+30 avec
- * 10-15 trains eligibles, contre 1-3 a J-10. Elle n'apparait qu'une seule fois.
+ * Le plan du projet pariait sur l'entree d'une date a J+30, « le signal a plus
+ * fort rendement », suppose apporter dix a quinze trains d'un coup. L'archive
+ * dit le contraire : les quatre dates mesurees sont entrees a **zero place**
+ * (0/35, 0/39, 0/33, 0/29) et se sont remplies le lendemain. L'alerte batie sur
+ * l'entree exigeait `oui > 0` a l'entree : elle ne pouvait litteralement jamais
+ * partir.
+ *
+ * C'est donc la transition qu'on regarde, pas l'entree — ce qui capte au
+ * passage la remontee des dates proches, ou les places liberees la veille
+ * reapparaissent en nombre : le 06/09 Paris > Bordeaux est passe de 1 a 17 en
+ * une journee, a trois jours du depart.
  */
-function findNewDates(previous: Snapshot, current: Snapshot): NewDate[] {
-  const known = new Set(previous.map((record) => record.date));
-  const counts = new Map<string, NewDate>();
+function findSignals(previous: Snapshot, current: Snapshot, today: string): DateSignal[] {
+  const before = countAvailable(previous);
+  const after = countAvailable(current);
+  const signals: DateSignal[] = [];
 
-  for (const record of current) {
-    if (known.has(record.date)) continue;
+  for (const [key, now] of after) {
+    // Une cle absente du snapshot precedent est une date qui vient d'entrer
+    // dans la fenetre. Elle entre a zero : il n'y a rien a annoncer avant que
+    // ses places n'arrivent, ce qui se verra au diff suivant.
+    const then = before.get(key);
+    if (then === undefined) continue;
 
-    const dir = recordDir(record);
-    const key = `${record.date}|${dir}`;
-    let entry = counts.get(key);
-    if (!entry) {
-      entry = { date: record.date, dir, oui: 0, total: 0 };
-      counts.set(key, entry);
+    const [date = '', dir = ''] = key.split('|');
+    // Un train de ce matin n'interesse plus personne ce soir.
+    if (date < today) continue;
+
+    if (then === 0 && now >= REOPEN_MIN_TRAINS) {
+      signals.push({ kind: 'REOPENED', date, dir, before: then, after: now });
+    } else if (then - now >= DRAIN_MIN_DROP && now <= DRAIN_MAX_LEFT) {
+      signals.push({ kind: 'DRAINING', date, dir, before: then, after: now });
     }
-
-    entry.total++;
-    if (record.od_happy_card === 'OUI') entry.oui++;
   }
 
-  return [...counts.values()].sort(
-    (a, b) => a.date.localeCompare(b.date) || a.dir.localeCompare(b.dir),
+  // Une reouverture passe avant une fonte : l'une ouvre une possibilite,
+  // l'autre la ferme, et c'est la premiere qu'on veut lire en haut du message.
+  const rank = (kind: DateSignal['kind']) => (kind === 'REOPENED' ? 0 : 1);
+
+  return signals.sort(
+    (a, b) =>
+      rank(a.kind) - rank(b.kind) ||
+      a.date.localeCompare(b.date) ||
+      a.dir.localeCompare(b.dir),
   );
+}
+
+/** `<date>|<sens>` -> nombre de trains eligibles. */
+function countAvailable(snapshot: Snapshot): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const [date, byDir] of countSnapshot(snapshot)) {
+    for (const [dir, observation] of byDir) counts.set(`${date}|${dir}`, observation.oui);
+  }
+  return counts;
 }
 
 function index(snapshot: Snapshot): Map<string, TrainRecord> {
