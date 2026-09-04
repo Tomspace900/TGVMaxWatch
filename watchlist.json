@@ -1,7 +1,19 @@
 {
   "watch": [
     {
-      "date": "2026-09-04",
+      "date": "2026-09-07",
+      "dir": "FRBOJ>FRPMO",
+      "after": "07:12",
+      "before": "07:12"
+    },
+    {
+      "date": "2026-09-07",
+      "dir": "FRBOJ>FRPMO",
+      "after": "06:46",
+      "before": "06:46"
+    },
+    {
+      "date": "2026-09-07",
       "dir": "FRBOJ>FRPMO",
       "after": "07:45",
       "before": "07:45"
@@ -9,8 +21,14 @@
     {
       "date": "2026-09-07",
       "dir": "FRBOJ>FRPMO",
-      "after": "07:12",
-      "before": "07:12"
+      "after": "05:40",
+      "before": "05:40"
+    },
+    {
+      "date": "2026-09-06",
+      "dir": "FRBOJ>FRPMO",
+      "after": "22:16",
+      "before": "22:16"
     }
   ],
   "rules": [
