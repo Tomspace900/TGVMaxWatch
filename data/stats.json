@@ -1,35 +1,55 @@
 {
-  "generatedAt": "2026-09-04T10:55:35.018Z",
-  "snapshotCount": 4,
+  "generatedAt": "2026-09-05T10:36:42.374Z",
+  "snapshotCount": 5,
   "ready": {
-    "burnRate": false,
+    "burnRate": true,
     "reopen": true,
     "erosion": false
   },
-  "burnRate": [],
+  "burnRate": [
+    {
+      "weekday": 5,
+      "slot": "14",
+      "dir": "FRBOJ>FRPMO",
+      "medianDaysBefore": 1,
+      "sample": 3
+    }
+  ],
   "reopen": {
+    "8440": {
+      "closed": 5,
+      "reopened": 1,
+      "rate": 0.2,
+      "sample": 5
+    },
+    "8441": {
+      "closed": 5,
+      "reopened": 2,
+      "rate": 0.4,
+      "sample": 5
+    },
     "8478": {
-      "closed": 6,
+      "closed": 7,
       "reopened": 0,
       "rate": 0,
-      "sample": 6
+      "sample": 7
     },
     "8500": {
       "closed": 8,
-      "reopened": 0,
-      "rate": 0,
+      "reopened": 1,
+      "rate": 0.125,
       "sample": 8
     },
     "8501": {
-      "closed": 6,
+      "closed": 7,
       "reopened": 0,
       "rate": 0,
-      "sample": 6
+      "sample": 7
     },
     "8516": {
       "closed": 10,
-      "reopened": 1,
-      "rate": 0.1,
+      "reopened": 2,
+      "rate": 0.2,
       "sample": 10
     },
     "8530": {
@@ -40,14 +60,14 @@
     },
     "8531": {
       "closed": 10,
-      "reopened": 2,
-      "rate": 0.2,
+      "reopened": 3,
+      "rate": 0.3,
       "sample": 10
     },
     "8544": {
       "closed": 8,
-      "reopened": 0,
-      "rate": 0,
+      "reopened": 1,
+      "rate": 0.125,
       "sample": 8
     },
     "8549": {
@@ -62,10 +82,16 @@
       "rate": 0,
       "sample": 5
     },
+    "8580": {
+      "closed": 5,
+      "reopened": 4,
+      "rate": 0.8,
+      "sample": 5
+    },
     "8584": {
       "closed": 11,
-      "reopened": 1,
-      "rate": 0.09090909090909091,
+      "reopened": 2,
+      "rate": 0.18181818181818182,
       "sample": 11
     }
   },
