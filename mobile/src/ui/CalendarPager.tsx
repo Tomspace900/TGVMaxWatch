@@ -155,17 +155,11 @@ function Grid({ width, dates, today, dir, calendar, onSelect }: GridProps) {
               ]}
               accessibilityLabel={`${date}, ${day.available} trains ouverts`}
             >
-              {/* Toutes les places du jour sont sur des trains de plus de 3h :
-                  sans ce marqueur, la couleur mentirait. */}
-              {day.onlyLong && (
-                <View
-                  style={[
-                    styles.corner,
-                    { borderTopColor: theme.availInk[bucket], borderTopWidth: cell * 0.26 },
-                  ]}
-                />
-              )}
-
+              {/* Une case porte deux nombres au maximum : le quantieme et le
+                  compte. Le triangle qui marquait « tous les trains ouverts
+                  sont longs » demandait une memoire que l'usage par vagues ne
+                  permet pas — il n'etait explique nulle part, et cette
+                  information se dit en toutes lettres dans l'ecran du jour. */}
               <Text style={[styles.dayNumber, { color: theme.availInk[bucket] }]}>
                 {dayNumber(date)}
                 {date === today ? ' ·' : ''}
@@ -173,12 +167,6 @@ function Grid({ width, dates, today, dir, calendar, onSelect }: GridProps) {
               <Text style={[styles.count, { color: theme.availInk[bucket] }]}>
                 {day.available}
               </Text>
-
-              {day.delta !== null && day.delta !== 0 && (
-                <Text style={[styles.delta, { color: theme.availInk[bucket] }]}>
-                  {day.delta > 0 ? `+${day.delta}` : day.delta}
-                </Text>
-              )}
             </Pressable>
           );
         })}
@@ -195,17 +183,8 @@ const styles = StyleSheet.create({
   weekday: { ...typo.chip, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   cell: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  corner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    borderRightWidth: 11,
-    borderRightColor: 'transparent',
-    opacity: 0.5,
-  },
   dayNumber: { ...typo.small, fontSize: 10.5, opacity: 0.72, lineHeight: 13 },
   // Le compte se lit comme un afficheur : chiffres de largeur egale, une
   // colonne de cases qui ne s'alignent pas se lit comme un defaut.
   count: { ...typo.clock, fontSize: 21, lineHeight: 25, letterSpacing: 0 },
-  delta: { ...typo.digits, position: 'absolute', right: 4, bottom: 3, fontSize: 9.5, opacity: 0.8 },
 });

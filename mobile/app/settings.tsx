@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
-import { MAX_RESERVATIONS } from '../../src/config.ts';
 import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
 import {
@@ -41,14 +40,6 @@ export default function SettingsScreen() {
   const [restore, setRestore] = useState('');
 
   const today = todayInParis();
-
-  /*
-   * Le quota TGVmax porte sur les reservations *simultanees* : un creneau se
-   * libere quand le train est passe. Les voyages deja faits restent affiches —
-   * c'est un historique qu'on ne jette pas — mais ils ne comptent plus.
-   */
-  const upcoming = bundle.reservations.slots.filter((slot) => slot.date >= today);
-  const used = upcoming.length;
 
   const persist = useCallback(async (path: string, value: unknown, note: string) => {
     try {
@@ -225,7 +216,7 @@ export default function SettingsScreen() {
         </View>
       )}
 
-      <Section title={`Quota — ${used} / ${MAX_RESERVATIONS}`}>
+      <Section title="Réservations">
         {/* Une panne du stockage local est la seule perte irreversible que
             cette application puisse causer : elle ne peut pas rester muette. */}
         {!storageOk && (
@@ -234,20 +225,6 @@ export default function SettingsScreen() {
             text="Le stockage de cet appareil est illisible. Rien n’est enregistré tant que ce n’est pas résolu — restaure une sauvegarde ou réinstalle l’application."
           />
         )}
-
-        <View style={styles.slots}>
-          {Array.from({ length: MAX_RESERVATIONS }, (_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.slot,
-                // Un creneau occupe n'est pas une mesure de disponibilite :
-                // l'echelle verte reste au calendrier, l'accent dit le quota.
-                { backgroundColor: i < used ? theme.accent : theme.sunken, borderRadius: radius.sm },
-              ]}
-            />
-          ))}
-        </View>
 
         {bundle.reservations.slots.length === 0 ? (
           <Note>Aucun créneau enregistré.</Note>
@@ -602,8 +579,6 @@ const styles = StyleSheet.create({
   close: { ...typo.body, fontSize: 14 },
   message: { padding: space.md, marginTop: space.md },
   messageText: { ...typo.small, lineHeight: 18 },
-  slots: { flexDirection: 'row', gap: space.sm, marginBottom: space.xs },
-  slot: { flex: 1, height: 30 },
   line: {
     flexDirection: 'row',
     alignItems: 'center',

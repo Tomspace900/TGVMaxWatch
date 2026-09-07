@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { DIRECTIONS, HORIZON_DAYS, MAX_RESERVATIONS } from '../../../src/config.ts';
+import { DIRECTIONS, HORIZON_DAYS } from '../../../src/config.ts';
 import { addDays, todayInParis, weekday } from '../../../src/dates.ts';
 import { trainsWord } from '../../../src/label.ts';
 import { slotOf } from '../../../src/stats.ts';
@@ -58,10 +58,7 @@ export default function DayScreen() {
     setDate(next);
   };
 
-  const calendar = useMemo(
-    () => buildCalendar(bundle.latest, bundle.history),
-    [bundle.latest, bundle.history],
-  );
+  const calendar = useMemo(() => buildCalendar(bundle.latest), [bundle.latest]);
 
   const day = calendar.get(date)?.get(dir) ?? emptyDay(date, dir);
   const series = bundle.history[date]?.[dir] ?? [];
@@ -131,17 +128,16 @@ export default function DayScreen() {
   /**
    * Enregistrer une reservation.
    *
-   * Le quota TGVmax porte sur les reservations *simultanees* : un creneau se
-   * libere quand le train est passe. Compter les voyages deja faits afficherait
-   * « 6 / 6 » avec un quota reel vide, et bloquerait l'enregistrement.
+   * Le geste ne sert plus qu'a une chose : poser le rappel de confirmation.
+   * C'est la seule information de reservation qu'on ne peut pas tenir de tete,
+   * et la seule qui coute de l'argent quand elle manque.
+   *
+   * Plus de blocage au sixieme creneau. Le quota de l'abonnement porte sur les
+   * reservations simultanees, son proprietaire le suit de tete, et un geste qui
+   * renvoyait en silence vers les reglages au lieu d'enregistrer se lisait
+   * comme une panne.
    */
   const book = (trainNo: string, depart: string, arrivee: string) => {
-    const upcoming = bundle.reservations.slots.filter((slot) => slot.date >= today);
-    if (upcoming.length >= MAX_RESERVATIONS) {
-      router.push('/settings');
-      return;
-    }
-
     const slot = { date, dir, trainNo, depart, arrivee, bookedAt: today, confirmed: false };
     setReservations((current) => ({ slots: [...current.slots, slot] }));
 
@@ -149,6 +145,25 @@ export default function DayScreen() {
     // retard, ni se retirer en silence comme le cron qu'il remplace.
     void scheduleConfirmReminder(slot);
   };
+
+  /*
+   * Ecarter les trajets longs, plutot que les signaler.
+   *
+   * Sur cet axe les temps vont de 2h05 a 3h30 pour exactement le meme prix : un
+   * omnibus reste reservable sans jamais etre un bon choix. Le besoin dit
+   * « ecarter », et l'ecran ne savait que colorer. Le compteur du bandeau, lui,
+   * continue de compter la journee entiere — masquer des lignes ne doit pas
+   * changer ce que la journee contient.
+   */
+  const [hideLong, setHideLong] = useState(false);
+  const longCount = useMemo(
+    () => day.trains.filter((train) => train.tier === 'long').length,
+    [day.trains],
+  );
+  const shown = useMemo(
+    () => (hideLong ? day.trains.filter((train) => train.tier !== 'long') : day.trains),
+    [day.trains, hideLong],
+  );
 
   const forecast = useMemo(() => {
     if (!bundle.stats?.ready.burnRate) return null;
@@ -169,7 +184,7 @@ export default function DayScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <TrainList
-        data={day.trains}
+        data={shown}
         keyExtractor={(train) => `${train.trainNo}-${train.depart}`}
         onScroll={onScroll}
         scrollEventThrottle={16}
@@ -199,8 +214,8 @@ export default function DayScreen() {
                   sur {day.trains.length} qui circulent
                 </Text>
                 {day.onlyLong && (
-                  <Text style={[typo.chip, { color: theme.accent }]}>
-                    TOUS SUR DES TRAJETS LONGS
+                  <Text style={[typo.strong, { color: theme.text }]}>
+                    tous sur des trajets de plus de 3 h
                   </Text>
                 )}
               </View>
@@ -213,6 +228,28 @@ export default function DayScreen() {
                 />
               )}
             </View>
+
+            {longCount > 0 && (
+              <Pressable
+                onPress={() => setHideLong((current) => !current)}
+                style={({ pressed }) => [
+                  styles.filter,
+                  {
+                    backgroundColor: hideLong ? theme.inverseBg : theme.sunken,
+                    borderRadius: radius.pill,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[typo.strong, { color: hideLong ? theme.inverseText : theme.muted }]}
+                >
+                  {hideLong
+                    ? `${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h masqué${longCount > 1 ? 's' : ''}`
+                    : `masquer les ${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h`}
+                </Text>
+              </Pressable>
+            )}
 
             {forecast && (
               <Text
@@ -239,11 +276,13 @@ export default function DayScreen() {
         )}
         ListEmptyComponent={
           <Text style={[typo.body, styles.empty, { color: theme.muted }]}>
-            Aucun train connu pour ce jour.
+            {day.trains.length > 0
+              ? 'Tous les trains de ce jour dépassent 3 h.'
+              : 'Aucun train connu pour ce jour.'}
           </Text>
         }
         ListFooterComponent={
-          day.trains.length === 0 ? null : (
+          shown.length === 0 ? null : (
             <Text style={[typo.small, styles.hint, { color: theme.muted }]}>
               Glisser vers la gauche pour surveiller, vers la droite après avoir réservé.
             </Text>
@@ -308,6 +347,7 @@ const styles = StyleSheet.create({
   steps: { flexDirection: 'row', gap: space.xs + 2 },
   step: { width: 34, height: 30, alignItems: 'center', justifyContent: 'center' },
   summary: { flexDirection: 'row', alignItems: 'center', gap: space.lg, padding: space.lg },
+  filter: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, marginTop: space.md },
   forecast: { padding: space.md, marginTop: space.md, overflow: 'hidden', lineHeight: 18 },
   empty: { textAlign: 'center', paddingVertical: space.xl },
   hint: { textAlign: 'center', paddingTop: space.md },

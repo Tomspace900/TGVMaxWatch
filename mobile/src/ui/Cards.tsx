@@ -1,97 +1,119 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MAX_RESERVATIONS } from '../../../src/config.ts';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { CONFIRM_DEADLINE_HOUR, CONFIRM_URL } from '../../../src/config.ts';
 import { todayInParis } from '../../../src/dates.ts';
 import { trainsLabel } from '../../../src/label.ts';
-import { dirLabel, longDate, weekdayName } from '../format.ts';
-import { trainNoAt, type Calendar } from '../model.ts';
+import { confirmDeadline, dirLabel, longDate, untilLabel, weekdayName } from '../format.ts';
+import type { Calendar } from '../model.ts';
 import { Trace } from './Trace.tsx';
-import { Wagon } from './rail.tsx';
 import { radius, space, typo, useTheme } from '../theme.ts';
-import type { Reservations, TrainTrends, Watchlist } from '../../../src/types.ts';
+import type { Reservation, Reservations, TrainTrends, Watchlist } from '../../../src/types.ts';
 
 /**
- * Les cartes du bas de l'écran calendrier.
+ * Les cartes de l'écran calendrier.
  *
- * Sept colonnes de trente cases ne peuvent pas, géométriquement, remplir un
- * écran de téléphone. Plutôt que d'agrandir les cases jusqu'à l'absurde ou de
- * laisser un vide, le bas porte ce qui est toujours disponible et propre à
- * l'utilisateur : son quota et ce qu'il surveille.
+ * Le suivi du quota de six réservations simultanées a disparu d'ici. Ce
+ * nombre-là se tient de tête, et la jauge occupait la surface la plus visible
+ * de l'écran pour dire ce que son propriétaire savait déjà. Ce qui reste des
+ * réservations, c'est la seule chose qu'on ne peut pas tenir de tête et qui
+ * coûte de l'argent quand on l'oublie : l'échéance de confirmation.
  */
 
-/** Recouvrement de deux voitures, qui les fait lire comme attelées. */
-const COUPLING = 5;
-const CAR_RATIO = 118 / 52;
+/**
+ * Fenêtre à partir de laquelle une échéance mérite le haut de l'écran.
+ *
+ * Une carte permanente pendant les trois semaines qui séparent la réservation
+ * du voyage n'est pas un avertissement, c'est du décor : on cesse de la voir
+ * bien avant qu'elle devienne vraie. Au-delà de cette fenêtre, le rappel posé
+ * par l'appareil suffit — il part la veille, à une heure où l'on peut agir.
+ */
+const URGENT_HOURS = 72;
 
-export function QuotaCard({
+/** Un créneau à confirmer, avec l'instant qui décide. */
+interface Pending {
+  slot: Reservation;
+  deadline: Date;
+}
+
+function pendingConfirmations(reservations: Reservations): Pending[] {
+  const today = todayInParis();
+  return reservations.slots
+    .filter((slot) => slot.date >= today && !slot.confirmed)
+    .map((slot) => ({ slot, deadline: confirmDeadline(slot.date) }))
+    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+}
+
+/**
+ * L'échéance de confirmation.
+ *
+ * C'est le seul endroit où cette application peut coûter de l'argent réel : une
+ * réservation MAX JEUNE non confirmée avant l'heure limite, la veille, est
+ * perdue. Elle ne vivait jusqu'ici que dans une alarme locale et dans un écran
+ * de réglages — c'est-à-dire nulle part au moment où elle compte.
+ *
+ * Ne rend rien tant que rien n'est urgent : une carte qui est toujours là ne
+ * prévient de rien.
+ */
+export function ConfirmCard({
   reservations,
-  onPress,
+  onConfirm,
 }: {
   reservations: Reservations;
-  onPress: () => void;
+  onConfirm: (slot: Reservation) => void;
 }) {
   const theme = useTheme();
-  const [width, setWidth] = useState(0);
 
-  /*
-   * Le quota TGVmax porte sur les reservations *simultanees* : un creneau se
-   * libere quand le train est passe. Les voyages deja faits restent dans la
-   * liste — c'est un historique qu'on ne jette pas — mais les compter afficherait
-   * « 6 sur 6 » avec un quota reel vide.
-   */
-  const today = todayInParis();
-  const upcoming = reservations.slots.filter((slot) => slot.date >= today);
-  const used = upcoming.length;
+  const pending = pendingConfirmations(reservations);
+  const first = pending[0];
+  if (!first) return null;
 
-  /*
-   * Six voitures, une par reservation simultanee autorisee.
-   *
-   * La taille se deduit de la largeur reelle de la carte plutot que d'etre
-   * fixee : six silhouettes calibrees pour un ecran donne debordent sur le
-   * suivant, et un SVG ne se laisse pas comprimer par le flex.
-   */
-  const carWidth = width > 0 ? (width + COUPLING * (MAX_RESERVATIONS - 1)) / MAX_RESERVATIONS : 0;
+  const hoursLeft = (first.deadline.getTime() - Date.now()) / 3_600_000;
+  if (hoursLeft > URGENT_HOURS) return null;
+
+  const late = hoursLeft <= 0;
+  const others = pending.filter((entry) => entry !== first).length;
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.line }]}
-    >
+    <View style={[styles.card, styles.urgent, { backgroundColor: theme.accent }]}>
       <View style={styles.head}>
-        <Text style={[typo.section, { color: theme.text }]}>Réservations</Text>
-        <Text style={[typo.digits, { color: theme.muted }]}>
-          {used} / {MAX_RESERVATIONS}
+        <Text style={[typo.chip, { color: theme.onBrand }]}>
+          {late ? 'ÉCHÉANCE DÉPASSÉE' : 'À CONFIRMER'}
+        </Text>
+        <Text style={[typo.digits, { color: theme.onBrand }]}>
+          {untilLabel(first.deadline)}
         </Text>
       </View>
 
-      <View
-        style={styles.rame}
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      >
-        {carWidth > 0 &&
-          Array.from({ length: MAX_RESERVATIONS }, (_, i) => (
-            <View key={i} style={i === 0 ? null : { marginLeft: -COUPLING }}>
-              <Wagon height={carWidth / CAR_RATIO} filled={i < used} />
-            </View>
-          ))}
-      </View>
+      <Text style={[typo.title, { color: theme.onBrand }]}>
+        {first.slot.depart} · {longDate(first.slot.date)}
+      </Text>
+      <Text style={[typo.small, { color: theme.onBrand, opacity: 0.85 }]}>
+        {dirLabel(first.slot.dir)} · avant {CONFIRM_DEADLINE_HOUR}h la veille
+        {others > 0 ? ` · ${others} autre${others > 1 ? 's' : ''} en attente` : ''}
+      </Text>
 
-      {used === 0 ? (
-        <Text style={[typo.small, { color: theme.muted, lineHeight: 18 }]}>
-          Aucun créneau occupé. Balaie une ligne de train vers la droite après avoir réservé.
-        </Text>
-      ) : (
-        upcoming.slice(0, 3).map((slot) => (
-          <View key={`${slot.date}-${slot.trainNo}`} style={styles.row}>
-            <Text style={[typo.digits, { color: theme.text }]}>{slot.depart}</Text>
-            <Text style={[typo.body, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-              {longDate(slot.date)}
-            </Text>
-            <Text style={[typo.small, { color: theme.muted }]}>{dirLabel(slot.dir)}</Text>
-          </View>
-        ))
-      )}
-    </Pressable>
+      <View style={styles.actions}>
+        <Pressable
+          onPress={() => void Linking.openURL(CONFIRM_URL)}
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: theme.onBrand, opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Text style={[typo.section, { color: theme.accent }]}>Confirmer</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => onConfirm(first.slot)}
+          style={({ pressed }) => [
+            styles.button,
+            styles.ghost,
+            { borderColor: theme.onBrand, opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
+          <Text style={[typo.section, { color: theme.onBrand }]}>C'est fait</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -107,7 +129,20 @@ export function WatchCard({
   onPress: () => void;
 }) {
   const theme = useTheme();
+
+  /*
+   * La carte affiche quatre entrées et deux règles, sous un compteur qui
+   * annonçait le total : « 6 » en tête, quatre lignes en dessous, et rien pour
+   * dire ce qui manquait ni comment y accéder. Une troncature muette est une
+   * information qui disparaît — le pire défaut possible sur la carte qui porte
+   * le cœur du produit.
+   */
+  const MAX_WATCH = 4;
+  const MAX_RULES = 2;
   const total = watchlist.watch.length + watchlist.rules.length;
+  const hidden =
+    Math.max(0, watchlist.watch.length - MAX_WATCH) +
+    Math.max(0, watchlist.rules.length - MAX_RULES);
 
   return (
     <Pressable
@@ -116,9 +151,7 @@ export function WatchCard({
     >
       <View style={styles.head}>
         <Text style={[typo.section, { color: theme.text }]}>Surveillance</Text>
-        <Text style={[typo.digits, { color: theme.muted }]}>
-          {total === 0 ? '—' : `${total}`}
-        </Text>
+        <Text style={[typo.digits, { color: theme.muted }]}>{total === 0 ? '—' : total}</Text>
       </View>
 
       {total === 0 && (
@@ -128,22 +161,21 @@ export function WatchCard({
         </Text>
       )}
 
-      {watchlist.watch.slice(0, 4).map((entry) => {
+      {watchlist.watch.slice(0, MAX_WATCH).map((entry) => {
         const day = entry.dir ? calendar.get(entry.date)?.get(entry.dir) : undefined;
 
         /*
-         * Une entree porte une heure de depart : ce qu'on veut savoir devant
-         * elle, c'est si *ce train-la* tient ou s'il vient de rouvrir, pas
-         * combien de trains circulent ce jour-la. Le compte du jour etait la
-         * reponse a une question que personne ne pose ici — « 8 » en face du
-         * 07h12 se lisait meme comme huit places dans ce train.
-         *
-         * Sans heure, l'entree porte la journee entiere : le compte redevient
-         * alors la bonne reponse.
+         * Une entrée porte une heure de départ : ce qu'on veut savoir devant
+         * elle, c'est si *ce train-là* tient ou s'il vient de rouvrir, pas
+         * combien de trains circulent ce jour-là. Sans heure, l'entrée porte la
+         * journée entière, et le compte redevient la bonne réponse.
          */
         const trainNo =
           entry.after && entry.dir
-            ? trainNoAt(calendar, entry.date, entry.dir, entry.after)
+            ? (calendar
+                .get(entry.date)
+                ?.get(entry.dir)
+                ?.trains.find((train) => train.depart === entry.after)?.trainNo ?? null)
             : null;
         const trace =
           trainNo && entry.dir ? trains.series[`${entry.date}|${entry.dir}`]?.[trainNo] : undefined;
@@ -167,18 +199,24 @@ export function WatchCard({
         );
       })}
 
+      {watchlist.rules.slice(0, MAX_RULES).map((rule, index) => (
+        <Text key={`rule-${index}`} style={[typo.body, { color: theme.muted }]}>
+          chaque {weekdayName(rule.weekday)}
+          {rule.after ? ` après ${rule.after}` : ''}
+        </Text>
+      ))}
+
       {watchlist.watch.length > 0 && (
         <Text style={[typo.small, { color: theme.muted }]}>
           Jour par jour, du plus ancien au plus récent : plein = ouvert au TGVmax.
         </Text>
       )}
 
-      {watchlist.rules.slice(0, 2).map((rule, index) => (
-        <Text key={`rule-${index}`} style={[typo.body, { color: theme.muted }]}>
-          chaque {weekdayName(rule.weekday)}
-          {rule.after ? ` après ${rule.after}` : ''}
+      {hidden > 0 && (
+        <Text style={[typo.strong, { color: theme.text }]}>
+          + {hidden} autre{hidden > 1 ? 's' : ''} — tout voir
         </Text>
-      ))}
+      )}
     </Pressable>
   );
 }
@@ -216,7 +254,15 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     gap: space.sm,
   },
+  urgent: { borderWidth: 0 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  rame: { flexDirection: 'row', alignItems: 'center', marginVertical: space.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  actions: { flexDirection: 'row', gap: space.sm, marginTop: space.xs },
+  button: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+  },
+  ghost: { backgroundColor: 'transparent', borderWidth: 1 },
 });

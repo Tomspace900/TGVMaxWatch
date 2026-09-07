@@ -1,7 +1,7 @@
 import { AVAILABILITY_BUCKETS, HORIZON_DAYS } from '../../src/config.ts';
 import { addDays, todayInParis } from '../../src/dates.ts';
 import { carrierLabel, durationTier, recordDir, recordDuration } from '../../src/duration.ts';
-import type { DurationTier, History, TrainRecord } from '../../src/types.ts';
+import type { DurationTier, TrainRecord } from '../../src/types.ts';
 
 export interface Train {
   trainNo: string;
@@ -20,8 +20,6 @@ export interface Day {
   trains: Train[];
   /** Trains eligibles. C'est ce que compte le calendrier. */
   available: number;
-  /** Variation depuis l'observation precedente, `null` sans historique. */
-  delta: number | null;
   /**
    * Vrai quand toutes les places du jour sont sur des trains de plus de 3h.
    * Sans ce marqueur, la couleur de la case mentirait.
@@ -29,10 +27,24 @@ export interface Day {
   onlyLong: boolean;
 }
 
+/*
+ * La variation d'un jour a l'autre n'est plus calculee ici.
+ *
+ * Elle etait peinte dans chaque case — `+9`, `-1`, `+7` — et mettait un
+ * troisieme nombre dans une surface qui n'en supporte pas trois, sur certaines
+ * cases seulement, ce qui forcait l'oeil a chercher pourquoi. Personne ne lit
+ * l'ecart d'hier a aujourd'hui : ce qu'on veut savoir, c'est ou en est *son*
+ * creneau, et quelle est la tendance longue.
+ *
+ * La variation reste ce qu'elle a toujours ete utilement : le **declencheur**
+ * des deux alertes generales, calcule cote collecteur dans `src/diff.ts`. Un
+ * capteur, pas un affichage.
+ */
+
 /** Index `date -> sens -> jour`, construit une fois depuis `latest.json`. */
 export type Calendar = Map<string, Map<string, Day>>;
 
-export function buildCalendar(records: TrainRecord[], history: History): Calendar {
+export function buildCalendar(records: TrainRecord[]): Calendar {
   const calendar: Calendar = new Map();
 
   for (const record of records) {
@@ -42,7 +54,7 @@ export function buildCalendar(records: TrainRecord[], history: History): Calenda
 
     const day =
       byDir.get(dir) ??
-      ({ date: record.date, dir, trains: [], available: 0, delta: null, onlyLong: false } as Day);
+      ({ date: record.date, dir, trains: [], available: 0, onlyLong: false } as Day);
     byDir.set(dir, day);
 
     const durationMin = recordDuration(record);
@@ -63,18 +75,10 @@ export function buildCalendar(records: TrainRecord[], history: History): Calenda
       const free = day.trains.filter((train) => train.available);
       day.available = free.length;
       day.onlyLong = free.length > 0 && free.every((train) => train.tier === 'long');
-      day.delta = deltaFor(history, day.date, day.dir);
     }
   }
 
   return calendar;
-}
-
-/** Variation du nombre de places entre les deux dernieres observations. */
-function deltaFor(history: History, date: string, dir: string): number | null {
-  const series = history[date]?.[dir];
-  if (!series || series.length < 2) return null;
-  return series[series.length - 1]!.oui - series[series.length - 2]!.oui;
 }
 
 /** Les 31 jours de la fenetre glissante, a partir d'aujourd'hui. */
@@ -110,5 +114,5 @@ export function trainNoAt(
 }
 
 export function emptyDay(date: string, dir: string): Day {
-  return { date, dir, trains: [], available: 0, delta: null, onlyLong: false };
+  return { date, dir, trains: [], available: 0, onlyLong: false };
 }

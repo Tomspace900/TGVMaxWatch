@@ -1,4 +1,5 @@
-import { STATION_LABELS } from '../../src/config.ts';
+import { CONFIRM_DAYS_BEFORE, CONFIRM_DEADLINE_HOUR, STATION_LABELS } from '../../src/config.ts';
+import { addDays } from '../../src/dates.ts';
 
 export { formatDuration } from '../../src/duration.ts';
 
@@ -88,4 +89,36 @@ export function maskToken(token: string): string {
   const head = token.slice(0, 11);
   const tail = token.slice(-4);
   return token.length <= 15 ? '••••' : `${head}…${tail}`;
+}
+
+/**
+ * Instant de la veille du voyage, a une heure locale donnee.
+ *
+ * Volontairement construit avec le constructeur local et non par une
+ * arithmetique UTC : c'est le seul endroit du projet ou l'heure qui compte est
+ * celle de la montre de l'utilisateur, pas une date de voyage.
+ */
+export function eveOf(travelDate: string, hour: number): Date {
+  const [year = '0', month = '0', day = '0'] = addDays(travelDate, -CONFIRM_DAYS_BEFORE).split('-');
+  return new Date(Number(year), Number(month) - 1, Number(day), hour, 0, 0, 0);
+}
+
+/** Echeance de confirmation d'un voyage : passe cette heure, la place est perdue. */
+export function confirmDeadline(travelDate: string): Date {
+  return eveOf(travelDate, CONFIRM_DEADLINE_HOUR);
+}
+
+/**
+ * Temps restant avant une echeance, court et sans fioriture.
+ *
+ * Un compte a rebours n'a pas a etre precis a la minute — il a a dire s'il faut
+ * agir maintenant. `2 j` et `3 h` decident, `2 j 4 h 12 min` non.
+ */
+export function untilLabel(target: Date): string {
+  const ms = target.getTime() - Date.now();
+  if (ms <= 0) return 'dépassée';
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 1) return 'moins d’une heure';
+  if (hours < 24) return `${hours} h`;
+  return `${Math.floor(hours / 24)} j`;
 }

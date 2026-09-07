@@ -29,9 +29,8 @@ Trois questions auxquelles elle répond, et que rien d'autre ne sait faire :
 ### L'écran principal : le calendrier
 
 Trente jours, une case par jour. **Plus la case est colorée, plus il y a de
-trains ouverts.** Une case vide veut dire aucun train ce jour-là, dans le sens
-affiché. Le petit `+3` ou `-2` en bas d'une case dit ce qui a bougé depuis la
-veille.
+trains ouverts.** Une case grise veut dire aucun train ce jour-là, dans le sens
+affiché. Deux nombres par case et pas un de plus : le quantième, et le compte.
 
 Tout en haut, le sélecteur de sens — Paris → Bordeaux ou Bordeaux → Paris.
 **Il reste en place quand tu fais défiler l'écran** : c'est le contexte de tout
@@ -39,20 +38,21 @@ ce qui est affiché en dessous, et le perdre obligeait à remonter.
 **Glisse horizontalement sur le calendrier pour changer de sens**, le sélecteur
 suit ton doigt.
 
-L'application s'ouvre toute seule sur le sens que tu vas probablement chercher :
-si ton dernier trajet enregistré descend à Bordeaux, elle s'ouvre sur le retour.
+Au-dessus du calendrier, deux choses seulement, et l'une n'apparaît que quand
+elle est vraie :
 
-Juste sous la barre, le bandeau coloré porte le sens en grand, la date de
-publication des données, et une motrice qui **pointe dans le sens du voyage**.
+- **La date des données et leur âge**, en clair. Si la collecte prend du retard,
+  un bandeau le dit ; si elle ne répond plus du tout, il le dit autrement — ce
+  ne sont pas les mêmes situations.
+- **Une réservation à confirmer**, quand l'échéance approche. Voir plus bas.
 
 En bas de l'écran :
 
 - **Surveillance** — ce que tu suis. En face de chaque créneau, la frise qui
   montre jour après jour si *ce train-là* était ouvert ou fermé — c'est ce
   qu'on veut savoir devant un train qu'on attend, bien plus que le nombre de
-  trains qui circulent ce jour-là.
-- **Réservations** — une voiture par créneau, pleine ou vide, sur les 6 que
-  permet l'abonnement.
+  trains qui circulent ce jour-là. Si tu suis plus d'entrées que la carte n'en
+  affiche, elle te dit combien il en reste.
 - **Érosion et prévisions** — apparaît seulement quand il y a assez de recul.
 
 ### L'écran d'un jour
@@ -67,12 +67,17 @@ une courbe de l'évolution, et — quand il y a assez d'historique — une phras
 genre « ce créneau part en général vers J-18 », toujours avec le nombre
 d'observations sur lequel elle repose.
 
+Juste en dessous, un bouton pour **masquer les trajets de plus de 3 h**. Sur cet
+axe, un omnibus coûte le même prix qu'un direct et met une heure et demie de
+plus : le plus souvent, autant ne pas les voir. Le total, lui, continue de
+compter la journée entière.
+
 Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
 
 - l'heure de départ, l'heure d'arrivée en dessous, le numéro de train ;
-- **la durée du trajet, en couleur si elle dépasse 3 h** — sur cet axe les temps
-  vont de 2 h 05 à 3 h 30 pour le même prix, et un omnibus reste réservable sans
-  être un bon choix ;
+- **la durée du trajet** — sur cet axe les temps vont de 2 h 05 à 3 h 30 pour le
+  même prix ; « 3h12 » à côté de « 2h05 » se lit tout seul, sans qu'on ait
+  besoin de le peindre en rouge ;
 - **une petite frise** qui montre jour après jour si ce train était ouvert ou
   fermé — c'est là qu'on voit un train qui vient de rouvrir ;
 - un badge **suivi** ou **réservé** si tu l'as marqué ;
@@ -92,8 +97,8 @@ une fenêtre complète, soit environ un mois de collecte.
 
 - **Glisse vers la gauche** → surveiller ce créneau. Tu seras prévenu quand il
   bouge. Refais le geste pour arrêter.
-- **Glisse vers la droite** → « j'ai réservé ». Le créneau s'ajoute à ton quota
-  et un rappel de confirmation se programme automatiquement.
+- **Glisse vers la droite** → « j'ai réservé ». Le seul effet est d'armer le
+  rappel de confirmation — c'est à ça que sert ce geste, et à rien d'autre.
 
 Le téléphone vibre légèrement au franchissement du seuil : tant que tu ne l'as
 pas senti, rien n'est validé.
@@ -102,7 +107,8 @@ pas senti, rien n'est validé.
 
 - **Voir et libérer tes réservations.** Marquer une réservation « confirmé »
   éteint son rappel. « Libérer » retire le créneau, « oublier » efface un
-  voyage passé.
+  voyage passé. Le compteur de quota a disparu : ce nombre-là se tient de tête,
+  et il prenait la place de ce qui compte vraiment.
 - **Voir et retirer ce que tu surveilles.**
 - **Activer les notifications**, une seule fois.
 - **Exporter tes données** pour changer de téléphone, et les restaurer.
@@ -132,7 +138,11 @@ Les deux premières partent toujours, même si tu ne surveilles rien.
 
 - **Le rappel de confirmation**, à 10 h la veille d'un voyage enregistré. Une
   réservation MAX JEUNE non confirmée avant 17 h la veille est perdue. Le
-  message ouvre directement la page de confirmation SNCF.
+  message ouvre directement la page de confirmation SNCF. Dans les trois jours
+  qui précèdent l'échéance, l'application la met aussi **en haut de l'écran
+  d'accueil**, avec le temps restant et les deux gestes qui vont avec :
+  « Confirmer » et « C'est fait ». C'est le seul endroit où cette application
+  peut te coûter de l'argent, elle ne doit pas te le dire discrètement.
 - **L'alerte de panne**, si aucune donnée nouvelle n'arrive pendant 40 h. C'est
   le seul moyen d'être prévenu que la collecte s'est arrêtée : une notification
   normale est envoyée *par* le système de collecte, qui ne peut évidemment pas

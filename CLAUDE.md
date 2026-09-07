@@ -102,6 +102,48 @@ famille nommee, et les styles passent par les presets de `typo` plutot que par
 `fontWeight`. Corollaire : un `<Text>` sans `fontFamily` retombe sur Roboto, et
 un seul oubli fait cohabiter deux polices sur le meme ecran.
 
+**Une couleur qui signifie quatre choses ne signifie plus rien.** L'accent
+Carmillon a porte en meme temps l'en-tete, le sens actif, la jauge de quota et
+la duree des trains longs : a l'usage, l'oeil cesse de le traiter comme un
+signal. Une seule dimension a desormais droit a la couleur porteuse de sens,
+**la densite de trains ouverts**. Tout le reste se dit par le mot, la position
+ou le barre — qui est, mesure sur les captures, le meilleur encodage de toute
+l'application. L'accent ne sert plus qu'a l'identite et aux alertes systeme.
+
+Corollaire mesure : peindre les trajets longs en couleur d'alerte mettait un
+signal sur **une ligne utile sur quatre** — 14 % de toutes les rames depassent
+3 h, mais 23 a 25 % des rames *ouvertes* selon le snapshot. Un signal present
+partout est un fond. Le
+besoin dit « ecarter », pas « signaler » : c'est un filtre, pas une couleur.
+
+**Le delta est un capteur, pas un affichage.** La variation d'un jour a l'autre
+etait peinte dans chaque case — un troisieme nombre dans une surface qui n'en
+supporte pas trois, et sur certaines cases seulement, ce qui forcait l'oeil a
+chercher pourquoi. Personne ne lit l'ecart d'hier a aujourd'hui : ce qu'on veut
+savoir, c'est ou en est *son* creneau et quelle est la tendance longue. La
+variation reste ce qu'elle a toujours ete utilement, le declencheur des deux
+alertes generales dans `src/diff.ts`.
+
+**Une troncature silencieuse est une information qui disparait.** La carte de
+surveillance affichait quatre entrees sous un compteur qui annoncait le total,
+sans rien dire de ce qui manquait ni comment y acceder — sur la carte qui porte
+le coeur du produit. Rien ne doit disparaitre sans le dire : ni une liste
+coupee, ni une notification ecartee par le budget.
+
+**Ce qui coute de l'argent vit la ou on est quand ca compte.** Une reservation
+MAX JEUNE non confirmee avant 17h la veille est perdue, et c'est le seul endroit
+ou cette application peut couter quelque chose de reel. L'echeance n'existait
+que dans une alarme locale et dans l'ecran de reglages — c'est-a-dire nulle part
+au moment ou elle decide. Elle est en tete de l'accueil dans les 72 h qui la
+precedent, et **seulement** dans ces 72 h : une carte permanente pendant les
+trois semaines qui separent la reservation du voyage n'est pas un avertissement,
+c'est du decor.
+
+**Une illustration qui coute la premiere moitie d'un ecran doit porter une
+information.** Le bandeau d'accueil repetait le sens deja affiche par le
+selecteur juste au-dessus et poussait sous la ligne de flottaison la carte qui
+porte le coeur du produit. La motrice et les voitures sont parties avec.
+
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
 convertir. Seul le cron est en UTC.
 
@@ -303,6 +345,22 @@ demande cinq fermetures observees sur un meme train ; seules les medianes de
 fonte ont besoin du long terme. La regle de fond ne bouge pas — jamais
 d'estimation inventee, et toujours la taille d'echantillon a cote du chiffre.
 L'archive a demarre le 2026-09-01.
+
+**L'unite de compte doit passer de la rame au depart.** Decision prise, pas
+encore appliquee. Le dataset publie les deux rames d'un meme depart comme deux
+lignes : mesure sur `data/latest.json`, 2 141 lignes se replient en 1 585
+departs (**-26 %**), et 338 rames ouvertes en 304 departs ouverts (**-10 %**).
+556 departs sur 1 585 portent deux rames, dont **67 divergent** — l'une ouverte,
+l'autre complete.
+
+Le piege est que `history.json`, les seuils d'alerte et les courbes d'erosion
+comptent tous des rames. Changer le seul affichage ferait dire « 5 trains » a la
+notification et en montrerait 4 a l'ecran, en permanence et en silence. Le
+changement doit donc traverser le collecteur, l'archive, les seuils et
+l'interface **dans le meme commit**, ou ne pas se faire. A noter aussi : le
+suivi se propage deja aux deux rames, parce qu'une entree de watchlist designe
+une minute et non un train ; la reservation, indexee sur le numero, ne se
+propage pas.
 
 **Le silence est le mode de panne du projet.** Un workflow qui ne se declenche
 pas n'envoie pas de mail d'echec, et une collecte manquee ne se voit nulle part

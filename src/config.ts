@@ -70,6 +70,20 @@ export const MAX_RESERVATIONS = 6;
 export const CONFIRM_DAYS_BEFORE = 1;
 
 /**
+ * Heure limite de confirmation, heure locale francaise.
+ *
+ * Passe cette heure la veille du voyage, une reservation MAX JEUNE non
+ * confirmee est perdue. C'est la seule echeance de ce projet qui coute quelque
+ * chose de reel, et elle vivait jusqu'ici en prose et dans le titre d'une
+ * notification. Elle est ici parce qu'un compte a rebours l'affiche desormais :
+ * une echeance dupliquee dans trois chaines finit toujours par diverger.
+ *
+ * Elle vient de l'utilisateur, pas d'une source SNCF verifiable : c'est la
+ * seule ligne a changer si elle se revele fausse.
+ */
+export const CONFIRM_DEADLINE_HOUR = 17;
+
+/**
  * Heure locale a laquelle le telephone pose le rappel de confirmation.
  *
  * Sept heures avant l'echeance de 17h. Le rappel est une alarme posee par

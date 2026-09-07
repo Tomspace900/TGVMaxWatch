@@ -96,12 +96,6 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
             },
           ]}
         >
-          {/* Un train de plus de 3h reste reservable et ne disparait jamais,
-              mais il doit se voir immediatement comme un mauvais choix. */}
-          {train.tier === 'long' && (
-            <View style={[styles.longBar, { backgroundColor: theme.accent }]} />
-          )}
-
           <View style={styles.times}>
             <Text
               style={[typo.clock, { color: dim ? theme.muted : theme.text }, dim && styles.struck]}
@@ -126,7 +120,7 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
                 </Text>
               )}
               {booked && (
-                <Text style={[typo.chip, styles.chip, { color: theme.onBrand, backgroundColor: theme.accent }]}>
+                <Text style={[typo.chip, styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
                   RÉSERVÉ
                 </Text>
               )}
@@ -137,13 +131,13 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
             {trace && <Trace trace={trace} />}
           </View>
 
-          <Text
-            style={[
-              typo.digits,
-              styles.duration,
-              { color: train.tier === 'long' ? theme.accent : dim ? theme.muted : theme.text },
-            ]}
-          >
+          {/* Un trajet long n'est pas une anomalie a signaler : sur cet axe,
+              c'est un mauvais choix par defaut, et un quart des trains ouverts
+              depassent trois heures. Le peindre en couleur d'alerte mettait un
+              signal sur une ligne utile sur quatre — c'est-a-dire un fond, pas
+              un signal. Le chiffre suffit : « 3h12 » a cote de « 2h05 » se lit
+              sans qu'on ait a le nommer. Pour les ecarter, il y a un filtre. */}
+          <Text style={[typo.digits, styles.duration, { color: dim ? theme.muted : theme.text }]}>
             {formatDuration(train.durationMin)}
           </Text>
         </Animated.View>
@@ -175,7 +169,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
-  longBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   // Depart et arrivee empiles : deux horaires sur une ligne se lisent comme un
   // seul nombre coupe en deux.
   times: { alignItems: 'flex-start', gap: 1 },

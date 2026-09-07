@@ -8,10 +8,17 @@ import ShareTechMonoRegular from '../assets/fonts/ShareTechMono-Regular.ttf';
 /**
  * Deux familles de couleur, et elles ne se melangent jamais.
  *
- * `avail` est la seule echelle qui porte de l'information : plus il y a de
- * trains eligibles, plus la case est dense. `brand` est le degrade Carmillon
- * de SNCF Voyageurs — violet, framboise, vermillon — et il ne sert qu'a
- * l'habillage : navbar, materiel roulant, etats actifs, accents.
+ * `avail` est **la seule dimension qui a droit a la couleur porteuse de sens** :
+ * plus il y a de trains ouverts, plus la case est dense. Tout le reste —
+ * ouvert/complet, transporteur, duree du trajet, fraicheur de la donnee — se
+ * dit par le mot, la position ou le barre.
+ *
+ * `brand` est le degrade Carmillon de SNCF Voyageurs. Il ne designe jamais une
+ * donnee : identite (le curseur de sens) et alertes systeme (donnee perimee,
+ * action principale), rien d'autre. Il a porte quatre significations sans
+ * rapport — en-tete, sens actif, jauge de quota, duree des trains longs — et
+ * une couleur qui signifie quatre choses ne signifie plus rien : l'oeil cesse
+ * de la traiter comme un signal.
  *
  * La separation n'est pas cosmetique. Peindre le calendrier aux couleurs de la
  * marque et garder les memes teintes dans le chrome rend l'echelle illisible :
@@ -65,9 +72,12 @@ const light: Palette = {
   muted: '#6b7075',
   inverseBg: '#16181a',
   inverseText: '#f7f7f5',
-  // En mode clair, plus il y a de trains, plus la case est dense.
-  avail: ['#ebebe8', '#d3ece0', '#93d3b6', '#3ca176', '#0a6b4b'],
-  availInk: ['#8b9196', '#16412f', '#0a3324', '#ffffff', '#e8f8f0'],
+  // En mode clair, plus il y a de trains, plus la case est dense. Le premier
+  // palier colore rompt franchement avec le zero : c'est la seule marche de
+  // l'echelle qui separe « rien » de « quelque chose », et elle etait
+  // indistinguable — deux gris a peine teintes l'un de l'autre.
+  avail: ['#e6e6e2', '#b3e2cb', '#63c69e', '#219067', '#0a5c3f'],
+  availInk: ['#8b9196', '#0f4530', '#062e20', '#ffffff', '#ffffff'],
   brand: CARMILLON,
   accent: '#c21758',
   onBrand: '#ffffff',
@@ -88,8 +98,11 @@ const dark: Palette = {
   inverseBg: '#eceef0',
   inverseText: '#0e1012',
   // En mode sombre la progression va vers la luminosite, pas vers la densite.
-  avail: ['#1c2024', '#10402f', '#176b4e', '#24aa7d', '#47e5aa'],
-  availInk: ['#6b747b', '#82c9a9', '#d6f2e5', '#05221a', '#05221a'],
+  // Meme correction qu'en clair : le zero reste neutre, le premier palier est
+  // franchement vert. Un vert tres sombre a cote d'un gris tres sombre ne se
+  // lisait pas, surtout dehors.
+  avail: ['#1a1d21', '#14563c', '#1c8460', '#31b98a', '#5ce8b0'],
+  availInk: ['#767f87', '#cdebdc', '#eafaf3', '#04231b', '#04231b'],
   brand: CARMILLON,
   accent: '#c21758',
   onBrand: '#ffffff',

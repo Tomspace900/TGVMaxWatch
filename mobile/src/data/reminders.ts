@@ -1,15 +1,14 @@
 import * as Notifications from 'expo-notifications';
 import {
   APP_URL,
-  CONFIRM_DAYS_BEFORE,
+  CONFIRM_DEADLINE_HOUR,
   CONFIRM_REMINDER_HOUR,
   CONFIRM_URL,
   STALE_ALARM_HOURS,
 } from '../../../src/config.ts';
-import { addDays } from '../../../src/dates.ts';
 import type { Reservation } from '../../../src/types.ts';
 import { CHANNEL_ID } from './notifications.ts';
-import { dirLabel, longDate } from '../format.ts';
+import { dirLabel, eveOf, longDate } from '../format.ts';
 
 /**
  * Rappels poses par l'appareil.
@@ -29,16 +28,9 @@ function confirmId(slot: Pick<Reservation, 'date' | 'dir' | 'trainNo'>): string 
   return `confirm:${slot.date}|${slot.dir}|${slot.trainNo}`;
 }
 
-/**
- * Instant du rappel, en heure locale de l'appareil.
- *
- * Volontairement construit avec le constructeur local et non par une
- * arithmetique UTC : c'est le seul endroit du projet ou l'heure qui compte est
- * celle de la montre de l'utilisateur, pas une date de voyage.
- */
+/** Instant du rappel : la veille du voyage, sept heures avant l'echeance. */
 function confirmInstant(travelDate: string): Date {
-  const [year = '0', month = '0', day = '0'] = addDays(travelDate, -CONFIRM_DAYS_BEFORE).split('-');
-  return new Date(Number(year), Number(month) - 1, Number(day), CONFIRM_REMINDER_HOUR, 0, 0, 0);
+  return eveOf(travelDate, CONFIRM_REMINDER_HOUR);
 }
 
 /**
@@ -55,7 +47,7 @@ export async function scheduleConfirmReminder(slot: Reservation): Promise<void> 
     await Notifications.scheduleNotificationAsync({
       identifier: confirmId(slot),
       content: {
-        title: 'Confirme ta resa avant 17h',
+        title: `Confirme ta resa avant ${CONFIRM_DEADLINE_HOUR}h`,
         // Le sens est la seule chose qu'on ne peut pas deviner d'un coup d'oeil.
         body: `${longDate(slot.date)} · ${slot.depart} · ${dirLabel(slot.dir)}`,
         data: { url: CONFIRM_URL },
