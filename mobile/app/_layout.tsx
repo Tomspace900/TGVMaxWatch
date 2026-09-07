@@ -44,6 +44,7 @@ export default function RootLayout() {
               <Stack.Screen name="day/[date]" />
               <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="history" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="watch" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             </Stack>
           </StoreProvider>
         ) : (

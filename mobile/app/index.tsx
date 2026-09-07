@@ -10,6 +10,7 @@ import { toggleBooking } from '../src/data/booking.ts';
 import { cancelConfirmReminder } from '../src/data/reminders.ts';
 import { buildCalendar, type Train } from '../src/model.ts';
 import { ageLabel, dirLabel, hoursSince, reverseDir, watchCutoff } from '../src/format.ts';
+import { BookingList } from '../src/ui/BookingList.tsx';
 import { ConfirmCard, StatsCard } from '../src/ui/Cards.tsx';
 import { CalendarPager } from '../src/ui/CalendarPager.tsx';
 import { RailTrack } from '../src/ui/rail.tsx';
@@ -23,7 +24,8 @@ export default function CalendarScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { bundle, loading, offline, refresh, setReservations, setWatchlist } = useStore();
+  const { bundle, loading, offline, storageOk, refresh, setReservations, setWatchlist } =
+    useStore();
 
   const today = useMemo(() => todayInParis(), []);
   const calendar = useMemo(() => buildCalendar(bundle.latest), [bundle.latest]);
@@ -181,6 +183,25 @@ export default function CalendarScreen() {
           </View>
         )}
 
+        {/* Une panne du stockage local est la seule perte irreversible que cette
+            application puisse causer, et le seul endroit ou la donnee n'est pas
+            reconstituable depuis l'archive. Elle vivait dans l'ecran de
+            reglages, avec la liste des reservations ; celle-ci ayant demenage,
+            l'avertissement suit — il doit etre la ou l'on ecrit. */}
+        {!storageOk && (
+          <View
+            style={[
+              styles.banner,
+              { backgroundColor: theme.accent, marginHorizontal: space.lg, borderRadius: radius.sm },
+            ]}
+          >
+            <Text style={[typo.strong, { color: theme.onBrand, lineHeight: 18 }]}>
+              Le stockage de cet appareil est illisible. Rien n'est enregistré tant que ce n'est pas
+              résolu — restaure une sauvegarde ou réinstalle l'application.
+            </Text>
+          </View>
+        )}
+
         {/* Le seul endroit ou cette application peut couter de l'argent reel :
             au-dessus de tout le reste, et seulement quand c'est vrai. */}
         <View style={{ paddingHorizontal: space.lg }}>
@@ -201,11 +222,22 @@ export default function CalendarScreen() {
           onOpen={(date, selectedDir) =>
             router.push({ pathname: '/day/[date]', params: { date, dir: selectedDir } })
           }
-          onManage={() => router.push('/settings')}
+          onCreate={() => router.push('/watch')}
           onRemoveEntry={removeEntry}
           onRemoveRule={removeRule}
           onBook={book}
         />
+
+        <View style={{ marginTop: space.lg }}>
+          <BookingList
+            reservations={bundle.reservations}
+            today={today}
+            onOpen={(date, selectedDir) =>
+              router.push({ pathname: '/day/[date]', params: { date, dir: selectedDir } })
+            }
+            onCancel={(slot) => toggleBooking(setReservations, slot, true)}
+          />
+        </View>
 
         <RailTrack style={{ marginTop: space.lg, marginHorizontal: space.lg }} />
 

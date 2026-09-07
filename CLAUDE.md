@@ -202,6 +202,27 @@ un effet du changement d'etat, dans le fournisseur. Un marqueur distingue une
 edition locale d'un rafraichissement, sans quoi l'effet renverrait au depot ce
 qu'il vient d'en lire.
 
+**Un geste sans affordance sera oublie entre deux vagues d'usage.** Cette
+application s'ouvre beaucoup pendant une semaine puis plus rien pendant quinze
+jours : un balayage peut etre un raccourci, jamais l'unique chemin vers une
+fonction de premiere importance. Poser une surveillance a donc un bouton, et le
+creneau recurrent — dont le format et le moteur existaient depuis le debut mais
+qui ne pouvait s'ecrire qu'a la main dans le depot — a enfin un ecran.
+
+**Les reglages ne gerent rien.** Ils portaient la liste des reservations et
+celle des surveillances, avec leurs boutons : l'ecran le moins frequente charge
+des gestes qui comptent au moment ou l'on est ailleurs. Les deux vivent sur
+l'accueil, avec le meme balayage que partout. Attention en deplacant une
+section : l'avertissement de panne du stockage local vivait dans celle des
+reservations, et il est parti avec — c'est le seul endroit ou la donnee n'est
+pas reconstituable depuis l'archive, il ne peut pas rester muet. Il est
+desormais la ou l'ecriture se fait.
+
+**Un voyage passe se masque, il ne s'efface pas.** Il ne demande plus rien et
+n'a donc plus a etre affiche, mais il reste dans le stockage et dans l'export :
+effacer une donnee utilisateur en silence est exactement ce qui a deja coute une
+reservation a ce projet.
+
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
 convertir. Seul le cron est en UTC.
 

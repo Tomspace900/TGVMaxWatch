@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { DIRECTIONS } from '../../../src/config.ts';
 import { daysBetween, weekdayKey } from '../../../src/dates.ts';
 import { trainsWord } from '../../../src/label.ts';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
@@ -37,7 +38,7 @@ interface Props {
   reservations: Reservations;
   today: string;
   onOpen: (date: string, dir: string) => void;
-  onManage: () => void;
+  onCreate: () => void;
   onRemoveEntry: (entry: WatchEntry) => void;
   onRemoveRule: (rule: WatchRule) => void;
   onBook: (date: string, dir: string, train: Train, booked: boolean) => void;
@@ -50,7 +51,7 @@ export function WatchList({
   reservations,
   today,
   onOpen,
-  onManage,
+  onCreate,
   onRemoveEntry,
   onRemoveRule,
   onBook,
@@ -82,17 +83,27 @@ export function WatchList({
 
   return (
     <View style={styles.block}>
-      <Pressable onPress={onManage} style={styles.head} hitSlop={8}>
+      <View style={styles.head}>
         <Text style={[typo.title, { color: theme.text }]}>Surveillance</Text>
-        <Text style={[typo.digits, { color: theme.muted }]}>
-          {total === 0 ? 'rien' : `${total} suivi${total > 1 ? 's' : ''}`}
-        </Text>
-      </Pressable>
+        {/* Un chemin visible pour creer, et pas seulement un geste : un
+            balayage sans affordance, dans une application ouverte par vagues,
+            est un geste qu'on aura oublie a la vague suivante. */}
+        <Pressable
+          onPress={onCreate}
+          hitSlop={10}
+          style={({ pressed }) => [
+            styles.add,
+            { backgroundColor: theme.sunken, borderRadius: radius.pill, opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
+          <Text style={[typo.strong, { color: theme.text }]}>+ créneau régulier</Text>
+        </Pressable>
+      </View>
 
       {total === 0 && (
-        <Text style={[typo.body, { color: theme.muted, lineHeight: 20, marginTop: space.sm }]}>
-          Rien de surveillé : seules les deux alertes générales partiront. Ouvre un jour et balaie
-          un train vers la gauche pour le suivre.
+        <Text style={[typo.body, { color: theme.muted, lineHeight: 20 }]}>
+          Rien de surveillé : seules les deux alertes générales partiront. Balaie un train vers la
+          gauche depuis un jour, ou pose un créneau régulier ci-dessus.
         </Text>
       )}
 
@@ -105,7 +116,6 @@ export function WatchList({
           booked={booked}
           today={today}
           onOpen={onOpen}
-          onManage={onManage}
           onRemove={() => onRemoveEntry(entry)}
           onBook={onBook}
         />
@@ -126,7 +136,7 @@ export function WatchList({
             left={{ label: 'NE PLUS SUIVRE', onAction: () => onRemoveRule(rule) }}
           >
             <Pressable
-              onPress={() => (nextDate && rule.dir ? onOpen(nextDate, rule.dir) : onManage())}
+              onPress={() => nextDate && onOpen(nextDate, rule.dir ?? DIRECTIONS[0])}
               style={({ pressed }) => [
                 styles.row,
                 {
@@ -173,7 +183,6 @@ function EntryRow({
   booked,
   today,
   onOpen,
-  onManage,
   onRemove,
   onBook,
 }: {
@@ -183,7 +192,6 @@ function EntryRow({
   booked: Set<string>;
   today: string;
   onOpen: (date: string, dir: string) => void;
-  onManage: () => void;
   onRemove: () => void;
   onBook: (date: string, dir: string, train: Train, booked: boolean) => void;
 }) {
@@ -228,7 +236,7 @@ function EntryRow({
         : {})}
     >
       <Pressable
-        onPress={() => (entry.dir ? onOpen(entry.date, entry.dir) : onManage())}
+        onPress={() => onOpen(entry.date, entry.dir ?? DIRECTIONS[0])}
         style={({ pressed }) => [
           styles.row,
           {
@@ -281,7 +289,8 @@ function EntryRow({
 
 const styles = StyleSheet.create({
   block: { paddingHorizontal: space.lg, gap: space.sm },
-  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  add: { paddingHorizontal: 12, paddingVertical: 7 },
   /*
    * Le meme objet que dans la liste d'un jour.
    *

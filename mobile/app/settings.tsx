@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
-import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
 import {
   getToken,
@@ -15,12 +14,22 @@ import {
   type TokenCheck,
 } from '../src/data/github.ts';
 import { exportLocalState, parseExport } from '../src/data/local.ts';
-import { cancelConfirmReminder, syncConfirmReminders } from '../src/data/reminders.ts';
+import { syncConfirmReminders } from '../src/data/reminders.ts';
 import { currentPushState, requestPushToken, type PushState } from '../src/data/push.ts';
-import { dirLabel, instantLabel, longDate, maskToken, weekdayName } from '../src/format.ts';
+import { instantLabel, maskToken } from '../src/format.ts';
 import { Action, Actions, Note, Row, Section, Status } from '../src/ui/Settings.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
-import type { WatchEntry } from '../../src/types.ts';
+
+/*
+ * Des reglages, et plus de la gestion.
+ *
+ * Cet ecran portait la liste des reservations et celle des surveillances, avec
+ * leurs boutons — c'est-a-dire l'ecran le moins frequente de l'application
+ * charge de gestes qui comptent au moment ou l'on est ailleurs. Les deux vivent
+ * desormais sur l'accueil, avec le meme balayage que partout ailleurs. Ne reste
+ * ici que ce qui se regle une fois : notifications, jeton, sauvegarde, mises a
+ * jour, etat de l'archive.
+ */
 
 /** Chaque refus de GitHub demande un geste different : il faut donc les nommer. */
 const TOKEN_ERRORS: Record<Exclude<TokenCheck, { ok: true }>['reason'], string> = {
@@ -34,12 +43,10 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { bundle, storageOk, setWatchlist, setReservations } = useStore();
+  const { bundle, setWatchlist, setReservations } = useStore();
 
   const [message, setMessage] = useState<string | null>(null);
   const [restore, setRestore] = useState('');
-
-  const today = todayInParis();
 
   const persist = useCallback(async (path: string, value: unknown, note: string) => {
     try {
@@ -51,31 +58,6 @@ export default function SettingsScreen() {
       return false;
     }
   }, []);
-
-  // ---------------------------------------------------------------- quota
-
-  /** Le creneau disparait, et le rappel qui l'accompagnait avec lui. */
-  const release = (index: number) => {
-    const removed = bundle.reservations.slots[index];
-    setReservations((current) => ({ slots: current.slots.filter((_, i) => i !== index) }));
-    if (removed) void cancelConfirmReminder(removed);
-  };
-
-  /**
-   * « C'est confirmé ».
-   *
-   * Le champ `confirmed` etait ecrit `false` a la creation et jamais relu : il
-   * porte desormais un vrai geste, dont le seul effet visible est de faire
-   * taire un rappel devenu inutile.
-   */
-  const confirm = (index: number) => {
-    const slot = bundle.reservations.slots[index];
-    if (!slot) return;
-    setReservations((current) => ({
-      slots: current.slots.map((entry, i) => (i === index ? { ...entry, confirmed: true } : entry)),
-    }));
-    void cancelConfirmReminder(slot);
-  };
 
   // -------------------------------------------------------- notifications
 
@@ -157,21 +139,6 @@ export default function SettingsScreen() {
     setTokenError(null);
   };
 
-  // ------------------------------------------------------------- watchlist
-
-  /*
-   * Le retrait porte sur l'entree, pas sur son rang.
-   *
-   * Un index est calcule depuis le rendu precedent : deux retraits rapproches,
-   * et le second supprimait la mauvaise ligne.
-   */
-  const unwatch = (target: WatchEntry) => {
-    setWatchlist(
-      (current) => ({ ...current, watch: current.watch.filter((entry) => entry !== target) }),
-      'watchlist: retrait',
-    );
-  };
-
   // ------------------------------------------------------------ sauvegarde
 
   const exportState = () => {
@@ -218,51 +185,6 @@ export default function SettingsScreen() {
           <Text style={[styles.messageText, { color: theme.text }]}>{message}</Text>
         </View>
       )}
-
-      <Section title="Réservations">
-        {/* Une panne du stockage local est la seule perte irreversible que
-            cette application puisse causer : elle ne peut pas rester muette. */}
-        {!storageOk && (
-          <Status
-            attention
-            text="Le stockage de cet appareil est illisible. Rien n’est enregistré tant que ce n’est pas résolu — restaure une sauvegarde ou réinstalle l’application."
-          />
-        )}
-
-        {bundle.reservations.slots.length === 0 ? (
-          <Note>Aucun créneau enregistré.</Note>
-        ) : (
-          bundle.reservations.slots.map((slot, index) => (
-            <View
-              key={`${slot.date}-${slot.dir}-${slot.trainNo}`}
-              style={[styles.line, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.lineTitle, { color: theme.text }]}>
-                  {slot.depart} · {longDate(slot.date)}
-                </Text>
-                <Text style={[styles.lineSub, { color: theme.muted }]}>
-                  {dirLabel(slot.dir)} · train {slot.trainNo}
-                  {slot.date < today ? ' · passé' : slot.confirmed ? ' · confirmé' : ''}
-                </Text>
-              </View>
-
-              {/* Le geste n'a de sens que sur un voyage a venir pas encore confirme. */}
-              {slot.date >= today && !slot.confirmed && (
-                <Pressable onPress={() => confirm(index)} hitSlop={8}>
-                  <Text style={[styles.lineAction, { color: theme.text }]}>confirmé</Text>
-                </Pressable>
-              )}
-
-              <Pressable onPress={() => release(index)} hitSlop={8}>
-                <Text style={[styles.lineAction, { color: theme.muted }]}>
-                  {slot.date < today ? 'oublier' : 'libérer'}
-                </Text>
-              </Pressable>
-            </View>
-          ))
-        )}
-      </Section>
 
       <Section title="Notifications">
         {push.status === 'ready' && (
@@ -329,55 +251,6 @@ export default function SettingsScreen() {
         {push.status === 'unsupported' && (
           <Note>Indisponible ici : il faut un appareil réel et un build EAS.</Note>
         )}
-      </Section>
-
-      <Section title="Surveillance">
-        {bundle.watchlist.watch.length === 0 && bundle.watchlist.rules.length === 0 ? (
-          <Note>
-            Rien de suivi. Les deux alertes générales — une date qui rouvre, un créneau qui se vide
-            — partent quand même : elles ne dépendent d’aucune préférence.
-          </Note>
-        ) : (
-          <Note>
-            S’ajoute aux deux alertes générales, qui partent de toute façon.
-          </Note>
-        )}
-
-        {bundle.watchlist.watch.map((entry, index) => (
-          <View
-            key={`${entry.date}-${entry.after ?? ''}`}
-            style={[styles.line, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.lineTitle, { color: theme.text }]}>{longDate(entry.date)}</Text>
-              <Text style={[styles.lineSub, { color: theme.muted }]}>
-                {entry.dir ? dirLabel(entry.dir) : 'les deux sens'}
-                {entry.after ? ` · ${entry.after}` : ''}
-              </Text>
-            </View>
-            <Pressable onPress={() => unwatch(entry)} hitSlop={8}>
-              <Text style={[styles.lineAction, { color: theme.muted }]}>retirer</Text>
-            </Pressable>
-          </View>
-        ))}
-
-        {bundle.watchlist.rules.map((rule, index) => (
-          <View
-            key={`rule-${index}`}
-            style={[styles.line, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.lineTitle, { color: theme.text }]}>
-                chaque {weekdayName(rule.weekday)}
-              </Text>
-              <Text style={[styles.lineSub, { color: theme.muted }]}>
-                {rule.dir ? dirLabel(rule.dir) : 'les deux sens'}
-                {rule.after ? ` · après ${rule.after}` : ''}
-              </Text>
-            </View>
-            <Text style={[styles.lineAction, { color: theme.muted }]}>règle</Text>
-          </View>
-        ))}
       </Section>
 
       <Section title="Application">
@@ -582,14 +455,5 @@ const styles = StyleSheet.create({
   close: { ...typo.body, fontSize: 14 },
   message: { padding: space.md, marginTop: space.md },
   messageText: { ...typo.small, lineHeight: 18 },
-  line: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    padding: space.md,
-  },
-  lineTitle: { ...typo.section, fontSize: 14 },
-  lineSub: { ...typo.small, marginTop: 2 },
-  lineAction: { ...typo.strong },
   field: { ...typo.digits, padding: 13, fontSize: 13 },
 });

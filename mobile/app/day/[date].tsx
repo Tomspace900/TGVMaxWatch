@@ -109,6 +109,36 @@ export default function DayScreen() {
    * c'est le seul moment ou l'on ecrit deja, et la liste ne grandit donc jamais
    * pour rien.
    */
+  /**
+   * Surveiller la journee entiere.
+   *
+   * Une entree sans heure de depart couvre tous les trains de la date : c'est
+   * ce qu'on veut quand n'importe quel horaire ferait l'affaire. Le format le
+   * permettait depuis toujours, aucun ecran ne savait en poser une.
+   */
+  const watchedDay = bundle.watchlist.watch.some(
+    (entry) => entry.date === date && entry.dir === dir && !entry.after,
+  );
+
+  const toggleWatchDay = () => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setWatchlist(
+      (current) =>
+        pruneWatch(
+          {
+            ...current,
+            watch: watchedDay
+              ? current.watch.filter(
+                  (entry) => !(entry.date === date && entry.dir === dir && !entry.after),
+                )
+              : [...current.watch, { date, dir }],
+          },
+          watchCutoff(),
+        ),
+      `watchlist: ${watchedDay ? 'retire' : 'surveille'} ${date}`,
+    );
+  };
+
   const toggleWatch = (depart: string) => {
     const watched = isWatchedExactly(depart);
     setWatchlist(
@@ -240,6 +270,24 @@ export default function DayScreen() {
               )}
             </View>
 
+            <Pressable
+              onPress={toggleWatchDay}
+              style={({ pressed }) => [
+                styles.filter,
+                {
+                  backgroundColor: watchedDay ? theme.inverseBg : theme.sunken,
+                  borderRadius: radius.pill,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text
+                style={[typo.strong, { color: watchedDay ? theme.inverseText : theme.muted }]}
+              >
+                {watchedDay ? 'journée suivie' : 'surveiller toute la journée'}
+              </Text>
+            </Pressable>
+
             {longCount > 0 && (
               <Pressable
                 onPress={() => setHideLong((current) => !current)}
@@ -358,7 +406,7 @@ const styles = StyleSheet.create({
   steps: { flexDirection: 'row', gap: space.xs + 2 },
   step: { width: 34, height: 30, alignItems: 'center', justifyContent: 'center' },
   summary: { flexDirection: 'row', alignItems: 'center', gap: space.lg, padding: space.lg },
-  filter: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, marginTop: space.md },
+  filter: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, marginTop: space.sm },
   forecast: { padding: space.md, marginTop: space.md, overflow: 'hidden', lineHeight: 18 },
   empty: { textAlign: 'center', paddingVertical: space.xl },
   hint: { textAlign: 'center', paddingTop: space.md },

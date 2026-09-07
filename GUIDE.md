@@ -54,11 +54,21 @@ gauche pour ne plus la suivre, vers la droite pour marquer ou démarquer une
 réservation — exactement les mêmes gestes, sur exactement le même objet, que
 dans la liste des trains d'un jour.
 
+**Le bouton « + créneau régulier »** ouvre la seule chose qui ne pouvait pas se
+faire depuis l'application : poser une surveillance qui se répète. Tu choisis le
+jour de la semaine, le sens, et le créneau — matin, midi, soir, ou toute la
+journée — et l'alerte partira chaque semaine, sans rien redemander.
+
+**4. Tes réservations**, quand tu en as. Une ligne par voyage à venir, avec le
+sens et l'état de la confirmation. Balaie vers la droite pour retirer une
+réservation annulée. Les voyages passés n'y sont plus affichés : ils ne
+demandent plus rien. Ils restent dans l'appareil et dans l'export.
+
 **Ce qui est parti disparaît tout seul.** Une heure après le départ d'un train
 suivi, sa ligne s'en va : elle ne dit plus rien, et la liste s'allongerait
 indéfiniment. Le fichier, lui, se nettoie à la prochaine modification.
 
-**4. Le calendrier.** Trente jours, une case par jour. **Plus la case est
+**5. Le calendrier.** Trente jours, une case par jour. **Plus la case est
 colorée, plus il y a de trains ouverts.** Une case grise veut dire aucun train
 ce jour-là, dans le sens affiché. Deux nombres par case et pas un de plus : le
 quantième, et le compte.
@@ -68,7 +78,7 @@ Il est là, et plus tout en haut de l'écran, parce qu'il ne gouverne que le
 calendrier. **Glisse horizontalement sur la grille pour changer de sens**, le
 sélecteur suit ton doigt.
 
-**5. Érosion et prévisions** — apparaît seulement quand il y a assez de recul.
+**6. Érosion et prévisions** — apparaît seulement quand il y a assez de recul.
 
 ### L'écran d'un jour
 
@@ -76,6 +86,9 @@ En haut, une barre qui ne bouge pas : le retour au calendrier, la date, et
 **deux flèches pour passer au jour précédent ou suivant** sans repasser par le
 calendrier — c'est le geste qu'on fait vraiment quand un créneau ne convient
 pas.
+
+Un bouton **« surveiller toute la journée »** pose une surveillance sur la date
+entière, quand n'importe quel horaire ferait l'affaire.
 
 Ensuite le total : combien de trains sont ouverts, sur combien qui circulent,
 une courbe de l'évolution, et — quand il y a assez d'historique — une phrase du
@@ -124,11 +137,9 @@ pas senti, rien n'est validé.
 
 ### Dans les réglages
 
-- **Voir et libérer tes réservations.** Marquer une réservation « confirmé »
-  éteint son rappel. « Libérer » retire le créneau, « oublier » efface un
-  voyage passé. Le compteur de quota a disparu : ce nombre-là se tient de tête,
-  et il prenait la place de ce qui compte vraiment.
-- **Voir et retirer ce que tu surveilles.**
+Il n'y reste que ce qui se règle une fois. Tes réservations et tes
+surveillances sont sur l'accueil, là où tu es quand elles comptent.
+
 - **Activer les notifications**, une seule fois.
 - **Exporter tes données** pour changer de téléphone, et les restaurer.
 - **Enregistrer ton jeton GitHub**, une seule fois. Il est vérifié avant d'être
