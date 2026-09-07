@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-06T10:58:47.984Z",
-  "snapshotCount": 6,
+  "generatedAt": "2026-09-07T12:34:51.415Z",
+  "snapshotCount": 7,
   "ready": {
     "burnRate": true,
     "reopen": true,
@@ -29,21 +29,21 @@
       "sample": 5
     },
     "8478": {
-      "closed": 7,
+      "closed": 8,
       "reopened": 2,
-      "rate": 0.2857142857142857,
-      "sample": 7
+      "rate": 0.25,
+      "sample": 8
     },
     "8483": {
       "closed": 5,
-      "reopened": 2,
-      "rate": 0.4,
+      "reopened": 4,
+      "rate": 0.8,
       "sample": 5
     },
     "8500": {
       "closed": 8,
-      "reopened": 2,
-      "rate": 0.25,
+      "reopened": 3,
+      "rate": 0.375,
       "sample": 8
     },
     "8501": {
@@ -54,8 +54,8 @@
     },
     "8516": {
       "closed": 10,
-      "reopened": 2,
-      "rate": 0.2,
+      "reopened": 3,
+      "rate": 0.3,
       "sample": 10
     },
     "8530": {
@@ -72,8 +72,8 @@
     },
     "8544": {
       "closed": 8,
-      "reopened": 1,
-      "rate": 0.125,
+      "reopened": 2,
+      "rate": 0.25,
       "sample": 8
     },
     "8549": {
@@ -90,20 +90,20 @@
     },
     "8580": {
       "closed": 6,
-      "reopened": 4,
-      "rate": 0.6666666666666666,
+      "reopened": 5,
+      "rate": 0.8333333333333334,
       "sample": 6
     },
     "8582": {
       "closed": 5,
-      "reopened": 2,
-      "rate": 0.4,
+      "reopened": 4,
+      "rate": 0.8,
       "sample": 5
     },
     "8584": {
       "closed": 11,
-      "reopened": 2,
-      "rate": 0.18181818181818182,
+      "reopened": 3,
+      "rate": 0.2727272727272727,
       "sample": 11
     }
   },
