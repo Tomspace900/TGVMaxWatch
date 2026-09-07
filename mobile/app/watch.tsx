@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { DIRECTIONS } from '../../src/config.ts';
+import { DAY_PERIODS } from '../../src/periods.ts';
 import { pruneWatch } from '../../src/watchlist.ts';
 import { useStore } from '../src/data/store.ts';
 import { dirLabel, watchCutoff, weekdayName } from '../src/format.ts';
@@ -11,7 +12,7 @@ import { radius, space, typo, useTheme } from '../src/theme.ts';
 import type { Weekday, WatchRule } from '../../src/types.ts';
 
 /**
- * Creer une surveillance recurrente.
+ * Creer un suivi recurrent.
  *
  * Le format `{jour de semaine, sens, fenetre horaire}` et le moteur qui le lit
  * existaient depuis le debut ; il n'y avait simplement aucun ecran pour en
@@ -23,18 +24,16 @@ import type { Weekday, WatchRule } from '../../src/types.ts';
 const WEEKDAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 /**
- * Creneaux nommes plutot qu'un selecteur d'heure.
+ * Les memes periodes que les raccourcis d'une journee, plus « tout ».
  *
- * Personne ne pense « apres 16h07 » : on pense « le vendredi soir ». Quatre
- * choix couvrent la facon dont un deplacement se decide, et les bornes restent
- * affichees pour que le raccourci ne cache jamais ce qu'il fait.
+ * La table vit dans `src/periods.ts` : deux ecrans nomment les memes moments,
+ * et deux tables qui divergeraient d'une heure seraient impossibles a
+ * diagnostiquer depuis l'ecran.
  */
-const SLOTS = [
-  { key: 'matin', label: 'matin', after: '05:00', before: '11:59' },
-  { key: 'midi', label: 'midi', after: '12:00', before: '15:59' },
-  { key: 'soir', label: 'soir', after: '16:00', before: '22:59' },
-  { key: 'jour', label: 'toute la journée', after: undefined, before: undefined },
-] as const;
+const SLOTS: readonly { key: string; label: string; after?: string; before?: string }[] = [
+  ...DAY_PERIODS,
+  { key: 'jour', label: 'toute la journée' },
+];
 
 export default function WatchScreen() {
   const theme = useTheme();
@@ -85,7 +84,7 @@ export default function WatchScreen() {
       }}
     >
       <View style={styles.head}>
-        <Text style={[typo.hero, { color: theme.text }]}>Surveiller</Text>
+        <Text style={[typo.hero, { color: theme.text }]}>Suivre</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={[typo.body, { color: theme.muted }]}>fermer</Text>
         </Pressable>
@@ -93,7 +92,8 @@ export default function WatchScreen() {
 
       <Text style={[typo.small, styles.intro, { color: theme.muted }]}>
         Une alerte partira chaque fois qu'un train de ce créneau s'ouvre ou se ferme, semaine après
-        semaine. Rien à refaire.
+        semaine. Rien à refaire. Les périodes se recouvrent d'une heure : un départ de fin de
+        matinée compte dans le matin comme dans le midi.
       </Text>
 
       <Field label="Jour">
@@ -127,7 +127,7 @@ export default function WatchScreen() {
         </View>
       </Field>
 
-      <Field label="Créneau">
+      <Field label="Période">
         <View style={styles.chips}>
           {SLOTS.map((entry, index) => (
             <Chip
@@ -156,7 +156,7 @@ export default function WatchScreen() {
         ]}
       >
         <Text style={[typo.section, { color: theme.onBrand }]}>
-          {already ? 'Cette surveillance existe déjà' : `Surveiller les ${weekdayName(weekday)}s`}
+          {already ? 'Ce créneau est déjà suivi' : `Suivre les ${weekdayName(weekday)}s`}
         </Text>
       </Pressable>
     </ScrollView>

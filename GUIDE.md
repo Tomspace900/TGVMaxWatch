@@ -36,10 +36,11 @@ tout, il le dit autrement — ce ne sont pas les mêmes situations.
 
 **2. Une réservation à confirmer**, quand l'échéance approche. Voir plus bas.
 
-**3. La surveillance — c'est le cœur, donc c'est en haut.** Tout ce que tu
-suis, en entier, jamais tronqué. Chaque ligne porte :
+**3. Le suivi — c'est le cœur, donc c'est en haut.** Tout ce que tu suis, en
+entier, jamais tronqué. Chaque ligne porte :
 
-- l'heure du train suivi, ou **JOUR** si tu suis la journée entière, ou
+- l'heure du train suivi, le nom de la période (**MATIN**, **SOIR**…) si tu
+  suis un moment de la journée, **JOUR** si tu suis la journée entière, ou
   **RÈGLE** si c'est un créneau récurrent ;
 - la date, et **à combien de jours du départ on est** — « complet » à J-20 et
   « complet » à J-2 ne se lisent pas pareil ;
@@ -55,7 +56,7 @@ réservation — exactement les mêmes gestes, sur exactement le même objet, qu
 dans la liste des trains d'un jour.
 
 **Le bouton « + créneau régulier »** ouvre la seule chose qui ne pouvait pas se
-faire depuis l'application : poser une surveillance qui se répète. Tu choisis le
+faire depuis l'application : poser un suivi qui se répète. Tu choisis le
 jour de la semaine, le sens, et le créneau — matin, midi, soir, ou toute la
 journée — et l'alerte partira chaque semaine, sans rien redemander.
 
@@ -87,8 +88,11 @@ En haut, une barre qui ne bouge pas : le retour au calendrier, la date, et
 calendrier — c'est le geste qu'on fait vraiment quand un créneau ne convient
 pas.
 
-Un bouton **« surveiller toute la journée »** pose une surveillance sur la date
-entière, quand n'importe quel horaire ferait l'affaire.
+Une rangée **SUIVRE** pose un suivi d'un geste : toute la journée, ou seulement
+le matin, le midi, l'après-midi ou le soir. **Les périodes se recouvrent d'une
+heure** — un départ à 11 h 30 compte dans le matin comme dans le midi : avec des
+bornes jointives, on manquerait le train cherché pour trente minutes sans jamais
+comprendre pourquoi.
 
 Ensuite le total : combien de trains sont ouverts, sur combien qui circulent,
 une courbe de l'évolution, et — quand il y a assez d'historique — une phrase du
@@ -106,10 +110,13 @@ Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
 - **la durée du trajet** — sur cet axe les temps vont de 2 h 05 à 3 h 30 pour le
   même prix ; « 3h12 » à côté de « 2h05 » se lit tout seul, sans qu'on ait
   besoin de le peindre en rouge ;
+- **une petite frise à droite** : les sept derniers jours de collecte, plein
+  quand le train était ouvert au TGVmax. C'est là qu'on voit un train qui tient
+  depuis une semaine et un train qui vient de rouvrir ;
 - **un mot, quand l'archive a quelque chose à dire** : `VIENT DE ROUVRIR` ou
   `OUVERT · INSTABLE`. Rien le reste du temps — un train ouvert qui l'était
-  déjà hier ne mérite pas qu'on l'écrive sur trente-cinq lignes. L'état complet
-  de chaque créneau suivi se lit dans le bloc Surveillance de l'accueil ;
+  déjà hier ne mérite pas qu'on l'écrive sur trente-cinq lignes ;
+- **`+ DE 3 H`** sur les trajets longs ;
 - un badge **suivi** ou **réservé** si tu l'as marqué — « réservé » est en
   couleur, parce que c'est le seul des deux qui t'engage ;
 - un train fermé est barré et grisé.
@@ -137,8 +144,8 @@ pas senti, rien n'est validé.
 
 ### Dans les réglages
 
-Il n'y reste que ce qui se règle une fois. Tes réservations et tes
-surveillances sont sur l'accueil, là où tu es quand elles comptent.
+Il n'y reste que ce qui se règle une fois. Tes réservations et ton suivi sont
+sur l'accueil, là où tu es quand ils comptent.
 
 - **Activer les notifications**, une seule fois.
 - **Exporter tes données** pour changer de téléphone, et les restaurer.

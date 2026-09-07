@@ -27,7 +27,7 @@ interface Props {
 /**
  * Une ligne qu'on ecarte du doigt pour agir.
  *
- * Le geste vivait dans la ligne de train ; la liste de surveillance le voulait
+ * Le geste vivait dans la ligne de train ; la liste des suivis le voulait
  * aussi, avec les memes seuils, la meme resistance et les memes retours
  * haptiques. Deux implementations du meme geste, c'est deux gestes a l'usage :
  * il suffit que l'une derive de dix pixels pour que la main sente la difference

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DIRECTIONS } from '../../../src/config.ts';
 import { daysBetween, weekdayKey } from '../../../src/dates.ts';
 import { trainsWord } from '../../../src/label.ts';
+import { periodOf } from '../../../src/periods.ts';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
 import { isExpired } from '../../../src/watchlist.ts';
 import { dirLabel, longDate, watchCutoff, weekdayName } from '../format.ts';
@@ -19,7 +20,7 @@ import type {
 } from '../../../src/types.ts';
 
 /**
- * Ce qui est surveille, en entier et en tete de l'ecran.
+ * Ce qui est suivi, en entier et en tete de l'ecran.
  *
  * C'est le coeur du produit, et il vivait dans une carte de quatre lignes sous
  * trente cases de calendrier, tronquee sans le dire, sans le sens de chaque
@@ -29,6 +30,10 @@ import type {
  * Les memes gestes que dans la liste d'un jour : vers la gauche pour ne plus
  * suivre, vers la droite apres avoir reserve. Un geste qui marche a un endroit
  * et pas a l'autre est un geste qu'on cesse d'essayer.
+ *
+ * Le bloc s'appelait « Surveillance ». Le geste, lui, a toujours dit « suivre »
+ * et le badge « suivi » : le titre etait le seul endroit ou l'application
+ * parlait une autre langue qu'elle-meme.
  */
 
 interface Props {
@@ -84,7 +89,7 @@ export function WatchList({
   return (
     <View style={styles.block}>
       <View style={styles.head}>
-        <Text style={[typo.title, { color: theme.text }]}>Surveillance</Text>
+        <Text style={[typo.title, { color: theme.text }]}>Suivi</Text>
         {/* Un chemin visible pour creer, et pas seulement un geste : un
             balayage sans affordance, dans une application ouverte par vagues,
             est un geste qu'on aura oublie a la vague suivante. */}
@@ -102,7 +107,7 @@ export function WatchList({
 
       {total === 0 && (
         <Text style={[typo.body, { color: theme.muted, lineHeight: 20 }]}>
-          Rien de surveillé : seules les deux alertes générales partiront. Balaie un train vers la
+          Rien de suivi : seules les deux alertes générales partiront. Balaie un train vers la
           gauche depuis un jour, ou pose un créneau régulier ci-dessus.
         </Text>
       )}
@@ -198,7 +203,13 @@ function EntryRow({
   const theme = useTheme();
 
   const day = entry.dir ? calendar.get(entry.date)?.get(entry.dir) : undefined;
-  const train = entry.after ? day?.trains.find((item) => item.depart === entry.after) : undefined;
+  const period = periodOf(entry.after, entry.before);
+  // Une periode couvre plusieurs trains : c'est le compte du jour qui repond,
+  // pas l'etat d'un train. Seule une fenetre fermee designe un train.
+  const train =
+    entry.after && entry.after === entry.before
+      ? day?.trains.find((item) => item.depart === entry.after)
+      : undefined;
 
   /*
    * Une entree porte une heure de depart : ce qu'on veut savoir devant elle,
@@ -247,7 +258,14 @@ function EntryRow({
           },
         ]}
       >
-        {entry.after ? (
+        {/* Une fenetre qui couvre une periode connue se relit par son nom :
+            « matin » plutot que « 05:00 ». Une fenetre fermee sur une minute est
+            un train precis, et son heure est ce qu'on cherche. */}
+        {period ? (
+          <Text style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}>
+            {period.label.toUpperCase()}
+          </Text>
+        ) : entry.after ? (
           <Text style={[typo.clock, styles.leadTime, { color: theme.text }]}>{entry.after}</Text>
         ) : (
           <Text style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}>

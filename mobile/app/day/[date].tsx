@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { DIRECTIONS, HORIZON_DAYS } from '../../../src/config.ts';
 import { addDays, todayInParis, weekday } from '../../../src/dates.ts';
 import { trainsWord } from '../../../src/label.ts';
+import { DAY_PERIODS } from '../../../src/periods.ts';
 import { slotOf } from '../../../src/stats.ts';
 import { matchesWatchlist, pruneWatch } from '../../../src/watchlist.ts';
 import { useStore } from '../../src/data/store.ts';
@@ -91,71 +92,61 @@ export default function DayScreen() {
   const isWatched = (depart: string) =>
     matchesWatchlist(bundle.watchlist, { date, dir, depart });
 
-  /** Une entree posee sur ce train precis, par opposition a une regle qui le couvre. */
-  const isWatchedExactly = (depart: string) =>
+  /**
+   * Une entree de suivi posee sur cette date et ce sens, avec cette fenetre.
+   *
+   * L'egalite porte sur les bornes, pas sur ce qu'elles couvrent : suivre « le
+   * matin » et suivre le train de 07h12 sont deux entrees distinctes, et
+   * retirer l'une ne doit pas emporter l'autre.
+   */
+  const watchedWindow = (after?: string, before?: string) =>
     bundle.watchlist.watch.some(
-      (entry) => entry.date === date && entry.dir === dir && entry.after === depart,
+      (entry) =>
+        entry.date === date &&
+        entry.dir === dir &&
+        entry.after === after &&
+        entry.before === before,
     );
 
   /**
-   * Surveiller un train depuis son balayage.
+   * Poser ou retirer un suivi sur cette date.
    *
-   * La fenetre est fermee des deux cotes sur l'heure de depart : avec le seul
-   * `after`, l'entree se lirait « previens-moi pour tout train apres 06h06 » et
-   * couvrirait la journee entiere. Le geste bascule, pour qu'une repetition ne
-   * cree pas de doublon.
+   * Une seule fonction pour les trois formes : un train precis (fenetre fermee
+   * sur son heure), une periode de la journee, ou la journee entiere (aucune
+   * borne). Elles ne different que par la fenetre — les separer en trois gestes
+   * aurait fait trois occasions de diverger.
    *
    * Chaque ecriture emporte au passage les entrees dont le train est parti :
    * c'est le seul moment ou l'on ecrit deja, et la liste ne grandit donc jamais
    * pour rien.
    */
-  /**
-   * Surveiller la journee entiere.
-   *
-   * Une entree sans heure de depart couvre tous les trains de la date : c'est
-   * ce qu'on veut quand n'importe quel horaire ferait l'affaire. Le format le
-   * permettait depuis toujours, aucun ecran ne savait en poser une.
-   */
-  const watchedDay = bundle.watchlist.watch.some(
-    (entry) => entry.date === date && entry.dir === dir && !entry.after,
-  );
-
-  const toggleWatchDay = () => {
+  const toggleWatchWindow = (after?: string, before?: string, label = 'la journee') => {
+    const already = watchedWindow(after, before);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setWatchlist(
-      (current) =>
-        pruneWatch(
-          {
-            ...current,
-            watch: watchedDay
-              ? current.watch.filter(
-                  (entry) => !(entry.date === date && entry.dir === dir && !entry.after),
-                )
-              : [...current.watch, { date, dir }],
-          },
-          watchCutoff(),
-        ),
-      `watchlist: ${watchedDay ? 'retire' : 'surveille'} ${date}`,
-    );
-  };
 
-  const toggleWatch = (depart: string) => {
-    const watched = isWatchedExactly(depart);
     setWatchlist(
       (current) =>
         pruneWatch(
           {
             ...current,
-            watch: watched
+            watch: already
               ? current.watch.filter(
                   (entry) =>
-                    !(entry.date === date && entry.dir === dir && entry.after === depart),
+                    !(
+                      entry.date === date &&
+                      entry.dir === dir &&
+                      entry.after === after &&
+                      entry.before === before
+                    ),
                 )
-              : [...current.watch, { date, dir, after: depart, before: depart }],
+              : [
+                  ...current.watch,
+                  { date, dir, ...(after ? { after } : {}), ...(before ? { before } : {}) },
+                ],
           },
           watchCutoff(),
         ),
-      `watchlist: ${watched ? 'retire' : 'surveille'} ${date} ${depart}`,
+      `watchlist: ${already ? 'retire' : 'suit'} ${date} ${label}`,
     );
   };
 
@@ -270,44 +261,38 @@ export default function DayScreen() {
               )}
             </View>
 
-            <Pressable
-              onPress={toggleWatchDay}
-              style={({ pressed }) => [
-                styles.filter,
-                {
-                  backgroundColor: watchedDay ? theme.inverseBg : theme.sunken,
-                  borderRadius: radius.pill,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Text
-                style={[typo.strong, { color: watchedDay ? theme.inverseText : theme.muted }]}
-              >
-                {watchedDay ? 'journée suivie' : 'surveiller toute la journée'}
-              </Text>
-            </Pressable>
+            {/* Suivre un moment de la journee plutot qu'un train : c'est la
+                maille a laquelle on decide un deplacement — « je descends
+                vendredi soir », pas « je prends le 19h04 ». */}
+            <Text style={[typo.chip, { color: theme.muted, marginTop: space.lg }]}>SUIVRE</Text>
+            <View style={styles.pills}>
+              <Pill
+                label="toute la journée"
+                active={watchedWindow()}
+                onPress={() => toggleWatchWindow()}
+              />
+              {DAY_PERIODS.map((period) => (
+                <Pill
+                  key={period.key}
+                  label={period.label}
+                  active={watchedWindow(period.after, period.before)}
+                  onPress={() => toggleWatchWindow(period.after, period.before, period.label)}
+                />
+              ))}
+            </View>
 
             {longCount > 0 && (
-              <Pressable
-                onPress={() => setHideLong((current) => !current)}
-                style={({ pressed }) => [
-                  styles.filter,
-                  {
-                    backgroundColor: hideLong ? theme.inverseBg : theme.sunken,
-                    borderRadius: radius.pill,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Text
-                  style={[typo.strong, { color: hideLong ? theme.inverseText : theme.muted }]}
-                >
-                  {hideLong
-                    ? `${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h masqué${longCount > 1 ? 's' : ''}`
-                    : `masquer les ${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h`}
-                </Text>
-              </Pressable>
+              <View style={[styles.pills, { marginTop: space.md }]}>
+                <Pill
+                  label={
+                    hideLong
+                      ? `${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h masqué${longCount > 1 ? 's' : ''}`
+                      : `masquer les ${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h`
+                  }
+                  active={hideLong}
+                  onPress={() => setHideLong((current) => !current)}
+                />
+              </View>
             )}
 
             {forecast && (
@@ -329,7 +314,7 @@ export default function DayScreen() {
             watched={isWatched(item.depart)}
             booked={booked.has(item.trainNo)}
             trace={traces[item.trainNo]}
-            onWatch={() => toggleWatch(item.depart)}
+            onWatch={() => toggleWatchWindow(item.depart, item.depart, item.depart)}
             onBook={() => book(item)}
           />
         )}
@@ -343,7 +328,9 @@ export default function DayScreen() {
         ListFooterComponent={
           shown.length === 0 ? null : (
             <Text style={[typo.small, styles.hint, { color: theme.muted }]}>
-              Glisser vers la gauche pour surveiller, vers la droite après avoir réservé.
+              Glisser vers la gauche pour suivre, vers la droite après avoir réservé.
+              {'\n'}À droite de chaque ligne, les sept derniers jours de collecte : plein = ouvert
+              au TGVmax.
             </Text>
           )
         }
@@ -368,6 +355,36 @@ export default function DayScreen() {
         </View>
       </StickyBar>
     </View>
+  );
+}
+
+function Pill({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.pill,
+        {
+          backgroundColor: active ? theme.inverseBg : theme.sunken,
+          borderRadius: radius.pill,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <Text style={[typo.strong, { color: active ? theme.inverseText : theme.muted }]}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -406,7 +423,8 @@ const styles = StyleSheet.create({
   steps: { flexDirection: 'row', gap: space.xs + 2 },
   step: { width: 34, height: 30, alignItems: 'center', justifyContent: 'center' },
   summary: { flexDirection: 'row', alignItems: 'center', gap: space.lg, padding: space.lg },
-  filter: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, marginTop: space.sm },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm },
+  pill: { paddingHorizontal: 12, paddingVertical: 7 },
   forecast: { padding: space.md, marginTop: space.md, overflow: 'hidden', lineHeight: 18 },
   empty: { textAlign: 'center', paddingVertical: space.xl },
   hint: { textAlign: 'center', paddingTop: space.md },

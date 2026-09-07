@@ -3,6 +3,7 @@ import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
 import { formatDuration } from '../format.ts';
 import type { Train } from '../model.ts';
 import { SwipeRow } from './SwipeRow.tsx';
+import { Trace } from './Trace.tsx';
 import { radius, space, typo, useTheme } from '../theme.ts';
 
 interface Props {
@@ -25,11 +26,12 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
    * une legende permanente et pres de mille vues pour dire, la plupart du
    * temps, « ouvert, comme hier ». Le verdict ne parait donc que sur les deux
    * cas qui decident : un train qui vient de rouvrir, et un train qui bascule
-   * sans arret. Le reste se lit dans l'ecran de surveillance, ou l'on regarde
+   * sans arret. Le reste se lit dans le bloc « Suivi » de l'accueil, ou l'on regarde
    * six lignes et non trente-cinq.
    */
   const verdict = traceVerdict(trace);
   const dim = !train.available;
+  const long = train.tier === 'long';
 
   return (
     <View style={styles.wrap}>
@@ -67,21 +69,31 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
               <Text style={[typo.digits, { color: theme.muted, opacity: 0.75 }]}>
                 {train.trainNo}
               </Text>
+              {/* Un trajet long se nomme, il ne se peint pas : la couleur reste
+                  a la disponibilite, et un quart des trains ouverts depassent
+                  trois heures — un signal si frequent serait un fond. */}
+              {long && (
+                <Text style={[typo.chip, styles.chip, styles.outline, { color: theme.muted, borderColor: theme.lineStrong }]}>
+                  + DE 3 H
+                </Text>
+              )}
               {isNotable(verdict) && (
-                <Text style={[typo.chip, styles.chip, { color: theme.text, borderColor: theme.lineStrong, borderWidth: 1 }]}>
+                <Text style={[typo.chip, styles.chip, styles.outline, { color: theme.text, borderColor: theme.lineStrong }]}>
                   {verdictLabel(verdict).toUpperCase()}
                 </Text>
               )}
             </View>
           </View>
 
-          {/* Un trajet long n'est pas une anomalie a signaler : sur cet axe,
-              c'est un mauvais choix par defaut, et un quart des trains ouverts
-              depassent trois heures. Le chiffre suffit ; pour les ecarter, il y
-              a un filtre. */}
-          <Text style={[typo.digits, styles.duration, { color: dim ? theme.muted : theme.text }]}>
-            {formatDuration(train.durationMin)}
-          </Text>
+          {/* La duree et le passe recent, empiles a droite : les deux
+              s'alignent verticalement d'une ligne a l'autre, ce qui les rend
+              comparables d'un coup d'oeil sur toute la liste. */}
+          <View style={styles.right}>
+            <Text style={[typo.digits, styles.duration, { color: dim ? theme.muted : theme.text }]}>
+              {formatDuration(train.durationMin)}
+            </Text>
+            {trace && <Trace trace={trace} />}
+          </View>
         </View>
       </SwipeRow>
     </View>
@@ -142,5 +154,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
+  right: { alignItems: 'flex-end' },
   duration: { minWidth: 40, textAlign: 'right' },
+  outline: { borderWidth: 1 },
 });

@@ -23,7 +23,7 @@ import { radius, space, typo, useTheme } from '../src/theme.ts';
 /*
  * Des reglages, et plus de la gestion.
  *
- * Cet ecran portait la liste des reservations et celle des surveillances, avec
+ * Cet ecran portait la liste des reservations et celle des suivis, avec
  * leurs boutons — c'est-a-dire l'ecran le moins frequente de l'application
  * charge de gestes qui comptent au moment ou l'on est ailleurs. Les deux vivent
  * desormais sur l'accueil, avec le meme balayage que partout ailleurs. Ne reste
@@ -311,7 +311,7 @@ export default function SettingsScreen() {
       <Section title="Sauvegarde">
         <Note>
           Tes réservations vivent sur cet appareil et nulle part ailleurs. L’export les copie, avec
-          la surveillance, dans un texte que tu partages où tu veux. Sans export récent, un
+          ton suivi, dans un texte que tu partages où tu veux. Sans export récent, un
           téléphone perdu emporte la liste — les réservations elles-mêmes restent chez SNCF.
         </Note>
 
@@ -366,7 +366,7 @@ export default function SettingsScreen() {
           <>
             <Note>
               Un PAT fine-grained avec Contents: write sur ce seul dépôt. Il sert à écrire ta
-              surveillance depuis le téléphone — la lecture, elle, n’en a pas besoin.
+              suivi depuis le téléphone — la lecture, elle, n’en a pas besoin.
             </Note>
             <Action
               label="Enregistrer un jeton"

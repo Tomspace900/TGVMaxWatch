@@ -209,7 +209,7 @@ export default function CalendarScreen() {
         </View>
 
         {/* Ce qu'on vient chercher est en haut.
-            La surveillance repond a la question de la session de trente
+            Le suivi repond a la question de la session de trente
             secondes — « mon creneau, ou en est-il ? » — et se trouvait apres
             trente cases de calendrier. Le calendrier sert a *trouver* une date,
             ce qui vient ensuite dans l'ordre du besoin, pas avant. */}
@@ -243,7 +243,7 @@ export default function CalendarScreen() {
 
         {/* Le selecteur de sens vit avec ce qu'il gouverne.
             Il etait epingle en haut de l'ecran, ou il surplombait desormais un
-            bloc qu'il ne filtre pas — chaque ligne de surveillance porte son
+            bloc qu'il ne filtre pas — chaque ligne de suivi porte son
             propre sens. Et il n'y avait rien a gagner a l'epingler : la grille
             fait cinq rangees, il reste visible tout le temps qu'on la regarde.
             La barre fixe garde son sens sur l'ecran d'un jour, ou la liste fait

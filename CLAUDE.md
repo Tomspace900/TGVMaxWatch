@@ -223,6 +223,25 @@ n'a donc plus a etre affiche, mais il reste dans le stockage et dans l'export :
 effacer une donnee utilisateur en silence est exactement ce qui a deja coute une
 reservation a ce projet.
 
+**Les periodes de la journee se recouvrent d'une heure, et c'est le point.** Un
+depart a 11h30 est autant une fin de matinee qu'un debut de midi : avec des
+bornes jointives, quelqu'un qui suit « le matin » manque ce train pour trente
+minutes sans jamais comprendre pourquoi. Le recouvrement coute quelques trains
+suivis en trop, la coupure nette coute celui qu'on cherchait. La table vit dans
+`src/periods.ts` parce que deux ecrans la lisent — le formulaire recurrent et
+les raccourcis d'une journee — et que deux tables divergeant d'une heure seraient
+indiagnosticables depuis l'ecran.
+
+**Le verdict ne remplace pas entierement la frise.** Retirer les trente cellules
+etait juste ; ne plus rien montrer sur les lignes « stables » l'etait moins,
+puisque la ligne cessait de dire quoi que ce soit de son passe. Sept jours
+suffisent a repondre a « est-ce que ca tient ? » et coutent sept fois moins que
+trente. Le mot reste pour les deux cas qui decident.
+
+**Le titre d'un bloc doit dire le mot du geste qui le remplit.** Le bloc
+s'appelait « Surveillance », le geste disait « suivre » et le badge « suivi » :
+l'application parlait deux langues sur le meme objet.
+
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
 convertir. Seul le cron est en UTC.
 
@@ -336,7 +355,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 95 tests sur fixtures, aucun acces reseau
+npm test              # 99 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
