@@ -6,22 +6,23 @@ import { useRouter } from 'expo-router';
 import { DIRECTIONS, STALE_ALARM_HOURS, STALE_DATA_HOURS } from '../../src/config.ts';
 import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
-import { cancelConfirmReminder } from '../src/data/reminders.ts';
-import { buildCalendar } from '../src/model.ts';
-import { ageLabel, dirLabel, hoursSince, reverseDir } from '../src/format.ts';
+import { cancelConfirmReminder, scheduleConfirmReminder } from '../src/data/reminders.ts';
+import { buildCalendar, type Train } from '../src/model.ts';
+import { ageLabel, dirLabel, hoursSince, reverseDir, watchCutoff } from '../src/format.ts';
 import { ConfirmCard, StatsCard } from '../src/ui/Cards.tsx';
 import { CalendarPager } from '../src/ui/CalendarPager.tsx';
 import { RailTrack } from '../src/ui/rail.tsx';
 import { Segmented } from '../src/ui/Segmented.tsx';
 import { WatchList } from '../src/ui/WatchList.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
-import type { Reservation } from '../../src/types.ts';
+import { pruneWatch } from '../../src/watchlist.ts';
+import type { Reservation, WatchEntry, WatchRule } from '../../src/types.ts';
 
 export default function CalendarScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { bundle, loading, offline, refresh, setReservations } = useStore();
+  const { bundle, loading, offline, refresh, setReservations, setWatchlist } = useStore();
 
   const today = useMemo(() => todayInParis(), []);
   const calendar = useMemo(() => buildCalendar(bundle.latest), [bundle.latest]);
@@ -68,6 +69,49 @@ export default function CalendarScreen() {
    */
   const alarm = age !== null && age > STALE_ALARM_HOURS;
   const stale = age !== null && age > STALE_DATA_HOURS;
+
+  /*
+   * Les memes gestes que dans la liste d'un jour.
+   *
+   * Chaque ecriture emporte au passage les entrees dont le train est parti :
+   * c'est le seul moment ou l'on ecrit deja dans le depot, et la liste ne
+   * grandit donc jamais pour rien.
+   */
+  const removeEntry = (target: WatchEntry) => {
+    setWatchlist(
+      (current) =>
+        pruneWatch(
+          { ...current, watch: current.watch.filter((entry) => entry !== target) },
+          watchCutoff(),
+        ),
+      `watchlist: retire ${target.date}${target.after ? ` ${target.after}` : ''}`,
+    );
+  };
+
+  const removeRule = (target: WatchRule) => {
+    setWatchlist(
+      (current) =>
+        pruneWatch(
+          { ...current, rules: current.rules.filter((rule) => rule !== target) },
+          watchCutoff(),
+        ),
+      `watchlist: retire la regle ${target.weekday}`,
+    );
+  };
+
+  const book = (date: string, bookedDir: string, train: Train) => {
+    const slot = {
+      date,
+      dir: bookedDir,
+      trainNo: train.trainNo,
+      depart: train.depart,
+      arrivee: train.arrivee,
+      bookedAt: today,
+      confirmed: false,
+    };
+    setReservations((current) => ({ slots: [...current.slots, slot] }));
+    void scheduleConfirmReminder(slot);
+  };
 
   /** « C'est fait » : le creneau est confirme, et le rappel qui l'accompagnait se tait. */
   const markConfirmed = (slot: Reservation) => {
@@ -149,11 +193,15 @@ export default function CalendarScreen() {
           watchlist={bundle.watchlist}
           calendar={calendar}
           trains={bundle.trains}
+          reservations={bundle.reservations}
           today={today}
           onOpen={(date, selectedDir) =>
             router.push({ pathname: '/day/[date]', params: { date, dir: selectedDir } })
           }
           onManage={() => router.push('/settings')}
+          onRemoveEntry={removeEntry}
+          onRemoveRule={removeRule}
+          onBook={book}
         />
 
         <RailTrack style={{ marginTop: space.lg, marginHorizontal: space.lg }} />

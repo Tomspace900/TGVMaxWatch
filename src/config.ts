@@ -101,6 +101,24 @@ export const CONFIRM_REMINDER_HOUR = 10;
  */
 export const CONFIRM_URL = 'https://www.maxjeune-tgvinoui.sncf/sncf-connect/mes-voyages';
 
+/**
+ * Fenetre pendant laquelle une reservation peut etre confirmee.
+ *
+ * La confirmation n'ouvre que 48 h avant le depart : rappeler plus tot n'aide
+ * pas, ca demande une action encore impossible. C'est ce qui borne l'apparition
+ * de la carte de confirmation, et non plus une distance a l'echeance.
+ */
+export const CONFIRM_WINDOW_HOURS = 48;
+
+/**
+ * Delai apres lequel une entree de surveillance passee cesse d'exister.
+ *
+ * Le train est parti : la ligne ne dit plus rien, et la liste s'allongerait
+ * indefiniment. Une heure de grace parce qu'un depart tout juste passe peut
+ * encore etre celui qu'on regarde — un retard, un quai, une correspondance.
+ */
+export const WATCH_GRACE_HOURS = 1;
+
 /** Au-dela, la donnee affichee est consideree comme perimee (collecteur en panne). */
 export const STALE_DATA_HOURS = 36;
 

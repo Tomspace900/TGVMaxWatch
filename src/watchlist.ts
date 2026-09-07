@@ -64,3 +64,32 @@ export function filterEvents(watchlist: Watchlist, events: TrainEvent[]): TrainE
     matchesWatchlist(watchlist, { date: event.date, dir: event.dir, depart: event.depart }),
   );
 }
+
+/**
+ * Une entree dont le train est parti.
+ *
+ * La comparaison est faite sur des chaines, jamais sur des `Date` : les dates
+ * de voyage sont des dates locales francaises et ne doivent pas etre
+ * converties. L'appelant fournit l'instant courant deja recule de sa periode de
+ * grace, sous la meme forme — c'est lui qui connait l'horloge.
+ *
+ * Sans heure de depart, l'entree porte la journee entiere : elle n'expire donc
+ * qu'une fois le dernier train parti.
+ */
+export function isExpired(
+  entry: { date: string; after?: string },
+  cutoff: { date: string; time: string },
+): boolean {
+  const depart = entry.after ?? '23:59';
+  if (entry.date !== cutoff.date) return entry.date < cutoff.date;
+  return depart < cutoff.time;
+}
+
+/** La watchlist debarrassee de ce qui est parti. */
+export function pruneWatch(
+  watchlist: Watchlist,
+  cutoff: { date: string; time: string },
+): Watchlist {
+  const watch = watchlist.watch.filter((entry) => !isExpired(entry, cutoff));
+  return watch.length === watchlist.watch.length ? watchlist : { ...watchlist, watch };
+}

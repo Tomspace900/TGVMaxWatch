@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
@@ -8,18 +8,16 @@ import { DIRECTIONS, HORIZON_DAYS } from '../../../src/config.ts';
 import { addDays, todayInParis, weekday } from '../../../src/dates.ts';
 import { trainsWord } from '../../../src/label.ts';
 import { slotOf } from '../../../src/stats.ts';
-import { matchesWatchlist } from '../../../src/watchlist.ts';
+import { matchesWatchlist, pruneWatch } from '../../../src/watchlist.ts';
 import { useStore } from '../../src/data/store.ts';
-import { writeFile } from '../../src/data/github.ts';
 import { scheduleConfirmReminder } from '../../src/data/reminders.ts';
 import { buildCalendar, emptyDay } from '../../src/model.ts';
-import { dirLabel, longDate } from '../../src/format.ts';
+import { dirLabel, longDate, watchCutoff } from '../../src/format.ts';
 import { Sparkline } from '../../src/ui/Sparkline.tsx';
 import { BAR_HEIGHT, StickyBar } from '../../src/ui/StickyBar.tsx';
 import { TrainRow } from '../../src/ui/TrainRow.tsx';
 import { radius, space, typo, useTheme } from '../../src/theme.ts';
 import type { Train } from '../../src/model.ts';
-import type { Watchlist } from '../../../src/types.ts';
 
 const TrainList = Animated.FlatList<Train>;
 
@@ -93,14 +91,11 @@ export default function DayScreen() {
   const isWatched = (depart: string) =>
     matchesWatchlist(bundle.watchlist, { date, dir, depart });
 
-  const persist = useCallback(async (path: string, value: unknown, message: string) => {
-    try {
-      await writeFile(path, value, message);
-    } catch {
-      // Sans jeton, l'edition reste locale a cette session ; le prochain
-      // rafraichissement la remplacera par la version du depot.
-    }
-  }, []);
+  /** Une entree posee sur ce train precis, par opposition a une regle qui le couvre. */
+  const isWatchedExactly = (depart: string) =>
+    bundle.watchlist.watch.some(
+      (entry) => entry.date === date && entry.dir === dir && entry.after === depart,
+    );
 
   /**
    * Surveiller un train depuis son balayage.
@@ -109,20 +104,29 @@ export default function DayScreen() {
    * `after`, l'entree se lirait « previens-moi pour tout train apres 06h06 » et
    * couvrirait la journee entiere. Le geste bascule, pour qu'une repetition ne
    * cree pas de doublon.
+   *
+   * Chaque ecriture emporte au passage les entrees dont le train est parti :
+   * c'est le seul moment ou l'on ecrit deja, et la liste ne grandit donc jamais
+   * pour rien.
    */
   const toggleWatch = (depart: string) => {
-    const already = bundle.watchlist.watch.findIndex(
-      (entry) => entry.date === date && entry.dir === dir && entry.after === depart,
+    const watched = isWatchedExactly(depart);
+    setWatchlist(
+      (current) =>
+        pruneWatch(
+          {
+            ...current,
+            watch: watched
+              ? current.watch.filter(
+                  (entry) =>
+                    !(entry.date === date && entry.dir === dir && entry.after === depart),
+                )
+              : [...current.watch, { date, dir, after: depart, before: depart }],
+          },
+          watchCutoff(),
+        ),
+      `watchlist: ${watched ? 'retire' : 'surveille'} ${date} ${depart}`,
     );
-
-    const watch =
-      already === -1
-        ? [...bundle.watchlist.watch, { date, dir, after: depart, before: depart }]
-        : bundle.watchlist.watch.filter((_, i) => i !== already);
-
-    const next: Watchlist = { ...bundle.watchlist, watch };
-    setWatchlist(next);
-    void persist('watchlist.json', next, `watchlist: ${already === -1 ? 'surveille' : 'retire'} ${date} ${depart}`);
   };
 
   /**

@@ -20,7 +20,7 @@ import { currentPushState, requestPushToken, type PushState } from '../src/data/
 import { dirLabel, instantLabel, longDate, maskToken, weekdayName } from '../src/format.ts';
 import { Action, Actions, Note, Row, Section, Status } from '../src/ui/Settings.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
-import type { Watchlist } from '../../src/types.ts';
+import type { WatchEntry } from '../../src/types.ts';
 
 /** Chaque refus de GitHub demande un geste different : il faut donc les nommer. */
 const TOKEN_ERRORS: Record<Exclude<TokenCheck, { ok: true }>['reason'], string> = {
@@ -159,13 +159,17 @@ export default function SettingsScreen() {
 
   // ------------------------------------------------------------- watchlist
 
-  const unwatch = (index: number) => {
-    const next: Watchlist = {
-      ...bundle.watchlist,
-      watch: bundle.watchlist.watch.filter((_, i) => i !== index),
-    };
-    setWatchlist(next);
-    void persist('watchlist.json', next, 'watchlist: retrait');
+  /*
+   * Le retrait porte sur l'entree, pas sur son rang.
+   *
+   * Un index est calcule depuis le rendu precedent : deux retraits rapproches,
+   * et le second supprimait la mauvaise ligne.
+   */
+  const unwatch = (target: WatchEntry) => {
+    setWatchlist(
+      (current) => ({ ...current, watch: current.watch.filter((entry) => entry !== target) }),
+      'watchlist: retrait',
+    );
   };
 
   // ------------------------------------------------------------ sauvegarde
@@ -181,9 +185,8 @@ export default function SettingsScreen() {
       return;
     }
     setReservations(() => parsed.reservations);
-    setWatchlist(parsed.watchlist);
+    setWatchlist(() => parsed.watchlist, 'watchlist: restauration');
     void syncConfirmReminders(parsed.reservations.slots);
-    void persist('watchlist.json', parsed.watchlist, 'watchlist: restauration');
     setRestore('');
     setMessage(`${parsed.reservations.slots.length} créneaux restaurés.`);
   };
@@ -352,7 +355,7 @@ export default function SettingsScreen() {
                 {entry.after ? ` · ${entry.after}` : ''}
               </Text>
             </View>
-            <Pressable onPress={() => unwatch(index)} hitSlop={8}>
+            <Pressable onPress={() => unwatch(entry)} hitSlop={8}>
               <Text style={[styles.lineAction, { color: theme.muted }]}>retirer</Text>
             </Pressable>
           </View>

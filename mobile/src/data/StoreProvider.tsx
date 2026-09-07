@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { writeFile } from './github.ts';
 import { loadJson } from './remote.ts';
 import { readReservations, writeReservations } from './local.ts';
 import { scheduleStaleAlarm, syncConfirmReminders } from './reminders.ts';
@@ -74,6 +75,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [bundle.reservations, loading, storageOk]);
 
+  /*
+   * L'ecriture dans le depot suit le changement d'etat, elle ne le precede pas.
+   *
+   * Le message porte aussi le fait qu'il y a quelque chose a ecrire : un
+   * rafraichissement remplace la watchlist par celle du depot, et sans ce
+   * marqueur l'effet renverrait aussitot au depot ce qu'il vient d'en lire.
+   */
+  const pendingWatch = useRef<string | null>(null);
+
+  useEffect(() => {
+    const message = pendingWatch.current;
+    if (!message) return;
+    pendingWatch.current = null;
+    void writeFile('watchlist.json', bundle.watchlist, message).catch(() => {
+      // Sans jeton, l'edition reste locale a cette session ; le prochain
+      // rafraichissement la remplacera par la version du depot.
+    });
+  }, [bundle.watchlist]);
+
   const value = useMemo<Store>(
     () => ({
       bundle,
@@ -83,8 +103,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       refresh,
       // Ecriture optimiste : le depot fait foi, mais l'interface ne doit pas
       // attendre un aller-retour reseau pour repondre au doigt.
-      setWatchlist: (watchlist: Watchlist) =>
-        setBundle((current) => ({ ...current, watchlist })),
+      setWatchlist: (update: (current: Watchlist) => Watchlist, message: string) => {
+        pendingWatch.current = message;
+        setBundle((current) => ({ ...current, watchlist: update(current.watchlist) }));
+      },
       // L'ecran decrit la transformation, jamais le resultat : c'est ce qui
       // rend impossible d'ecraser un creneau enregistre une fraction de seconde
       // plus tot.

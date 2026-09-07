@@ -3,52 +3,82 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { daysBetween, weekdayKey } from '../../../src/dates.ts';
 import { trainsWord } from '../../../src/label.ts';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
-import { dirLabel, longDate, weekdayName } from '../format.ts';
-import { horizonDates, type Calendar } from '../model.ts';
+import { isExpired } from '../../../src/watchlist.ts';
+import { dirLabel, longDate, watchCutoff, weekdayName } from '../format.ts';
+import { horizonDates, type Calendar, type Train } from '../model.ts';
+import { SwipeRow } from './SwipeRow.tsx';
+import { WatchedChip } from './TrainRow.tsx';
 import { radius, space, typo, useTheme } from '../theme.ts';
-import type { TrainTrends, WatchEntry, Watchlist } from '../../../src/types.ts';
+import type {
+  Reservations,
+  TrainTrends,
+  WatchEntry,
+  Watchlist,
+  WatchRule,
+} from '../../../src/types.ts';
 
 /**
  * Ce qui est surveille, en entier et en tete de l'ecran.
  *
  * C'est le coeur du produit, et il vivait dans une carte de quatre lignes sous
  * trente cases de calendrier, tronquee sans le dire, sans le sens de chaque
- * entree — c'est-a-dire sans l'information la plus discriminante — et sans
- * autre etat qu'un code-barres a decoder.
+ * entree — l'information la plus discriminante — et sans autre etat qu'un
+ * code-barres a decoder.
  *
- * Trois choses ont change. Il est **au-dessus du calendrier**, parce qu'une
- * session dure trente secondes et que c'est ce qu'on vient chercher. Il montre
- * **tout**, parce qu'une liste coupee en silence est une information qui
- * disparait. Et chaque ligne porte **son sens** : la question du perimetre —
- * cette carte suit-elle le selecteur du haut ou non ? — ne se pose plus, chaque
- * ligne repond pour elle-meme.
+ * Les memes gestes que dans la liste d'un jour : vers la gauche pour ne plus
+ * suivre, vers la droite apres avoir reserve. Un geste qui marche a un endroit
+ * et pas a l'autre est un geste qu'on cesse d'essayer.
  */
 
 interface Props {
   watchlist: Watchlist;
   calendar: Calendar;
   trains: TrainTrends;
+  reservations: Reservations;
   today: string;
   onOpen: (date: string, dir: string) => void;
   onManage: () => void;
+  onRemoveEntry: (entry: WatchEntry) => void;
+  onRemoveRule: (rule: WatchRule) => void;
+  onBook: (date: string, dir: string, train: Train) => void;
 }
 
-export function WatchList({ watchlist, calendar, trains, today, onOpen, onManage }: Props) {
+export function WatchList({
+  watchlist,
+  calendar,
+  trains,
+  reservations,
+  today,
+  onOpen,
+  onManage,
+  onRemoveEntry,
+  onRemoveRule,
+  onBook,
+}: Props) {
   const theme = useTheme();
-  const total = watchlist.watch.length + watchlist.rules.length;
-
   const dates = useMemo(() => horizonDates(today), [today]);
 
   /*
-   * Ordre chronologique, le plus proche en tete : c'est l'ordre dans lequel les
-   * echeances arrivent, et donc celui dans lequel on les lit. La watchlist,
-   * elle, est dans l'ordre ou les entrees ont ete posees, ce qui ne veut rien
-   * dire une fois qu'on en a quatre.
+   * Ce qui est parti ne s'affiche plus.
+   *
+   * Une entree dont le train est passe ne dit plus rien et la liste
+   * s'allongerait indefiniment. Le filtre est immediat ; le nettoyage du
+   * fichier, lui, se fait a la prochaine ecriture — on n'ecrit pas dans le
+   * depot juste parce qu'un ecran s'est affiche.
    */
-  const entries = useMemo(
-    () => [...watchlist.watch].sort((a, b) => a.date.localeCompare(b.date)),
-    [watchlist.watch],
+  const entries = useMemo(() => {
+    const cutoff = watchCutoff();
+    return watchlist.watch
+      .filter((entry) => !isExpired(entry, cutoff))
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.after ?? '').localeCompare(b.after ?? ''));
+  }, [watchlist.watch]);
+
+  const booked = useMemo(
+    () => new Set(reservations.slots.map((slot) => `${slot.date}|${slot.dir}|${slot.trainNo}`)),
+    [reservations.slots],
   );
+
+  const total = entries.length + watchlist.rules.length;
 
   return (
     <View style={styles.block}>
@@ -72,10 +102,13 @@ export function WatchList({ watchlist, calendar, trains, today, onOpen, onManage
           entry={entry}
           calendar={calendar}
           trains={trains}
+          booked={booked}
           today={today}
           first={index === 0}
           onOpen={onOpen}
           onManage={onManage}
+          onRemove={() => onRemoveEntry(entry)}
+          onBook={onBook}
         />
       ))}
 
@@ -86,35 +119,44 @@ export function WatchList({ watchlist, calendar, trains, today, onOpen, onManage
          * prochaine — sinon la ligne ne dit que ce qu'on a soi-meme ecrit.
          */
         const nextDate = dates.find((date) => weekdayKey(date) === rule.weekday);
-        const nextDay =
-          nextDate && rule.dir ? calendar.get(nextDate)?.get(rule.dir) : undefined;
+        const nextDay = nextDate && rule.dir ? calendar.get(nextDate)?.get(rule.dir) : undefined;
 
         return (
-          <Pressable
-            key={`rule-${index}`}
-            onPress={() => (nextDate && rule.dir ? onOpen(nextDate, rule.dir) : onManage())}
-            style={({ pressed }) => [
-              styles.row,
-              { borderTopColor: theme.line, opacity: pressed ? 0.6 : 1 },
-              entries.length === 0 && index === 0 ? styles.firstRow : null,
-            ]}
+          <SwipeRow
+            key={`rule-${rule.weekday}-${rule.dir ?? ''}-${rule.after ?? ''}`}
+            left={{ label: 'NE PLUS SUIVRE', onAction: () => onRemoveRule(rule) }}
           >
-            <Text style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}>
-              RÈGLE
-            </Text>
+            <Pressable
+              onPress={() => (nextDate && rule.dir ? onOpen(nextDate, rule.dir) : onManage())}
+              style={({ pressed }) => [
+                styles.row,
+                {
+                  backgroundColor: theme.bg,
+                  borderTopColor: theme.line,
+                  opacity: pressed ? 0.6 : 1,
+                },
+                entries.length === 0 && index === 0 ? styles.firstRow : null,
+              ]}
+            >
+              <Text
+                style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}
+              >
+                RÈGLE
+              </Text>
 
-            <View style={styles.body}>
-              <Text style={[typo.section, { color: theme.text }]} numberOfLines={1}>
-                chaque {weekdayName(rule.weekday)}
-                {rule.after ? ` après ${rule.after}` : ''}
-              </Text>
-              <Text style={[typo.small, { color: theme.muted }]} numberOfLines={1}>
-                {rule.dir ? dirLabel(rule.dir) : 'les deux sens'}
-                {nextDate ? ` · prochain ${longDate(nextDate)}` : ''}
-                {nextDay ? ` · ${countLabel(nextDay.available)}` : ''}
-              </Text>
-            </View>
-          </Pressable>
+              <View style={styles.body}>
+                <Text style={[typo.section, { color: theme.text }]} numberOfLines={1}>
+                  chaque {weekdayName(rule.weekday)}
+                  {rule.after ? ` après ${rule.after}` : ''}
+                </Text>
+                <Text style={[typo.small, { color: theme.muted }]} numberOfLines={1}>
+                  {rule.dir ? dirLabel(rule.dir) : 'les deux sens'}
+                  {nextDate ? ` · prochain ${longDate(nextDate)}` : ''}
+                  {nextDay ? ` · ${countLabel(nextDay.available)}` : ''}
+                </Text>
+              </View>
+            </Pressable>
+          </SwipeRow>
         );
       })}
     </View>
@@ -129,18 +171,24 @@ function EntryRow({
   entry,
   calendar,
   trains,
+  booked,
   today,
   first,
   onOpen,
   onManage,
+  onRemove,
+  onBook,
 }: {
   entry: WatchEntry;
   calendar: Calendar;
   trains: TrainTrends;
+  booked: Set<string>;
   today: string;
   first: boolean;
   onOpen: (date: string, dir: string) => void;
   onManage: () => void;
+  onRemove: () => void;
+  onBook: (date: string, dir: string, train: Train) => void;
 }) {
   const theme = useTheme();
 
@@ -166,48 +214,62 @@ function EntryRow({
       : '—';
 
   const left = daysBetween(today, entry.date);
+  const isBooked = Boolean(train && entry.dir && booked.has(`${entry.date}|${entry.dir}|${train.trainNo}`));
 
   return (
-    <Pressable
-      onPress={() => (entry.dir ? onOpen(entry.date, entry.dir) : onManage())}
-      style={({ pressed }) => [
-        styles.row,
-        { borderTopColor: theme.line, opacity: pressed ? 0.6 : 1 },
-        first ? styles.firstRow : null,
-      ]}
+    <SwipeRow
+      left={{ label: 'NE PLUS SUIVRE', onAction: onRemove }}
+      // « J'ai reserve » n'a de sens que sur un train identifie : une journee
+      // entiere ne se reserve pas.
+      {...(train && entry.dir && !isBooked
+        ? { right: { label: "J'AI RÉSERVÉ", onAction: () => onBook(entry.date, entry.dir!, train) } }
+        : {})}
     >
-      {entry.after ? (
-        <Text style={[typo.clock, styles.leadTime, { color: theme.text }]}>{entry.after}</Text>
-      ) : (
-        <Text style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}>
-          JOUR
-        </Text>
-      )}
-
-      <View style={styles.body}>
-        <View style={styles.line}>
-          <Text style={[typo.section, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-            {longDate(entry.date)}
+      <Pressable
+        onPress={() => (entry.dir ? onOpen(entry.date, entry.dir) : onManage())}
+        style={({ pressed }) => [
+          styles.row,
+          { backgroundColor: theme.bg, borderTopColor: theme.line, opacity: pressed ? 0.6 : 1 },
+          first ? styles.firstRow : null,
+        ]}
+      >
+        {entry.after ? (
+          <Text style={[typo.clock, styles.leadTime, { color: theme.text }]}>{entry.after}</Text>
+        ) : (
+          <Text style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}>
+            JOUR
           </Text>
-          {/* La distance au depart decide autant que l'etat : « complet » a
-              J-20 et « complet » a J-2 ne se lisent pas pareil. */}
-          <Text style={[typo.digits, { color: theme.muted }]}>
-            {left < 0 ? 'passé' : left === 0 ? "aujourd'hui" : `J-${left}`}
+        )}
+
+        <View style={styles.body}>
+          <View style={styles.line}>
+            <Text style={[typo.section, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+              {longDate(entry.date)}
+            </Text>
+            {/* Pas de badge « suivi » ici : tout ce que cette liste montre est
+                suivi par definition, et un signal present sur chaque ligne est
+                un fond. Seule la reservation apprend quelque chose. */}
+            <WatchedChip watched={false} booked={isBooked} />
+            {/* La distance au depart decide autant que l'etat : « complet » a
+                J-20 et « complet » a J-2 ne se lisent pas pareil. */}
+            <Text style={[typo.digits, { color: theme.muted }]}>
+              {left === 0 ? "aujourd'hui" : `J-${left}`}
+            </Text>
+          </View>
+
+          <Text
+            style={[
+              verdict && isNotable(verdict) ? typo.strong : typo.small,
+              { color: verdict && isNotable(verdict) ? theme.text : theme.muted },
+            ]}
+            numberOfLines={1}
+          >
+            {entry.dir ? `${dirLabel(entry.dir)} · ` : 'les deux sens · '}
+            {state}
           </Text>
         </View>
-
-        <Text
-          style={[
-            verdict && isNotable(verdict) ? typo.strong : typo.small,
-            { color: verdict && isNotable(verdict) ? theme.text : theme.muted },
-          ]}
-          numberOfLines={1}
-        >
-          {entry.dir ? `${dirLabel(entry.dir)} · ` : 'les deux sens · '}
-          {state}
-        </Text>
-      </View>
-    </Pressable>
+      </Pressable>
+    </SwipeRow>
   );
 }
 
@@ -232,5 +294,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   body: { flex: 1, gap: 2 },
-  line: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  line: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
 });

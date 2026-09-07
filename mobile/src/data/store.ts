@@ -54,7 +54,14 @@ export interface Store {
    */
   storageOk: boolean;
   refresh: () => Promise<void>;
-  setWatchlist: (watchlist: Watchlist) => void;
+  /**
+   * Prend une fonction, jamais une valeur, pour la meme raison que
+   * `setReservations` — et l'ecriture dans le depot part d'ici, pas des ecrans.
+   * Trois ecrans modifient desormais la surveillance ; qu'ils sachent chacun
+   * comment la persister etait une regle de plus a tenir a jour a trois
+   * endroits.
+   */
+  setWatchlist: (update: (current: Watchlist) => Watchlist, message: string) => void;
   /**
    * Prend une fonction, jamais une valeur.
    *

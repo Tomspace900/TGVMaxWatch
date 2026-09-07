@@ -166,6 +166,31 @@ porte *est* sa taille d'echantillon. Le mot ne sort dans une liste que sur les
 deux cas qui decident — vient de rouvrir, instable — parce qu'un signal present
 sur la majorite des lignes est un fond.
 
+**Un rappel avant que l'action soit possible n'est pas un rappel.** La
+confirmation n'ouvre que 48 h avant le depart : la carte se borne donc sur le
+**depart**, pas sur l'echeance, et se referme quand le train est parti.
+
+**Un geste qui marche a un endroit et pas a l'autre est un geste qu'on cesse
+d'essayer.** Le balayage vivait dans la ligne de train ; la surveillance le
+voulait aussi, avec les memes seuils et les memes retours haptiques. Deux
+implementations du meme geste deviennent deux gestes des que l'une derive de dix
+pixels — `SwipeRow` est desormais le seul endroit ou il est ecrit. Un cote sans
+action garde un debattement mais ne s'arme pas : la ligne ne promet rien qui
+n'arrivera pas.
+
+**Ce qui est passe cesse d'exister.** Une entree de surveillance dont le train
+est parti depuis plus d'une heure n'est plus affichee, et disparait du fichier a
+la prochaine ecriture — jamais parce qu'un ecran s'est affiche : on n'ecrit pas
+dans le depot pour un rendu. La comparaison se fait sur des chaines, l'appelant
+fournissant l'horloge deja reculee de sa grace : une date de voyage ne se
+convertit pas, meme pour savoir si elle est passee.
+
+**Trois ecrans modifient la surveillance, un seul l'ecrit.** `setWatchlist`
+prend une fonction — meme raison que `setReservations` — et la persistance est
+un effet du changement d'etat, dans le fournisseur. Un marqueur distingue une
+edition locale d'un rafraichissement, sans quoi l'effet renverrait au depot ce
+qu'il vient d'en lire.
+
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
 convertir. Seul le cron est en UTC.
 
@@ -279,7 +304,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 88 tests sur fixtures, aucun acces reseau
+npm test              # 95 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 

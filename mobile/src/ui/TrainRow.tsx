@@ -1,22 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
 import { formatDuration } from '../format.ts';
 import type { Train } from '../model.ts';
-import { Wash } from './rail.tsx';
-import { motion, radius, space, typo, useTheme } from '../theme.ts';
-
-/** Distance a partir de laquelle l'action est validee au relachement. */
-const THRESHOLD = 88;
-const MAX_TRAVEL = 150;
+import { SwipeRow } from './SwipeRow.tsx';
+import { radius, space, typo, useTheme } from '../theme.ts';
 
 interface Props {
   train: Train;
@@ -42,65 +29,17 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
    * six lignes et non trente-cinq.
    */
   const verdict = traceVerdict(trace);
-  const dx = useSharedValue(0);
-  const armed = useSharedValue(false);
-
-  const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  const confirm = () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-  const pan = Gesture.Pan()
-    .activeOffsetX([-14, 14])
-    .failOffsetY([-12, 12])
-    .onUpdate((event) => {
-      dx.value = Math.max(-MAX_TRAVEL, Math.min(MAX_TRAVEL, event.translationX));
-
-      // Retour haptique au franchissement du seuil, pas en continu.
-      const past = Math.abs(dx.value) >= THRESHOLD;
-      if (past !== armed.value) {
-        armed.value = past;
-        runOnJS(tick)();
-      }
-    })
-    .onEnd(() => {
-      if (Math.abs(dx.value) >= THRESHOLD) {
-        runOnJS(confirm)();
-        runOnJS(dx.value < 0 ? onWatch : onBook)();
-      }
-      armed.value = false;
-      dx.value = withSpring(0, motion.snap);
-    });
-
-  const row = useAnimatedStyle(() => ({ transform: [{ translateX: dx.value }] }));
-
-  // L'action se revele progressivement sous le doigt, elle n'apparait pas d'un
-  // coup a la fin du geste.
-  const action = useAnimatedStyle(() => ({
-    opacity: interpolate(Math.abs(dx.value), [0, THRESHOLD], [0, 1], 'clamp'),
-  }));
-  const leftAction = useAnimatedStyle(() => ({ opacity: dx.value < 0 ? 1 : 0 }));
-  const rightAction = useAnimatedStyle(() => ({ opacity: dx.value > 0 ? 1 : 0 }));
-
   const dim = !train.available;
 
   return (
-    <View style={[styles.wrap, { borderRadius: radius.sm }]}>
-      {/* Le degrade identitaire ne se montre qu'ici : sous le doigt, quand la
-          ligne s'ecarte. Nulle part il ne recouvre une donnee. */}
-      <Animated.View style={[styles.actions, action]}>
-        <Wash />
-        <Animated.Text style={[typo.chip, styles.actionText, rightAction, { color: theme.onBrand }]}>
-          J'AI RÉSERVÉ
-        </Animated.Text>
-        <Animated.Text style={[typo.chip, styles.actionText, leftAction, { color: theme.onBrand }]}>
-          SURVEILLER
-        </Animated.Text>
-      </Animated.View>
-
-      <GestureDetector gesture={pan}>
-        <Animated.View
+    <View style={styles.wrap}>
+      <SwipeRow
+        left={{ label: watched ? 'NE PLUS SUIVRE' : 'SURVEILLER', onAction: onWatch }}
+        right={{ label: "J'AI RÉSERVÉ", onAction: onBook }}
+      >
+        <View
           style={[
             styles.row,
-            row,
             {
               backgroundColor: dim ? theme.sunken : theme.raised,
               borderRadius: radius.sm,
@@ -124,59 +63,64 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
                   {train.carrier}
                 </Text>
               )}
-              {/* Ni l'un ni l'autre ne prend l'echelle de disponibilite : ce
-                  sont des etats de l'utilisateur, pas une mesure. */}
-              {watched && (
-                <Text style={[typo.chip, styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
-                  SUIVI
-                </Text>
-              )}
-              {booked && (
-                <Text style={[typo.chip, styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
-                  RÉSERVÉ
-                </Text>
-              )}
+              <WatchedChip watched={watched} booked={booked} />
               <Text style={[typo.digits, { color: theme.muted, opacity: 0.75 }]}>
                 {train.trainNo}
               </Text>
               {isNotable(verdict) && (
-                <Text style={[typo.chip, styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
+                <Text style={[typo.chip, styles.chip, { color: theme.text, borderColor: theme.lineStrong, borderWidth: 1 }]}>
                   {verdictLabel(verdict).toUpperCase()}
                 </Text>
               )}
             </View>
-
           </View>
 
           {/* Un trajet long n'est pas une anomalie a signaler : sur cet axe,
               c'est un mauvais choix par defaut, et un quart des trains ouverts
-              depassent trois heures. Le peindre en couleur d'alerte mettait un
-              signal sur une ligne utile sur quatre — c'est-a-dire un fond, pas
-              un signal. Le chiffre suffit : « 3h12 » a cote de « 2h05 » se lit
-              sans qu'on ait a le nommer. Pour les ecarter, il y a un filtre. */}
+              depassent trois heures. Le chiffre suffit ; pour les ecarter, il y
+              a un filtre. */}
           <Text style={[typo.digits, styles.duration, { color: dim ? theme.muted : theme.text }]}>
             {formatDuration(train.durationMin)}
           </Text>
-        </Animated.View>
-      </GestureDetector>
+        </View>
+      </SwipeRow>
     </View>
   );
 }
 
+/**
+ * Deux etats de l'utilisateur, deux registres distincts.
+ *
+ * « Suivi » dit « je regarde », « reserve » dit « c'est a moi » : les rendre
+ * identiques obligeait a lire le mot pour les distinguer. L'accent revient donc
+ * sur la reservation, et sur elle seule — c'est le meme registre que la carte
+ * de confirmation et que le bandeau de panne : ce qui t'engage ou te concerne,
+ * jamais une mesure.
+ */
+export function WatchedChip({ watched, booked }: { watched: boolean; booked: boolean }) {
+  const theme = useTheme();
+
+  if (booked) {
+    return (
+      <Text style={[typo.chip, styles.chip, { color: theme.onBrand, backgroundColor: theme.accent }]}>
+        RÉSERVÉ
+      </Text>
+    );
+  }
+  if (watched) {
+    return (
+      <Text
+        style={[typo.chip, styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}
+      >
+        SUIVI
+      </Text>
+    );
+  }
+  return null;
+}
+
 const styles = StyleSheet.create({
-  wrap: { overflow: 'hidden', marginBottom: space.sm },
-  actions: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-  },
-  actionText: { fontSize: 11 },
+  wrap: { marginBottom: space.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

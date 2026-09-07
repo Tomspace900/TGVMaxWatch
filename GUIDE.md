@@ -49,7 +49,13 @@ suis, en entier, jamais tronqué. Chaque ligne porte :
   `vient de rouvrir`. Le nombre de jours dit sur combien d'observations l'état
   tient — sur une archive jeune, c'est exactement ce qu'il faut savoir.
 
-Touche une ligne pour ouvrir le jour correspondant.
+Touche une ligne pour ouvrir le jour correspondant, ou **balaie-la** : vers la
+gauche pour ne plus la suivre, vers la droite après avoir réservé — exactement
+les mêmes gestes que dans la liste des trains d'un jour.
+
+**Ce qui est parti disparaît tout seul.** Une heure après le départ d'un train
+suivi, sa ligne s'en va : elle ne dit plus rien, et la liste s'allongerait
+indéfiniment. Le fichier, lui, se nettoie à la prochaine modification.
 
 **4. Le calendrier.** Trente jours, une case par jour. **Plus la case est
 colorée, plus il y a de trains ouverts.** Une case grise veut dire aucun train
@@ -90,7 +96,8 @@ Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
   `OUVERT · INSTABLE`. Rien le reste du temps — un train ouvert qui l'était
   déjà hier ne mérite pas qu'on l'écrive sur trente-cinq lignes. L'état complet
   de chaque créneau suivi se lit dans le bloc Surveillance de l'accueil ;
-- un badge **suivi** ou **réservé** si tu l'as marqué ;
+- un badge **suivi** ou **réservé** si tu l'as marqué — « réservé » est en
+  couleur, parce que c'est le seul des deux qui t'engage ;
 - un train fermé est barré et grisé.
 
 ### L'écran d'érosion
@@ -148,11 +155,13 @@ Les deux premières partent toujours, même si tu ne surveilles rien.
 
 - **Le rappel de confirmation**, à 10 h la veille d'un voyage enregistré. Une
   réservation MAX JEUNE non confirmée avant 17 h la veille est perdue. Le
-  message ouvre directement la page de confirmation SNCF. Dans les trois jours
-  qui précèdent l'échéance, l'application la met aussi **en haut de l'écran
+  message ouvre directement la page de confirmation SNCF. **Dans les 48 h qui
+  précèdent le départ** — c'est-à-dire dès que la confirmation devient
+  possible, et pas avant — l'application la met aussi **en haut de l'écran
   d'accueil**, avec le temps restant et les deux gestes qui vont avec :
-  « Confirmer » et « C'est fait ». C'est le seul endroit où cette application
-  peut te coûter de l'argent, elle ne doit pas te le dire discrètement.
+  « Confirmer » et « C'est fait ». La carte s'en va quand le train part. C'est
+  le seul endroit où cette application peut te coûter de l'argent, elle ne doit
+  pas te le dire discrètement.
 - **L'alerte de panne**, si aucune donnée nouvelle n'arrive pendant 40 h. C'est
   le seul moyen d'être prévenu que la collecte s'est arrêtée : une notification
   normale est envoyée *par* le système de collecte, qui ne peut évidemment pas

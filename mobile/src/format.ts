@@ -1,4 +1,9 @@
-import { CONFIRM_DAYS_BEFORE, CONFIRM_DEADLINE_HOUR, STATION_LABELS } from '../../src/config.ts';
+import {
+  CONFIRM_DAYS_BEFORE,
+  CONFIRM_DEADLINE_HOUR,
+  STATION_LABELS,
+  WATCH_GRACE_HOURS,
+} from '../../src/config.ts';
 import { addDays } from '../../src/dates.ts';
 
 export { formatDuration } from '../../src/duration.ts';
@@ -121,4 +126,28 @@ export function untilLabel(target: Date): string {
   if (hours < 1) return 'moins d’une heure';
   if (hours < 24) return `${hours} h`;
   return `${Math.floor(hours / 24)} j`;
+}
+
+/**
+ * L'horloge de l'appareil, sous la forme des dates de voyage.
+ *
+ * `isExpired` compare des chaines et jamais des `Date`, parce qu'une date de
+ * voyage est une date locale francaise qu'on ne convertit pas. Il faut donc lui
+ * donner l'instant courant sous la meme forme — deja recule de la periode de
+ * grace, pour qu'il n'ait aucune arithmetique a faire.
+ */
+export function watchCutoff(now: Date = new Date()): { date: string; time: string } {
+  const at = new Date(now.getTime() - WATCH_GRACE_HOURS * 3_600_000);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return {
+    date: `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`,
+    time: `${pad(at.getHours())}:${pad(at.getMinutes())}`,
+  };
+}
+
+/** Instant du depart, en heure locale de l'appareil. */
+export function departureInstant(travelDate: string, depart: string): Date {
+  const [year = '0', month = '0', day = '0'] = travelDate.split('-');
+  const [hour = '0', minute = '0'] = depart.split(':');
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), 0, 0);
 }

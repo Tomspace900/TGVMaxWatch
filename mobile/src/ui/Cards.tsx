@@ -1,7 +1,16 @@
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { CONFIRM_DEADLINE_HOUR, CONFIRM_URL } from '../../../src/config.ts';
-import { todayInParis } from '../../../src/dates.ts';
-import { confirmDeadline, dirLabel, longDate, untilLabel } from '../format.ts';
+import {
+  CONFIRM_DEADLINE_HOUR,
+  CONFIRM_URL,
+  CONFIRM_WINDOW_HOURS,
+} from '../../../src/config.ts';
+import {
+  confirmDeadline,
+  departureInstant,
+  dirLabel,
+  longDate,
+  untilLabel,
+} from '../format.ts';
 import { radius, space, typo, useTheme } from '../theme.ts';
 import type { Reservation, Reservations } from '../../../src/types.ts';
 
@@ -15,26 +24,33 @@ import type { Reservation, Reservations } from '../../../src/types.ts';
  * coûte de l'argent quand on l'oublie : l'échéance de confirmation.
  */
 
-/**
- * Fenêtre à partir de laquelle une échéance mérite le haut de l'écran.
- *
- * Une carte permanente pendant les trois semaines qui séparent la réservation
- * du voyage n'est pas un avertissement, c'est du décor : on cesse de la voir
- * bien avant qu'elle devienne vraie. Au-delà de cette fenêtre, le rappel posé
- * par l'appareil suffit — il part la veille, à une heure où l'on peut agir.
- */
-const URGENT_HOURS = 72;
-
 /** Un créneau à confirmer, avec l'instant qui décide. */
 interface Pending {
   slot: Reservation;
   deadline: Date;
 }
 
+/**
+ * Les confirmations réellement possibles, maintenant.
+ *
+ * La fenêtre n'ouvre que 48 h avant le départ : avant, la confirmation n'est
+ * pas disponible et la carte demanderait un geste qu'on ne peut pas faire. Elle
+ * se referme au départ du train — après, il n'y a plus rien à confirmer, et une
+ * carte qui reste est une carte qu'on cesse de voir.
+ *
+ * La borne est prise sur le **départ**, pas sur l'échéance : c'est le départ qui
+ * ouvre le droit de confirmer, l'échéance ne fait que dire jusqu'à quand.
+ */
 function pendingConfirmations(reservations: Reservations): Pending[] {
-  const today = todayInParis();
+  const now = Date.now();
+  const opens = now + CONFIRM_WINDOW_HOURS * 3_600_000;
+
   return reservations.slots
-    .filter((slot) => slot.date >= today && !slot.confirmed)
+    .filter((slot) => {
+      if (slot.confirmed) return false;
+      const departure = departureInstant(slot.date, slot.depart).getTime();
+      return departure > now && departure <= opens;
+    })
     .map((slot) => ({ slot, deadline: confirmDeadline(slot.date) }))
     .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
 }
@@ -63,10 +79,7 @@ export function ConfirmCard({
   const first = pending[0];
   if (!first) return null;
 
-  const hoursLeft = (first.deadline.getTime() - Date.now()) / 3_600_000;
-  if (hoursLeft > URGENT_HOURS) return null;
-
-  const late = hoursLeft <= 0;
+  const late = first.deadline.getTime() <= Date.now();
   const others = pending.filter((entry) => entry !== first).length;
 
   return (
