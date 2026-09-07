@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { DIRECTIONS, STALE_ALARM_HOURS, STALE_DATA_HOURS } from '../../src/config.ts';
 import { todayInParis } from '../../src/dates.ts';
@@ -9,11 +9,11 @@ import { useStore } from '../src/data/store.ts';
 import { cancelConfirmReminder } from '../src/data/reminders.ts';
 import { buildCalendar } from '../src/model.ts';
 import { ageLabel, dirLabel, hoursSince, reverseDir } from '../src/format.ts';
-import { ConfirmCard, StatsCard, WatchCard } from '../src/ui/Cards.tsx';
+import { ConfirmCard, StatsCard } from '../src/ui/Cards.tsx';
 import { CalendarPager } from '../src/ui/CalendarPager.tsx';
 import { RailTrack } from '../src/ui/rail.tsx';
 import { Segmented } from '../src/ui/Segmented.tsx';
-import { BAR_HEIGHT, StickyBar } from '../src/ui/StickyBar.tsx';
+import { WatchList } from '../src/ui/WatchList.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
 import type { Reservation } from '../../src/types.ts';
 
@@ -28,12 +28,7 @@ export default function CalendarScreen() {
 
   const [index, setIndex] = useState(0);
   const progress = useSharedValue(0);
-  const scrollY = useSharedValue(0);
   const [refreshing, setRefreshing] = useState(false);
-
-  const onScroll = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
-  });
 
   /*
    * Alternance de sens. Les trajets sont unitaires, pas des allers-retours,
@@ -89,17 +84,15 @@ export default function CalendarScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <Animated.ScrollView
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         contentContainerStyle={{
-          paddingTop: insets.top + BAR_HEIGHT,
+          paddingTop: insets.top,
           paddingBottom: insets.bottom + space.xl,
         }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             tintColor={theme.muted}
-            progressViewOffset={insets.top + BAR_HEIGHT}
+            progressViewOffset={insets.top}
             onRefresh={() => {
               setRefreshing(true);
               void refresh().finally(() => setRefreshing(false));
@@ -147,7 +140,41 @@ export default function CalendarScreen() {
           <ConfirmCard reservations={bundle.reservations} onConfirm={markConfirmed} />
         </View>
 
-        <View style={{ marginTop: space.lg }}>
+        {/* Ce qu'on vient chercher est en haut.
+            La surveillance repond a la question de la session de trente
+            secondes — « mon creneau, ou en est-il ? » — et se trouvait apres
+            trente cases de calendrier. Le calendrier sert a *trouver* une date,
+            ce qui vient ensuite dans l'ordre du besoin, pas avant. */}
+        <WatchList
+          watchlist={bundle.watchlist}
+          calendar={calendar}
+          trains={bundle.trains}
+          today={today}
+          onOpen={(date, selectedDir) =>
+            router.push({ pathname: '/day/[date]', params: { date, dir: selectedDir } })
+          }
+          onManage={() => router.push('/settings')}
+        />
+
+        <RailTrack style={{ marginTop: space.lg, marginHorizontal: space.lg }} />
+
+        {/* Le selecteur de sens vit avec ce qu'il gouverne.
+            Il etait epingle en haut de l'ecran, ou il surplombait desormais un
+            bloc qu'il ne filtre pas — chaque ligne de surveillance porte son
+            propre sens. Et il n'y avait rien a gagner a l'epingler : la grille
+            fait cinq rangees, il reste visible tout le temps qu'on la regarde.
+            La barre fixe garde son sens sur l'ecran d'un jour, ou la liste fait
+            trente-cinq lignes. */}
+        <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
+          <Segmented
+            labels={DIRECTIONS.map(dirLabel)}
+            index={index}
+            progress={progress}
+            onChange={setIndex}
+          />
+        </View>
+
+        <View style={{ marginTop: space.md }}>
           <CalendarPager
             calendar={calendar}
             today={today}
@@ -161,35 +188,15 @@ export default function CalendarScreen() {
           />
         </View>
 
-        <RailTrack style={{ marginTop: space.xl, marginHorizontal: space.lg }} />
-
-        <View style={{ paddingHorizontal: space.lg, marginTop: space.lg, gap: space.md }}>
-          <WatchCard
-            watchlist={bundle.watchlist}
-            calendar={calendar}
-            trains={bundle.trains}
-            onPress={() => router.push('/settings')}
-          />
-
-          {bundle.stats?.ready.erosion && (
+        {bundle.stats?.ready.erosion && (
+          <View style={{ paddingHorizontal: space.lg, marginTop: space.xl }}>
             <StatsCard
               snapshotCount={bundle.state.snapshotCount}
               onPress={() => router.push('/history')}
             />
-          )}
-        </View>
+          </View>
+        )}
       </Animated.ScrollView>
-
-      <StickyBar scrollY={scrollY}>
-        <View style={{ paddingHorizontal: space.lg }}>
-          <Segmented
-            labels={DIRECTIONS.map(dirLabel)}
-            index={index}
-            progress={progress}
-            onChange={setIndex}
-          />
-        </View>
-      </StickyBar>
     </View>
   );
 }

@@ -28,32 +28,40 @@ Trois questions auxquelles elle répond, et que rien d'autre ne sait faire :
 
 ### L'écran principal : le calendrier
 
-Trente jours, une case par jour. **Plus la case est colorée, plus il y a de
-trains ouverts.** Une case grise veut dire aucun train ce jour-là, dans le sens
-affiché. Deux nombres par case et pas un de plus : le quantième, et le compte.
+L'écran est rangé dans l'ordre où tu en as besoin.
 
-Tout en haut, le sélecteur de sens — Paris → Bordeaux ou Bordeaux → Paris.
-**Il reste en place quand tu fais défiler l'écran** : c'est le contexte de tout
-ce qui est affiché en dessous, et le perdre obligeait à remonter.
-**Glisse horizontalement sur le calendrier pour changer de sens**, le sélecteur
-suit ton doigt.
+**1. L'état des données**, en une ligne : de quand elles datent, et leur âge.
+Si la collecte prend du retard, un bandeau le dit ; si elle ne répond plus du
+tout, il le dit autrement — ce ne sont pas les mêmes situations.
 
-Au-dessus du calendrier, deux choses seulement, et l'une n'apparaît que quand
-elle est vraie :
+**2. Une réservation à confirmer**, quand l'échéance approche. Voir plus bas.
 
-- **La date des données et leur âge**, en clair. Si la collecte prend du retard,
-  un bandeau le dit ; si elle ne répond plus du tout, il le dit autrement — ce
-  ne sont pas les mêmes situations.
-- **Une réservation à confirmer**, quand l'échéance approche. Voir plus bas.
+**3. La surveillance — c'est le cœur, donc c'est en haut.** Tout ce que tu
+suis, en entier, jamais tronqué. Chaque ligne porte :
 
-En bas de l'écran :
+- l'heure du train suivi, ou **JOUR** si tu suis la journée entière, ou
+  **RÈGLE** si c'est un créneau récurrent ;
+- la date, et **à combien de jours du départ on est** — « complet » à J-20 et
+  « complet » à J-2 ne se lisent pas pareil ;
+- **le sens**, sur chaque ligne : la question « est-ce que ce bloc suit le
+  sélecteur du haut ? » ne se pose plus, chaque ligne répond pour elle-même ;
+- **l'état, en toutes lettres** : `ouvert · 4 j`, `complet · 2 j`,
+  `vient de rouvrir`. Le nombre de jours dit sur combien d'observations l'état
+  tient — sur une archive jeune, c'est exactement ce qu'il faut savoir.
 
-- **Surveillance** — ce que tu suis. En face de chaque créneau, la frise qui
-  montre jour après jour si *ce train-là* était ouvert ou fermé — c'est ce
-  qu'on veut savoir devant un train qu'on attend, bien plus que le nombre de
-  trains qui circulent ce jour-là. Si tu suis plus d'entrées que la carte n'en
-  affiche, elle te dit combien il en reste.
-- **Érosion et prévisions** — apparaît seulement quand il y a assez de recul.
+Touche une ligne pour ouvrir le jour correspondant.
+
+**4. Le calendrier.** Trente jours, une case par jour. **Plus la case est
+colorée, plus il y a de trains ouverts.** Une case grise veut dire aucun train
+ce jour-là, dans le sens affiché. Deux nombres par case et pas un de plus : le
+quantième, et le compte.
+
+Juste au-dessus, le sélecteur de sens — Paris → Bordeaux ou Bordeaux → Paris.
+Il est là, et plus tout en haut de l'écran, parce qu'il ne gouverne que le
+calendrier. **Glisse horizontalement sur la grille pour changer de sens**, le
+sélecteur suit ton doigt.
+
+**5. Érosion et prévisions** — apparaît seulement quand il y a assez de recul.
 
 ### L'écran d'un jour
 
@@ -78,8 +86,10 @@ Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
 - **la durée du trajet** — sur cet axe les temps vont de 2 h 05 à 3 h 30 pour le
   même prix ; « 3h12 » à côté de « 2h05 » se lit tout seul, sans qu'on ait
   besoin de le peindre en rouge ;
-- **une petite frise** qui montre jour après jour si ce train était ouvert ou
-  fermé — c'est là qu'on voit un train qui vient de rouvrir ;
+- **un mot, quand l'archive a quelque chose à dire** : `VIENT DE ROUVRIR` ou
+  `OUVERT · INSTABLE`. Rien le reste du temps — un train ouvert qui l'était
+  déjà hier ne mérite pas qu'on l'écrive sur trente-cinq lignes. L'état complet
+  de chaque créneau suivi se lit dans le bloc Surveillance de l'accueil ;
 - un badge **suivi** ou **réservé** si tu l'as marqué ;
 - un train fermé est barré et grisé.
 

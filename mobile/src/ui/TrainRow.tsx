@@ -8,9 +8,9 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
 import { formatDuration } from '../format.ts';
 import type { Train } from '../model.ts';
-import { Trace } from './Trace.tsx';
 import { Wash } from './rail.tsx';
 import { motion, radius, space, typo, useTheme } from '../theme.ts';
 
@@ -30,6 +30,18 @@ interface Props {
 
 export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Props) {
   const theme = useTheme();
+
+  /*
+   * L'archive ne sort que quand elle change une decision.
+   *
+   * Une frise de trente cellules par ligne, sur trente-cinq lignes, demandait
+   * une legende permanente et pres de mille vues pour dire, la plupart du
+   * temps, « ouvert, comme hier ». Le verdict ne parait donc que sur les deux
+   * cas qui decident : un train qui vient de rouvrir, et un train qui bascule
+   * sans arret. Le reste se lit dans l'ecran de surveillance, ou l'on regarde
+   * six lignes et non trente-cinq.
+   */
+  const verdict = traceVerdict(trace);
   const dx = useSharedValue(0);
   const armed = useSharedValue(false);
 
@@ -127,8 +139,13 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
               <Text style={[typo.digits, { color: theme.muted, opacity: 0.75 }]}>
                 {train.trainNo}
               </Text>
+              {isNotable(verdict) && (
+                <Text style={[typo.chip, styles.chip, { color: theme.inverseText, backgroundColor: theme.inverseBg }]}>
+                  {verdictLabel(verdict).toUpperCase()}
+                </Text>
+              )}
             </View>
-            {trace && <Trace trace={trace} />}
+
           </View>
 
           {/* Un trajet long n'est pas une anomalie a signaler : sur cet axe,

@@ -144,6 +144,28 @@ information.** Le bandeau d'accueil repetait le sens deja affiche par le
 selecteur juste au-dessus et poussait sous la ligne de flottaison la carte qui
 porte le coeur du produit. La motrice et les voitures sont parties avec.
 
+**L'ordre vertical de l'accueil est une decision produit, pas une mise en
+page.** La surveillance repond a la question de la session de trente secondes —
+« mon creneau, ou en est-il ? » — et se trouvait apres trente cases de
+calendrier, dans une carte de quatre lignes. Le calendrier sert a *trouver* une
+date : c'est ce qui vient ensuite dans l'ordre du besoin, pas avant.
+
+**Un controle epingle doit gouverner ce qu'il surplombe.** Le selecteur de sens
+etait fixe en haut ; une fois la surveillance passee au-dessus du calendrier, il
+dominait un bloc qu'il ne filtre pas. Il est redescendu contre sa grille — et il
+n'y avait rien a y gagner, cinq rangees restant visibles tout le temps qu'on les
+regarde. La barre fixe garde son sens sur l'ecran d'un jour, ou la liste fait
+trente-cinq lignes.
+
+**Un encodage qui demande une legende permanente n'est pas un encodage.** La
+frise de trente cellules par train coutait une phrase d'explication sous la
+carte et pres de mille vues sur un ecran de journee, pour dire la plupart du
+temps « ouvert, comme hier ». Le besoin porte sur la **confiance**, pas sur la
+visualisation de trente etats : `src/trace.ts` en tire un mot, et la duree qu'il
+porte *est* sa taille d'echantillon. Le mot ne sort dans une liste que sur les
+deux cas qui decident — vient de rouvrir, instable — parce qu'un signal present
+sur la majorite des lignes est un fond.
+
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
 convertir. Seul le cron est en UTC.
 
@@ -257,7 +279,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 78 tests sur fixtures, aucun acces reseau
+npm test              # 88 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
