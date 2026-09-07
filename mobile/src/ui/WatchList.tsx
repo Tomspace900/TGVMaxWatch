@@ -40,7 +40,7 @@ interface Props {
   onManage: () => void;
   onRemoveEntry: (entry: WatchEntry) => void;
   onRemoveRule: (rule: WatchRule) => void;
-  onBook: (date: string, dir: string, train: Train) => void;
+  onBook: (date: string, dir: string, train: Train, booked: boolean) => void;
 }
 
 export function WatchList({
@@ -96,7 +96,7 @@ export function WatchList({
         </Text>
       )}
 
-      {entries.map((entry, index) => (
+      {entries.map((entry) => (
         <EntryRow
           key={`${entry.date}-${entry.dir ?? ''}-${entry.after ?? ''}`}
           entry={entry}
@@ -104,7 +104,6 @@ export function WatchList({
           trains={trains}
           booked={booked}
           today={today}
-          first={index === 0}
           onOpen={onOpen}
           onManage={onManage}
           onRemove={() => onRemoveEntry(entry)}
@@ -112,7 +111,7 @@ export function WatchList({
         />
       ))}
 
-      {watchlist.rules.map((rule, index) => {
+      {watchlist.rules.map((rule) => {
         /*
          * Une regle recurrente ne designe pas une date : elle en designe une par
          * semaine. Ce qu'on veut savoir devant elle, c'est ou en est la
@@ -131,11 +130,11 @@ export function WatchList({
               style={({ pressed }) => [
                 styles.row,
                 {
-                  backgroundColor: theme.bg,
-                  borderTopColor: theme.line,
+                  backgroundColor: theme.raised,
+                  borderColor: theme.line,
+                  borderRadius: radius.sm,
                   opacity: pressed ? 0.6 : 1,
                 },
-                entries.length === 0 && index === 0 ? styles.firstRow : null,
               ]}
             >
               <Text
@@ -173,7 +172,6 @@ function EntryRow({
   trains,
   booked,
   today,
-  first,
   onOpen,
   onManage,
   onRemove,
@@ -184,11 +182,10 @@ function EntryRow({
   trains: TrainTrends;
   booked: Set<string>;
   today: string;
-  first: boolean;
   onOpen: (date: string, dir: string) => void;
   onManage: () => void;
   onRemove: () => void;
-  onBook: (date: string, dir: string, train: Train) => void;
+  onBook: (date: string, dir: string, train: Train, booked: boolean) => void;
 }) {
   const theme = useTheme();
 
@@ -221,16 +218,25 @@ function EntryRow({
       left={{ label: 'NE PLUS SUIVRE', onAction: onRemove }}
       // « J'ai reserve » n'a de sens que sur un train identifie : une journee
       // entiere ne se reserve pas.
-      {...(train && entry.dir && !isBooked
-        ? { right: { label: "J'AI RÉSERVÉ", onAction: () => onBook(entry.date, entry.dir!, train) } }
+      {...(train && entry.dir
+        ? {
+            right: {
+              label: isBooked ? 'PLUS RÉSERVÉ' : "J'AI RÉSERVÉ",
+              onAction: () => onBook(entry.date, entry.dir!, train, isBooked),
+            },
+          }
         : {})}
     >
       <Pressable
         onPress={() => (entry.dir ? onOpen(entry.date, entry.dir) : onManage())}
         style={({ pressed }) => [
           styles.row,
-          { backgroundColor: theme.bg, borderTopColor: theme.line, opacity: pressed ? 0.6 : 1 },
-          first ? styles.firstRow : null,
+          {
+            backgroundColor: theme.raised,
+            borderColor: theme.line,
+            borderRadius: radius.sm,
+            opacity: pressed ? 0.6 : 1,
+          },
         ]}
       >
         {entry.after ? (
@@ -274,17 +280,25 @@ function EntryRow({
 }
 
 const styles = StyleSheet.create({
-  block: { paddingHorizontal: space.lg },
+  block: { paddingHorizontal: space.lg, gap: space.sm },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  /*
+   * Le meme objet que dans la liste d'un jour.
+   *
+   * Ces lignes etaient plates, separees par un filet ; le meme balayage y
+   * revelait un degrade sur toute la largeur, sans coin ni marge — le geste
+   * etait identique, l'objet non, et ca se voyait. Un geste qui se fait sur
+   * deux formes differentes se lit comme deux gestes.
+   */
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    paddingVertical: space.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
-  // La premiere ligne n'a pas de filet : le titre en tient lieu.
-  firstRow: { borderTopWidth: 0, paddingTop: space.sm },
   leadTime: { minWidth: 58 },
   lead: {
     minWidth: 58,

@@ -50,8 +50,9 @@ suis, en entier, jamais tronqué. Chaque ligne porte :
   tient — sur une archive jeune, c'est exactement ce qu'il faut savoir.
 
 Touche une ligne pour ouvrir le jour correspondant, ou **balaie-la** : vers la
-gauche pour ne plus la suivre, vers la droite après avoir réservé — exactement
-les mêmes gestes que dans la liste des trains d'un jour.
+gauche pour ne plus la suivre, vers la droite pour marquer ou démarquer une
+réservation — exactement les mêmes gestes, sur exactement le même objet, que
+dans la liste des trains d'un jour.
 
 **Ce qui est parti disparaît tout seul.** Une heure après le départ d'un train
 suivi, sa ligne s'en va : elle ne dit plus rien, et la liste s'allongerait
@@ -116,6 +117,7 @@ une fenêtre complète, soit environ un mois de collecte.
   bouge. Refais le geste pour arrêter.
 - **Glisse vers la droite** → « j'ai réservé ». Le seul effet est d'armer le
   rappel de confirmation — c'est à ça que sert ce geste, et à rien d'autre.
+  Refais-le sur un train déjà marqué pour le démarquer : le rappel s'éteint.
 
 Le téléphone vibre légèrement au franchissement du seuil : tant que tu ne l'as
 pas senti, rien n'est validé.

@@ -178,6 +178,17 @@ pixels — `SwipeRow` est desormais le seul endroit ou il est ecrit. Un cote san
 action garde un debattement mais ne s'arme pas : la ligne ne promet rien qui
 n'arrivera pas.
 
+Corollaire : **le meme geste demande le meme objet**. Les lignes de surveillance
+etaient plates et separees par un filet, la ou une ligne de train est une carte
+posee ; le meme balayage y revelait un degrade sur toute la largeur, sans coin
+ni marge. Le geste etait identique, la forme non, et ca se voyait.
+
+**Un geste qui ne sait pas se defaire la ou il se fait est un formulaire.** Le
+balayage « j'ai reserve » n'etait qu'un ajout : rebalayer le meme train
+l'enregistrait une seconde fois, et seul l'ecran de reglages savait defaire.
+`toggleBooking` retire toujours avant d'ajouter — l'ecriture est donc idempotente
+par construction, et non conditionnee a un etat lu depuis le rendu precedent.
+
 **Ce qui est passe cesse d'exister.** Une entree de surveillance dont le train
 est parti depuis plus d'une heure n'est plus affichee, et disparait du fichier a
 la prochaine ecriture — jamais parce qu'un ecran s'est affiche : on n'ecrit pas

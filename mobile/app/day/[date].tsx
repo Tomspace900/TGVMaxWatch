@@ -10,7 +10,7 @@ import { trainsWord } from '../../../src/label.ts';
 import { slotOf } from '../../../src/stats.ts';
 import { matchesWatchlist, pruneWatch } from '../../../src/watchlist.ts';
 import { useStore } from '../../src/data/store.ts';
-import { scheduleConfirmReminder } from '../../src/data/reminders.ts';
+import { toggleBooking } from '../../src/data/booking.ts';
 import { buildCalendar, emptyDay } from '../../src/model.ts';
 import { dirLabel, longDate, watchCutoff } from '../../src/format.ts';
 import { Sparkline } from '../../src/ui/Sparkline.tsx';
@@ -130,24 +130,31 @@ export default function DayScreen() {
   };
 
   /**
-   * Enregistrer une reservation.
+   * Marquer ou demarquer une reservation.
    *
-   * Le geste ne sert plus qu'a une chose : poser le rappel de confirmation.
-   * C'est la seule information de reservation qu'on ne peut pas tenir de tete,
-   * et la seule qui coute de l'argent quand elle manque.
+   * Le geste ne sert qu'a une chose : poser le rappel de confirmation. C'est la
+   * seule information de reservation qu'on ne peut pas tenir de tete, et la
+   * seule qui coute de l'argent quand elle manque — le rappel part du
+   * telephone, pas d'une Action, et ne peut donc ni arriver en retard ni se
+   * retirer en silence.
    *
-   * Plus de blocage au sixieme creneau. Le quota de l'abonnement porte sur les
-   * reservations simultanees, son proprietaire le suit de tete, et un geste qui
-   * renvoyait en silence vers les reglages au lieu d'enregistrer se lisait
-   * comme une panne.
+   * Plus de blocage au sixieme creneau : le quota se suit de tete, et un geste
+   * qui renvoyait en silence vers les reglages se lisait comme une panne.
    */
-  const book = (trainNo: string, depart: string, arrivee: string) => {
-    const slot = { date, dir, trainNo, depart, arrivee, bookedAt: today, confirmed: false };
-    setReservations((current) => ({ slots: [...current.slots, slot] }));
-
-    // Le rappel part du telephone, pas d'une Action : il ne peut ni arriver en
-    // retard, ni se retirer en silence comme le cron qu'il remplace.
-    void scheduleConfirmReminder(slot);
+  const book = (train: Train) => {
+    toggleBooking(
+      setReservations,
+      {
+        date,
+        dir,
+        trainNo: train.trainNo,
+        depart: train.depart,
+        arrivee: train.arrivee,
+        bookedAt: today,
+        confirmed: false,
+      },
+      booked.has(train.trainNo),
+    );
   };
 
   /*
@@ -275,7 +282,7 @@ export default function DayScreen() {
             booked={booked.has(item.trainNo)}
             trace={traces[item.trainNo]}
             onWatch={() => toggleWatch(item.depart)}
-            onBook={() => book(item.trainNo, item.depart, item.arrivee)}
+            onBook={() => book(item)}
           />
         )}
         ListEmptyComponent={

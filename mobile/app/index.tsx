@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import { DIRECTIONS, STALE_ALARM_HOURS, STALE_DATA_HOURS } from '../../src/config.ts';
 import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
-import { cancelConfirmReminder, scheduleConfirmReminder } from '../src/data/reminders.ts';
+import { toggleBooking } from '../src/data/booking.ts';
+import { cancelConfirmReminder } from '../src/data/reminders.ts';
 import { buildCalendar, type Train } from '../src/model.ts';
 import { ageLabel, dirLabel, hoursSince, reverseDir, watchCutoff } from '../src/format.ts';
 import { ConfirmCard, StatsCard } from '../src/ui/Cards.tsx';
@@ -99,18 +100,20 @@ export default function CalendarScreen() {
     );
   };
 
-  const book = (date: string, bookedDir: string, train: Train) => {
-    const slot = {
-      date,
-      dir: bookedDir,
-      trainNo: train.trainNo,
-      depart: train.depart,
-      arrivee: train.arrivee,
-      bookedAt: today,
-      confirmed: false,
-    };
-    setReservations((current) => ({ slots: [...current.slots, slot] }));
-    void scheduleConfirmReminder(slot);
+  const book = (date: string, bookedDir: string, train: Train, booked: boolean) => {
+    toggleBooking(
+      setReservations,
+      {
+        date,
+        dir: bookedDir,
+        trainNo: train.trainNo,
+        depart: train.depart,
+        arrivee: train.arrivee,
+        bookedAt: today,
+        confirmed: false,
+      },
+      booked,
+    );
   };
 
   /** « C'est fait » : le creneau est confirme, et le rappel qui l'accompagnait se tait. */
