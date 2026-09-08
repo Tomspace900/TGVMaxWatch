@@ -3,25 +3,6 @@ import { REPO_BRANCH, REPO_NAME, REPO_OWNER } from '../../../src/config.ts';
 
 const API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents`;
 const TOKEN_KEY = 'tgvmax_pat';
-const VERIFIED_KEY = 'tgvmax_pat_verified';
-
-/** Date de la derniere verification reussie, pour dater ce qu'on affiche. */
-export async function getTokenVerifiedAt(): Promise<string | null> {
-  try {
-    return await SecureStore.getItemAsync(VERIFIED_KEY);
-  } catch {
-    return null;
-  }
-}
-
-async function setTokenVerifiedAt(iso: string | null): Promise<void> {
-  try {
-    if (iso) await SecureStore.setItemAsync(VERIFIED_KEY, iso);
-    else await SecureStore.deleteItemAsync(VERIFIED_KEY);
-  } catch {
-    // La date n'est qu'un confort d'affichage.
-  }
-}
 
 /**
  * Ecriture depuis le telephone.
@@ -45,7 +26,6 @@ export async function setToken(token: string | null): Promise<void> {
   } catch {
     // Keystore indisponible : l'application reste utilisable en lecture.
   }
-  await setTokenVerifiedAt(token ? new Date().toISOString() : null);
 }
 
 export type TokenCheck =

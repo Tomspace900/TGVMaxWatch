@@ -7,7 +7,6 @@ import * as Updates from 'expo-updates';
 import { useStore } from '../src/data/store.ts';
 import {
   getToken,
-  getTokenVerifiedAt,
   setToken,
   verifyToken,
   writeFile,
@@ -16,27 +15,45 @@ import {
 import { exportLocalState, parseExport } from '../src/data/local.ts';
 import { syncConfirmReminders } from '../src/data/reminders.ts';
 import { currentPushState, requestPushToken, type PushState } from '../src/data/push.ts';
-import { instantLabel, maskToken } from '../src/format.ts';
+import { maskToken } from '../src/format.ts';
 import { Action, Actions, Note, Row, Section, Status } from '../src/ui/Settings.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
 
 /*
- * Des reglages, et plus de la gestion.
+ * Des reglages, et rien d'autre.
  *
- * Cet ecran portait la liste des reservations et celle des suivis, avec
- * leurs boutons — c'est-a-dire l'ecran le moins frequente de l'application
- * charge de gestes qui comptent au moment ou l'on est ailleurs. Les deux vivent
- * desormais sur l'accueil, avec le meme balayage que partout ailleurs. Ne reste
- * ici que ce qui se regle une fois : notifications, jeton, sauvegarde, mises a
- * jour, etat de l'archive.
+ * Cet ecran a d'abord perdu la gestion — reservations et suivis sont partis sur
+ * l'accueil, ou l'on est quand ils comptent. Il lui restait le defaut inverse :
+ * du texte partout. Un paragraphe sous chaque bouton, l'etat interne de la
+ * synchronisation en lignes cle/valeur, la maturite des statistiques, le
+ * fonctionnement des mises a jour explique en trois phrases. De la
+ * documentation, sur l'ecran le moins ouvert de l'application.
+ *
+ * Trois coupes, et une regle pour chacune :
+ *
+ * - **ce qui est deja affiche ailleurs** ne se repete pas ici. Le nombre de
+ *   snapshots est sur l'accueil, la fraicheur de la donnee aussi, la maturite
+ *   des statistiques est sur l'ecran qui les montre. Les revoir ici n'apprenait
+ *   rien et il fallait les lire pour s'en apercevoir ;
+ * - **ce qui ne se regle pas** n'est pas un reglage. « Dernier envoi »,
+ *   « code execute », « lignes au dernier snapshot » sont des mesures : elles
+ *   ne demandent aucune decision, elles occupaient la place de celles qui en
+ *   demandent une ;
+ * - **une explication n'a de valeur qu'attachee a une decision**. La phrase qui
+ *   dit pourquoi un bouton est grise reste ; celle qui raconte comment
+ *   fonctionnent les mises a jour est partie avec le bouton qu'elle
+ *   accompagnait, maintenant que la mise a jour se propose d'elle-meme.
+ *
+ * Ce qui reste : ce qui a un interrupteur, et la mention ODbL, qui doit rester
+ * visible.
  */
 
 /** Chaque refus de GitHub demande un geste different : il faut donc les nommer. */
 const TOKEN_ERRORS: Record<Exclude<TokenCheck, { ok: true }>['reason'], string> = {
-  invalid: 'Jeton refusé par GitHub : expiré, révoqué, ou incomplet à la copie.',
-  'no-access': 'Ce jeton ne donne pas accès à ce dépôt. Vérifie le dépôt choisi à sa création.',
-  'read-only': 'Ce jeton est en lecture seule. Il lui faut la permission Contents: write.',
-  network: 'GitHub est injoignable pour le moment.',
+  invalid: 'Jeton refusé : expiré, révoqué, ou incomplet à la copie.',
+  'no-access': 'Ce jeton ne donne pas accès à ce dépôt.',
+  'read-only': 'Ce jeton est en lecture seule. Il lui faut Contents: write.',
+  network: 'GitHub est injoignable.',
 };
 
 export default function SettingsScreen() {
@@ -91,7 +108,6 @@ export default function SettingsScreen() {
   // ------------------------------------------------------------ jeton PAT
 
   const [token, setStoredToken] = useState<string | null>(null);
-  const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
   const [editingToken, setEditingToken] = useState(false);
   const [draft, setDraft] = useState('');
   const [checking, setChecking] = useState(false);
@@ -99,7 +115,6 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     void getToken().then(setStoredToken);
-    void getTokenVerifiedAt().then(setVerifiedAt);
   }, []);
 
   /**
@@ -124,7 +139,6 @@ export default function SettingsScreen() {
 
     await setToken(value);
     setStoredToken(value);
-    setVerifiedAt(new Date().toISOString());
     setEditingToken(false);
     setDraft('');
     setTokenError(null);
@@ -133,7 +147,6 @@ export default function SettingsScreen() {
   const forgetToken = async () => {
     await setToken(null);
     setStoredToken(null);
-    setVerifiedAt(null);
     setEditingToken(false);
     setDraft('');
     setTokenError(null);
@@ -161,7 +174,6 @@ export default function SettingsScreen() {
   // ----------------------------------------------------------- mises a jour
 
   const updates = Updates.useUpdates();
-  const running = updates.currentlyRunning;
 
   return (
     <ScrollView
@@ -187,17 +199,7 @@ export default function SettingsScreen() {
       )}
 
       <Section title="Notifications">
-        {push.status === 'ready' && (
-          <>
-            <Status text="Actives sur cet appareil." />
-            {bundle.pushToken && (
-              <Row label="jeton enregistré" value={instantLabel(bundle.pushToken.updatedAt)} />
-            )}
-            {bundle.state.lastPushOk && (
-              <Row label="dernier envoi" value={instantLabel(bundle.state.lastPushOk)} />
-            )}
-          </>
-        )}
+        {push.status === 'ready' && <Status text="Actives sur cet appareil." />}
 
         {push.status === 'stale' && (
           <>
@@ -215,104 +217,39 @@ export default function SettingsScreen() {
               primary
               disabled={!token}
             />
-            {!token && <Note>Il faut d’abord un jeton GitHub : c’est lui qui écrit dans le dépôt.</Note>}
           </>
         )}
 
         {push.status === 'off' && (
-          <>
-            <Note>
-              Une date qui rouvre, un créneau qui se vide, tes créneaux suivis. Au plus un message
-              par collecte.
-            </Note>
-            <Action
-              label="Activer les notifications"
-              onPress={() => void enablePush()}
-              primary
-              disabled={!token}
-            />
-            {!token && <Note>Il faut d’abord un jeton GitHub : c’est lui qui écrit dans le dépôt.</Note>}
-          </>
+          <Action
+            label="Activer les notifications"
+            onPress={() => void enablePush()}
+            primary
+            disabled={!token}
+          />
         )}
 
         {push.status === 'denied' && (
           <>
-            <Status attention text="Permission refusée. Elle se réautorise dans les réglages Android." />
+            <Status attention text="Permission refusée par Android." />
             <Action label="Ouvrir les réglages système" onPress={() => void Linking.openSettings()} />
           </>
         )}
 
-        {push.status === 'unknown' && (
-          <Note>
-            Hors ligne : impossible de vérifier que le dépôt porte bien le jeton de cet appareil.
-          </Note>
+        {push.status === 'unknown' && <Note>Hors ligne : état invérifiable.</Note>}
+        {push.status === 'unsupported' && <Note>Indisponible sans appareil réel.</Note>}
+
+        {/* La seule explication qui reste : celle qui dit pourquoi le bouton
+            juste au-dessus ne repond pas. */}
+        {!token && (push.status === 'off' || push.status === 'stale') && (
+          <Note>Il faut d’abord un jeton GitHub, plus bas.</Note>
         )}
-
-        {push.status === 'unsupported' && (
-          <Note>Indisponible ici : il faut un appareil réel et un build EAS.</Note>
-        )}
-      </Section>
-
-      <Section title="Application">
-        <Row label="version" value={Constants.expoConfig?.version ?? '—'} />
-        {running.runtimeVersion && <Row label="runtime" value={running.runtimeVersion} />}
-        <Row
-          label="code exécuté"
-          value={
-            running.isEmbeddedLaunch
-              ? 'embarqué dans l’APK'
-              : running.createdAt
-                ? instantLabel(running.createdAt)
-                : '—'
-          }
-        />
-        {updates.lastCheckForUpdateTimeSinceRestart && (
-          <Row
-            label="dernière vérification"
-            value={instantLabel(updates.lastCheckForUpdateTimeSinceRestart)}
-          />
-        )}
-
-        {updates.isUpdatePending ? (
-          <>
-            <Status text="Mise à jour téléchargée." />
-            <Action
-              label="Redémarrer pour l’appliquer"
-              primary
-              onPress={() => void Updates.reloadAsync()}
-            />
-          </>
-        ) : updates.isUpdateAvailable ? (
-          <>
-            <Status text="Une mise à jour est disponible." />
-            <Action
-              label={updates.isDownloading ? 'Téléchargement…' : 'Télécharger'}
-              primary
-              disabled={updates.isDownloading}
-              onPress={() => void Updates.fetchUpdateAsync()}
-            />
-          </>
-        ) : (
-          <Action
-            label={updates.isChecking ? 'Vérification…' : 'Chercher une mise à jour'}
-            disabled={updates.isChecking}
-            onPress={() => void Updates.checkForUpdateAsync()}
-          />
-        )}
-
-        {updates.checkError && <Note>Vérification impossible : {updates.checkError.message}</Note>}
-
-        <Note>
-          L’application cherche déjà une mise à jour à chaque lancement et la télécharge en fond ;
-          elle s’applique au redémarrage suivant. Ce bouton ne sert qu’à ne pas attendre.
-        </Note>
       </Section>
 
       <Section title="Sauvegarde">
         <Note>
-          Tes réservations vivent sur cet appareil et nulle part ailleurs. L’export les copie, avec
-          ton suivi, dans un texte que tu partages où tu veux. Sans export récent, un
-          téléphone perdu emporte la liste — les réservations elles-mêmes restent chez SNCF.
+          Tes réservations ne vivent que sur cet appareil. Sans export récent, un téléphone perdu
+          emporte la liste.
         </Note>
 
         <Action label="Exporter" onPress={exportState} />
@@ -320,7 +257,7 @@ export default function SettingsScreen() {
         <TextInput
           value={restore}
           onChangeText={setRestore}
-          placeholder="Coller une sauvegarde pour la restaurer"
+          placeholder="Coller une sauvegarde"
           placeholderTextColor={theme.muted}
           multiline
           autoCapitalize="none"
@@ -331,7 +268,7 @@ export default function SettingsScreen() {
               backgroundColor: theme.sunken,
               color: theme.text,
               borderRadius: radius.sm,
-              minHeight: 72,
+              minHeight: 60,
             },
           ]}
         />
@@ -343,7 +280,6 @@ export default function SettingsScreen() {
         {!editingToken && token && (
           <>
             <Row label="jeton" value={maskToken(token)} mono />
-            {verifiedAt && <Row label="vérifié le" value={instantLabel(verifiedAt)} />}
             <Actions>
               <View style={{ flex: 1 }}>
                 <Action
@@ -365,8 +301,8 @@ export default function SettingsScreen() {
         {!editingToken && !token && (
           <>
             <Note>
-              Un PAT fine-grained avec Contents: write sur ce seul dépôt. Il sert à écrire ta
-              suivi depuis le téléphone — la lecture, elle, n’en a pas besoin.
+              Un PAT fine-grained avec Contents: write sur ce dépôt. C’est lui qui publie tes suivis
+              — sans lui, aucune alerte ne part.
             </Note>
             <Action
               label="Enregistrer un jeton"
@@ -421,28 +357,29 @@ export default function SettingsScreen() {
             </Actions>
           </>
         )}
-
-        <Note>Rangé dans le keystore Android. À révoquer sur GitHub en cas de perte de l’appareil.</Note>
       </Section>
 
-      <Section title="Archive">
-        <Row label="snapshots" value={String(bundle.state.snapshotCount)} />
-        <Row label="lignes au dernier" value={String(bundle.state.recordCount)} />
-        {bundle.state.collectedAt && (
-          <Row label="dernière collecte" value={instantLabel(bundle.state.collectedAt)} />
+      <Section title="Application">
+        <Row label="version" value={Constants.expoConfig?.version ?? '—'} />
+
+        {/* La mise a jour se propose d'elle-meme des qu'elle est prete. Ce
+            bouton n'est plus que le chemin de ceux qui n'attendent pas. */}
+        {updates.isUpdatePending ? (
+          <Action label="Redémarrer pour mettre à jour" primary onPress={() => void Updates.reloadAsync()} />
+        ) : (
+          <Action
+            label={
+              updates.isDownloading
+                ? 'Téléchargement…'
+                : updates.isChecking
+                  ? 'Vérification…'
+                  : 'Chercher une mise à jour'
+            }
+            disabled={updates.isChecking || updates.isDownloading}
+            onPress={() => void Updates.checkForUpdateAsync()}
+          />
         )}
-        {/* Chaque statistique est publiee des qu'elle a un echantillon, pas
-            toutes ensemble : elles ne murissent pas au meme rythme. */}
-        <Row
-          label="taux de réouverture"
-          value={
-            bundle.stats?.ready.reopen
-              ? `${Object.keys(bundle.stats.reopen).length} trains`
-              : 'en attente'
-          }
-        />
-        <Row label="courbe d’érosion" value={bundle.stats?.ready.erosion ? 'publiée' : 'en attente'} />
-        <Row label="délais de fonte" value={bundle.stats?.ready.burnRate ? 'publiés' : 'en attente'} />
+
         <Note>Données TGVmax, SNCF Voyageurs, licence ODbL.</Note>
       </Section>
     </ScrollView>

@@ -218,6 +218,32 @@ reservations, et il est parti avec — c'est le seul endroit ou la donnee n'est
 pas reconstituable depuis l'archive, il ne peut pas rester muet. Il est
 desormais la ou l'ecriture se fait.
 
+**Les reglages ne portent que ce qui a un interrupteur.** Ils avaient perdu la
+gestion — reservations et suivis sont partis sur l'accueil — pour gagner le
+defaut inverse : un paragraphe sous chaque bouton, l'etat interne de la
+synchronisation en lignes cle/valeur, la maturite des statistiques, le
+fonctionnement des mises a jour explique en trois phrases. De la documentation,
+sur l'ecran le moins ouvert de l'application. Trois coupes, trois regles : ce
+qui est **deja affiche ailleurs** ne se repete pas (le nombre de snapshots est
+sur l'accueil, la maturite des statistiques sur l'ecran qui les montre) ; ce qui
+**ne se regle pas** n'est pas un reglage (« dernier envoi », « code execute »,
+« lignes au dernier snapshot » sont des mesures, elles ne demandent aucune
+decision) ; une **explication n'a de valeur qu'attachee a une decision** — la
+phrase qui dit pourquoi un bouton est grise reste, celle qui raconte comment
+fonctionnent les mises a jour est partie avec le bouton qu'elle accompagnait.
+Seule exception, non negociable : la mention ODbL reste visible.
+
+**Une mise a jour prete n'a pas a etre allee chercher.** Le comportement par
+defaut d'`expo-updates` demande deux lancements — le premier telecharge en fond,
+le second execute — et entre les deux l'application tourne sur du code qu'elle
+sait perime, sans le dire. D'ou le reflexe d'ouvrir les reglages pour verifier :
+aller chercher a la main une information que l'application detient. Le second
+lancement n'est qu'une convention, `reloadAsync` applique le paquet des qu'il
+est la ; il ne manquait qu'un endroit pour le proposer, et le bon endroit est
+celui ou l'on est deja. La question ne se pose que quand elle a une reponse —
+`isUpdatePending`, jamais `isUpdateAvailable` — meme regle que le rappel de
+confirmation : un rappel avant que l'action soit possible n'est pas un rappel.
+
 **Un voyage passe se masque, il ne s'efface pas.** Il ne demande plus rien et
 n'a donc plus a etre affiche, mais il reste dans le stockage et dans l'export :
 effacer une donnee utilisateur en silence est exactement ce qui a deja coute une

@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StoreProvider } from '../src/data/StoreProvider.tsx';
 import { useNotificationRouting } from '../src/data/notifications.ts';
+import { UpdateGate } from '../src/ui/UpdateGate.tsx';
 import { fontAssets, useTheme } from '../src/theme.ts';
 
 export default function RootLayout() {
@@ -46,6 +47,9 @@ export default function RootLayout() {
               <Stack.Screen name="history" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="watch" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             </Stack>
+            {/* Au-dessus de la pile, parce que la question ne depend d'aucun
+                ecran : c'est l'application entiere qu'on redemarre. */}
+            <UpdateGate />
           </StoreProvider>
         ) : (
           <View style={{ flex: 1, backgroundColor: theme.bg }} />

@@ -73,16 +73,6 @@ export function hoursSince(isoInstant: string): number {
   return (Date.now() - Date.parse(isoInstant)) / 3_600_000;
 }
 
-/** Instant date et heure : `4 sept. · 08:12`. */
-export function instantLabel(value: string | Date): string {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  const month = MONTHS[date.getMonth()]?.slice(0, 4) ?? '';
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${date.getDate()} ${month}. · ${hh}:${mm}`;
-}
-
 /**
  * Jeton masque : `github_pat_…a1b2`.
  *
