@@ -98,11 +98,30 @@ function decodeBase64(input: string): string {
   return new TextDecoder().decode(bytes);
 }
 
+/**
+ * Aucun jeton enregistre.
+ *
+ * Ce cas n'est pas une panne : c'est une application qui n'a jamais recu de
+ * quoi ecrire. Il se distingue de tous les autres parce qu'il ne se resout pas
+ * en reessayant, et parce que c'est le seul dont la reponse tient en un ecran
+ * — d'ou un type plutot qu'un message parmi d'autres.
+ */
+export class NoTokenError extends Error {
+  constructor() {
+    super('Aucun jeton GitHub enregistre');
+    this.name = 'NoTokenError';
+  }
+}
+
+export function hasToken(): Promise<boolean> {
+  return getToken().then((token) => token !== null && token !== '');
+}
+
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const token = await getToken();
-  if (!token) throw new Error('Aucun jeton GitHub enregistre');
+  if (!token) throw new NoTokenError();
 
-  const response = await fetch(`${API}/${path}`, {
+  return fetch(`${API}/${path}`, {
     ...init,
     headers: {
       accept: 'application/vnd.github+json',
@@ -111,42 +130,64 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
       ...init?.headers,
     },
   });
-
-  if (!response.ok && response.status !== 404) {
-    throw new Error(`GitHub a repondu ${response.status} sur ${path}`);
-  }
-  return response;
 }
 
+/**
+ * Lecture par l'API, et c'est tout l'interet.
+ *
+ * `raw.githubusercontent.com` est servi par un CDN avec `max-age=300` : apres
+ * une ecriture, il reste jusqu'a cinq minutes a resservir le blob d'avant, et
+ * l'en-tete `cache-control: no-cache` de la requete n'y change rien — c'est un
+ * en-tete de requete, il ne perce pas le cache d'un intermediaire. C'est ce
+ * decalage qui faisait revenir un suivi supprime au rechargement suivant.
+ * L'API Contents, elle, repond depuis la ref : elle voit le commit des qu'il
+ * existe.
+ *
+ * Un cache-buster sur l'URL raw aurait pu suffire, mais il repose sur une
+ * propriete du CDN que rien ne nous garantit ; ici le jeton existe deja, et
+ * cette lecture est celle dont on a besoin qu'elle soit juste.
+ */
 export async function readFile<T>(path: string): Promise<{ value: T; sha: string } | null> {
   const response = await request(`${path}?ref=${REPO_BRANCH}`);
   if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`GitHub a repondu ${response.status} sur ${path}`);
 
   const payload = (await response.json()) as { sha: string; content: string };
   return { value: JSON.parse(decodeBase64(payload.content)) as T, sha: payload.sha };
 }
 
 /**
- * Ecrit un fichier du depot.
+ * Ecrit un fichier du depot, en retentant sur conflit.
  *
  * Le `sha` courant est relu juste avant l'envoi : le collecteur commite deux
  * fois par jour et une ecriture depuis le telephone doit pouvoir se glisser
- * entre les deux sans conflit.
+ * entre les deux. Mais relire puis ecrire n'est pas atomique, et deux gestes
+ * rapproches suffisaient a produire un 409 — que l'appelant avalait en
+ * silence, perdant l'edition pour toujours. Le conflit dit exactement une
+ * chose : le `sha` a bouge. On le relit et on rejoue, l'etat envoye etant
+ * complet et non un increment.
  */
 export async function writeFile(path: string, value: unknown, message: string): Promise<void> {
-  const existing = await readFile<unknown>(path);
+  const content = encodeBase64(`${JSON.stringify(value, null, 2)}\n`);
 
-  const response = await request(path, {
-    method: 'PUT',
-    body: JSON.stringify({
-      message,
-      content: encodeBase64(`${JSON.stringify(value, null, 2)}\n`),
-      branch: REPO_BRANCH,
-      ...(existing ? { sha: existing.sha } : {}),
-    }),
-  });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const existing = await readFile<unknown>(path);
 
-  if (!response.ok) {
-    throw new Error(`Ecriture refusee sur ${path} (HTTP ${response.status})`);
+    const response = await request(path, {
+      method: 'PUT',
+      body: JSON.stringify({
+        message,
+        content,
+        branch: REPO_BRANCH,
+        ...(existing ? { sha: existing.sha } : {}),
+      }),
+    });
+
+    if (response.ok) return;
+    if (response.status !== 409 && response.status !== 422) {
+      throw new Error(`Ecriture refusee sur ${path} (HTTP ${response.status})`);
+    }
   }
+
+  throw new Error(`Ecriture sur ${path} abandonnee apres trois conflits`);
 }

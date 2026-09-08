@@ -17,14 +17,14 @@ import { RailTrack } from '../src/ui/rail.tsx';
 import { Segmented } from '../src/ui/Segmented.tsx';
 import { WatchList } from '../src/ui/WatchList.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
-import { pruneWatch } from '../../src/watchlist.ts';
+import { pruneWatch, setRule, setWatch } from '../../src/watchlist.ts';
 import type { Reservation, WatchEntry, WatchRule } from '../../src/types.ts';
 
 export default function CalendarScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { bundle, loading, offline, storageOk, refresh, setReservations, setWatchlist } =
+  const { bundle, loading, offline, storageOk, watchSync, refresh, setReservations, setWatchlist } =
     useStore();
 
   const today = useMemo(() => todayInParis(), []);
@@ -79,25 +79,23 @@ export default function CalendarScreen() {
    * Chaque ecriture emporte au passage les entrees dont le train est parti :
    * c'est le seul moment ou l'on ecrit deja dans le depot, et la liste ne
    * grandit donc jamais pour rien.
+   *
+   * `setWatch` compare par valeur et non par identite d'objet. Le filtre
+   * d'avant — `entry !== target` — ne retirait rien des lors qu'un
+   * rafraichissement avait remplace les objets entre le rendu et le geste : la
+   * suppression partait en commit sans avoir rien supprime, et l'entree etait
+   * toujours la au rechargement.
    */
   const removeEntry = (target: WatchEntry) => {
     setWatchlist(
-      (current) =>
-        pruneWatch(
-          { ...current, watch: current.watch.filter((entry) => entry !== target) },
-          watchCutoff(),
-        ),
+      (current) => pruneWatch(setWatch(current, target, false), watchCutoff()),
       `watchlist: retire ${target.date}${target.after ? ` ${target.after}` : ''}`,
     );
   };
 
   const removeRule = (target: WatchRule) => {
     setWatchlist(
-      (current) =>
-        pruneWatch(
-          { ...current, rules: current.rules.filter((rule) => rule !== target) },
-          watchCutoff(),
-        ),
+      (current) => pruneWatch(setRule(current, target, false), watchCutoff()),
       `watchlist: retire la regle ${target.weekday}`,
     );
   };
@@ -200,6 +198,28 @@ export default function CalendarScreen() {
               résolu — restaure une sauvegarde ou réinstalle l'application.
             </Text>
           </View>
+        )}
+
+        {/* Un suivi qui n'atteint pas le depot est un suivi que le collecteur ne
+            lit pas : l'ecran est juste, les alertes ne le sont pas. C'etait le
+            plus silencieux des ecarts — l'ecriture partait dans un `catch` vide
+            — et c'est exactement le mode de panne que ce projet combat. La
+            liste, elle, n'est pas perdue : elle est gardee sur l'appareil et
+            repart au rafraichissement suivant. */}
+        {(watchSync === 'no-token' || watchSync === 'failed') && (
+          <Pressable
+            onPress={() => (watchSync === 'no-token' ? router.push('/settings') : void refresh())}
+            style={[
+              styles.banner,
+              { backgroundColor: theme.accent, marginHorizontal: space.lg, borderRadius: radius.sm },
+            ]}
+          >
+            <Text style={[typo.strong, { color: theme.onBrand, lineHeight: 18 }]}>
+              {watchSync === 'no-token'
+                ? "Tes suivis restent sur cet appareil : sans jeton GitHub, le collecteur ne les voit pas et aucune alerte ne partira. Touche ici pour l'enregistrer."
+                : 'Les derniers suivis ne sont pas publiés. Ils sont gardés ici — touche pour réessayer.'}
+            </Text>
+          </Pressable>
         )}
 
         {/* Le seul endroit ou cette application peut couter de l'argent reel :

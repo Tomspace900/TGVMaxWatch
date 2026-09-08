@@ -9,7 +9,7 @@ import { addDays, todayInParis, weekday } from '../../../src/dates.ts';
 import { trainsWord } from '../../../src/label.ts';
 import { DAY_PERIODS } from '../../../src/periods.ts';
 import { slotOf } from '../../../src/stats.ts';
-import { matchesWatchlist, pruneWatch } from '../../../src/watchlist.ts';
+import { hasWatch, matchesWatchlist, pruneWatch, setWatch } from '../../../src/watchlist.ts';
 import { useStore } from '../../src/data/store.ts';
 import { toggleBooking } from '../../src/data/booking.ts';
 import { buildCalendar, emptyDay } from '../../src/model.ts';
@@ -19,6 +19,7 @@ import { BAR_HEIGHT, StickyBar } from '../../src/ui/StickyBar.tsx';
 import { TrainRow } from '../../src/ui/TrainRow.tsx';
 import { radius, space, typo, useTheme } from '../../src/theme.ts';
 import type { Train } from '../../src/model.ts';
+import type { WatchEntry } from '../../../src/types.ts';
 
 const TrainList = Animated.FlatList<Train>;
 
@@ -123,13 +124,14 @@ export default function DayScreen() {
    * retirer l'une ne doit pas emporter l'autre.
    */
   const watchedWindow = (after?: string, before?: string) =>
-    bundle.watchlist.watch.some(
-      (entry) =>
-        entry.date === date &&
-        entry.dir === dir &&
-        entry.after === after &&
-        entry.before === before,
-    );
+    hasWatch(bundle.watchlist, entryFor(after, before));
+
+  const entryFor = (after?: string, before?: string): WatchEntry => ({
+    date,
+    dir,
+    ...(after ? { after } : {}),
+    ...(before ? { before } : {}),
+  });
 
   /**
    * Poser ou retirer un suivi sur cette date.
@@ -148,27 +150,7 @@ export default function DayScreen() {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     setWatchlist(
-      (current) =>
-        pruneWatch(
-          {
-            ...current,
-            watch: already
-              ? current.watch.filter(
-                  (entry) =>
-                    !(
-                      entry.date === date &&
-                      entry.dir === dir &&
-                      entry.after === after &&
-                      entry.before === before
-                    ),
-                )
-              : [
-                  ...current.watch,
-                  { date, dir, ...(after ? { after } : {}), ...(before ? { before } : {}) },
-                ],
-          },
-          watchCutoff(),
-        ),
+      (current) => pruneWatch(setWatch(current, entryFor(after, before), !already), watchCutoff()),
       `watchlist: ${already ? 'retire' : 'suit'} ${date} ${label}`,
     );
   };

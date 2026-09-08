@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { SyncState } from './watch-sync.ts';
 import type {
   History,
   Reservations,
@@ -53,6 +54,18 @@ export interface Store {
    * remplacer une liste peut-etre recuperable par une liste vide.
    */
   storageOk: boolean;
+  /**
+   * Ou en est la publication du suivi vers le depot.
+   *
+   * Le suivi s'edite sur l'appareil et se lit par le collecteur : tant qu'il
+   * n'est pas publie, l'ecran est juste et les alertes ne le sont pas. C'est
+   * exactement le genre d'ecart que ce projet ne laisse pas passer en silence,
+   * et il n'existait aucun moyen de le voir — une ecriture ratee etait avalee
+   * par un `catch` vide.
+   */
+  watchSync: SyncState;
+  /** Rejoue une publication en echec. Le tirage vers le bas le fait deja. */
+  retryWatchSync: () => void;
   refresh: () => Promise<void>;
   /**
    * Prend une fonction, jamais une valeur, pour la meme raison que

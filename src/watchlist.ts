@@ -96,3 +96,81 @@ export function pruneWatch(
   const watch = watchlist.watch.filter((entry) => !isExpired(entry, cutoff));
   return watch.length === watchlist.watch.length ? watchlist : { ...watchlist, watch };
 }
+
+/**
+ * Cle canonique d'une entree, et de meme pour une regle.
+ *
+ * Deux objets qui decrivent la meme fenetre sont la meme entree. L'interface
+ * les comparait par identite d'objet (`entry !== target`) : un rafraichissement
+ * remplacait les objets entre le rendu et le geste, le filtre ne trouvait plus
+ * rien a retirer, et la suppression partait quand meme en commit. L'entree
+ * « supprimee » etait toujours la au rechargement suivant.
+ *
+ * Une cle plutot qu'une comparaison champ a champ parce que trois ecrans
+ * comparaient deja ces objets, chacun a sa maniere, et que `undefined` face a
+ * `''` s'y decidait trois fois.
+ */
+export function watchKey(entry: WatchEntry): string {
+  return [entry.date, entry.dir ?? '', entry.after ?? '', entry.before ?? ''].join('|');
+}
+
+export function ruleKey(rule: WatchRule): string {
+  return [rule.weekday, rule.dir ?? '', rule.after ?? '', rule.before ?? ''].join('|');
+}
+
+export function hasWatch(watchlist: Watchlist, entry: WatchEntry): boolean {
+  const key = watchKey(entry);
+  return watchlist.watch.some((current) => watchKey(current) === key);
+}
+
+export function hasRule(watchlist: Watchlist, rule: WatchRule): boolean {
+  const key = ruleKey(rule);
+  return watchlist.rules.some((current) => ruleKey(current) === key);
+}
+
+/**
+ * Poser ou retirer un suivi, toujours en retirant d'abord.
+ *
+ * Meme raison que `toggleBooking` : l'ecriture est idempotente par
+ * construction, et non conditionnee a un etat lu depuis le rendu precedent.
+ * Rejouer deux fois le meme geste ne peut donc ni doubler une entree ni en
+ * laisser une derriere.
+ */
+export function setWatch(watchlist: Watchlist, entry: WatchEntry, watched: boolean): Watchlist {
+  const key = watchKey(entry);
+  const watch = watchlist.watch.filter((current) => watchKey(current) !== key);
+  if (watched) watch.push(entry);
+  return { ...watchlist, watch };
+}
+
+export function setRule(watchlist: Watchlist, rule: WatchRule, active: boolean): Watchlist {
+  const key = ruleKey(rule);
+  const rules = watchlist.rules.filter((current) => ruleKey(current) !== key);
+  if (active) rules.push(rule);
+  return { ...watchlist, rules };
+}
+
+/**
+ * Une valeur venue d'ailleurs, ramenee a la forme attendue.
+ *
+ * Le fichier du depot peut avoir ete edite a la main, et une lecture reseau
+ * ratee rendait jusqu'ici une liste vide indiscernable d'une vraie liste vide.
+ * Ici on refuse ce qui n'est pas une watchlist ; c'est a l'appelant de decider
+ * quoi faire du refus, et il ne peut le decider que s'il le voit.
+ */
+export function parseWatchlist(value: unknown): Watchlist | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (!Array.isArray(record['watch']) || !Array.isArray(record['rules'])) return null;
+
+  const watch = (record['watch'] as unknown[]).filter(isWindow).map((entry) => entry as WatchEntry);
+  const rules = (record['rules'] as unknown[])
+    .filter((rule) => isWindow(rule) && typeof (rule as WatchRule).weekday === 'string')
+    .map((rule) => rule as WatchRule);
+
+  return { watch, rules };
+}
+
+function isWindow(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}

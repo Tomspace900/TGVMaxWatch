@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { DIRECTIONS } from '../../src/config.ts';
 import { DAY_PERIODS } from '../../src/periods.ts';
-import { pruneWatch } from '../../src/watchlist.ts';
+import { hasRule, pruneWatch, setRule } from '../../src/watchlist.ts';
 import { useStore } from '../src/data/store.ts';
 import { dirLabel, watchCutoff, weekdayName } from '../src/format.ts';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
@@ -57,18 +57,14 @@ export default function WatchScreen() {
     ...(slot.before ? { before: slot.before } : {}),
   };
 
-  const already = bundle.watchlist.rules.some(
-    (entry) =>
-      entry.weekday === rule.weekday &&
-      entry.dir === rule.dir &&
-      entry.after === rule.after &&
-      entry.before === rule.before,
-  );
+  const already = hasRule(bundle.watchlist, rule);
 
   const save = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // `setRule` retire avant d'ajouter : rejouer le formulaire sur la meme
+    // regle ne peut pas la doubler, meme si l'ecran s'est rouvert entre-temps.
     setWatchlist(
-      (current) => pruneWatch({ ...current, rules: [...current.rules, rule] }, watchCutoff()),
+      (current) => pruneWatch(setRule(current, rule, true), watchCutoff()),
       `watchlist: regle ${weekday}${slot.after ? ` ${slot.after}` : ''}`,
     );
     router.back();

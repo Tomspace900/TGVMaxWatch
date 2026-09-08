@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { writeFile } from './github.ts';
 import { loadJson } from './remote.ts';
 import { readReservations, writeReservations } from './local.ts';
 import { scheduleStaleAlarm, syncConfirmReminders } from './reminders.ts';
+import {
+  isPending,
+  markPending,
+  publishWatchlist,
+  resolveWatchlist,
+  retrySync,
+  subscribeSync,
+  syncState,
+  type SyncState,
+} from './watch-sync.ts';
 import { EMPTY_BUNDLE, StoreContext, type Bundle, type Store } from './store.ts';
 import type { Reservations, Watchlist } from '../../../src/types.ts';
 
@@ -12,6 +21,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
+  const [watchSync, setWatchSync] = useState<SyncState>(syncState);
+
+  useEffect(() => subscribeSync(setWatchSync), []);
 
   /**
    * Sept fichiers viennent du depot, les reservations du stockage local.
@@ -21,7 +33,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    * l'appareil garde ce qui ne regarde que son proprietaire.
    */
   const refresh = useCallback(async () => {
-    const [state, latest, history, stats, trains, watchlist, pushToken, reservations] =
+    // Une edition qui n'a pas atteint le depot repart a chaque tirage : c'est
+    // le geste que l'on fait deja quand quelque chose semble ne pas etre passe.
+    retrySync();
+
+    const [state, latest, history, stats, trains, remoteWatchlist, pushToken, reservations] =
       await Promise.all([
         loadJson('data/state.json', EMPTY_BUNDLE.state),
         loadJson('data/latest.json', EMPTY_BUNDLE.latest),
@@ -33,16 +49,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         readReservations(),
       ]);
 
-    setBundle({
+    /*
+     * La watchlist ne se prend pas telle quelle dans le lot.
+     *
+     * Les sept autres fichiers sont de la donnee dont l'appareil n'est pas
+     * l'auteur : la derniere version connue est toujours la bonne. La watchlist,
+     * elle, s'edite ici — et la lire au CDN puis l'ecraser avec ce qu'il rend
+     * etait exactement ce qui faisait revenir un suivi supprime.
+     */
+    const resolved = await resolveWatchlist({
+      value: remoteWatchlist.value,
+      fresh: !remoteWatchlist.stale,
+    });
+
+    setBundle((current) => ({
       state: state.value,
       latest: latest.value,
       history: history.value,
       stats: stats.value,
       trains: trains.value,
-      watchlist: watchlist.value,
+      // Un geste pose pendant que ces lectures revenaient ne doit pas etre
+      // efface par leur arrivee. `resolveWatchlist` a deja tranche, mais un
+      // geste peut encore etre arrive depuis : la question se repose au moment
+      // ou l'etat change vraiment, et c'est le dernier endroit ou elle peut
+      // l'etre.
+      watchlist: isPending() ? current.watchlist : resolved.watchlist,
       reservations: reservations.reservations,
       pushToken: pushToken.value,
-    });
+    }));
     setStorageOk(reservations.ok);
     // Le snapshot est la seule ressource dont l'absence se voit vraiment.
     setOffline(latest.stale);
@@ -76,11 +110,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [bundle.reservations, loading, storageOk]);
 
   /*
-   * L'ecriture dans le depot suit le changement d'etat, elle ne le precede pas.
+   * La publication suit le changement d'etat, elle ne le precede pas.
    *
-   * Le message porte aussi le fait qu'il y a quelque chose a ecrire : un
-   * rafraichissement remplace la watchlist par celle du depot, et sans ce
-   * marqueur l'effet renverrait aussitot au depot ce qu'il vient d'en lire.
+   * Le message porte aussi le fait qu'il y a quelque chose a publier : un
+   * rafraichissement peut lui aussi remplacer la watchlist, et sans ce marqueur
+   * l'effet renverrait au depot ce qu'il vient d'en lire.
    */
   const pendingWatch = useRef<string | null>(null);
 
@@ -88,10 +122,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const message = pendingWatch.current;
     if (!message) return;
     pendingWatch.current = null;
-    void writeFile('watchlist.json', bundle.watchlist, message).catch(() => {
-      // Sans jeton, l'edition reste locale a cette session ; le prochain
-      // rafraichissement la remplacera par la version du depot.
-    });
+    publishWatchlist(bundle.watchlist, message);
   }, [bundle.watchlist]);
 
   const value = useMemo<Store>(
@@ -100,11 +131,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loading,
       offline,
       storageOk,
+      watchSync,
+      retryWatchSync: retrySync,
       refresh,
-      // Ecriture optimiste : le depot fait foi, mais l'interface ne doit pas
-      // attendre un aller-retour reseau pour repondre au doigt.
+      // Ecriture optimiste : l'interface ne doit pas attendre un aller-retour
+      // reseau pour repondre au doigt. Mais l'optimisme seul ne suffisait pas —
+      // entre le geste et l'effet qui publie, un rafraichissement pouvait rendre
+      // sa reponse et adopter la version du depot, donc annuler le geste. Le
+      // marqueur est desormais pose des le geste, et `resolveWatchlist` le lit.
       setWatchlist: (update: (current: Watchlist) => Watchlist, message: string) => {
         pendingWatch.current = message;
+        markPending();
         setBundle((current) => ({ ...current, watchlist: update(current.watchlist) }));
       },
       // L'ecran decrit la transformation, jamais le resultat : c'est ce qui
@@ -114,7 +151,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setBundle((current) => ({ ...current, reservations: update(current.reservations) }));
       },
     }),
-    [bundle, loading, offline, storageOk, refresh],
+    [bundle, loading, offline, storageOk, watchSync, refresh],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

@@ -349,6 +349,43 @@ est celle de l'utilisateur. Le rappel est aujourd'hui une alarme posee par
 `mobile/src/data/reminders.ts`, et il ne reste dans les workflows que `collect`,
 dont l'idempotence rend le retard sans consequence.
 
+**`raw.githubusercontent.com` est un CDN a `max-age=300`, et la watchlist s'y
+lisait apres s'y etre ecrite.** Mesure, pas supposee : la reponse porte
+`cache-control: max-age=300`, `x-cache`, `source-age`. L'en-tete
+`cache-control: no-cache` que l'application envoyait est un en-tete de
+*requete* : il ne perce pas le cache d'un intermediaire. On supprimait un
+suivi, l'ecriture par l'API partait bien, et le rechargement suivant reservait
+pendant cinq minutes la version d'avant — le suivi supprime revenait, celui
+qu'on venait d'ajouter manquait. Une lecture qui doit etre juste apres une
+ecriture passe par l'API Contents, qui repond depuis la ref.
+
+**L'appareil est l'auteur de la watchlist, le depot en est la publication.**
+Le collecteur ne peut pas filtrer sur un fichier qu'il ne lit pas : le fichier
+reste donc dans le depot. Mais il n'en est plus la *source affichee*. Le miroir
+local (`mobile/src/data/watch-sync.ts`) porte ce que l'ecran montre, et la
+publication est une consequence qui peut echouer, retarder ou attendre un
+jeton, sans que la liste bouge. C'est possible parce que le collecteur ne
+reecrit jamais ce fichier — il ne fait que le lire — donc il n'y a rien a
+arbitrer. Corollaires deja payes : un miroir absent n'est pas un miroir vide
+(meme lecon que `readReservations`), une edition non publiee gagne toujours sur
+un rafraichissement, et elle survit a la fermeture de l'application.
+
+**Une ecriture reseau non serialisee perd le perdant, en silence.** `writeFile`
+relit le `sha` puis envoie : deux gestes rapproches suffisaient a produire un
+409, avale par un `.catch(() => {})`. Une seule ecriture en vol, la derniere
+valeur ecrase les precedentes dans la file — l'envoi porte l'etat complet, pas
+un increment — et le conflit se rejoue au lieu de se perdre. Et la panne se
+voit : une banniere sur l'accueil, parce qu'un suivi que le collecteur ne lit
+pas est un ecran juste avec des alertes fausses.
+
+**Un objet n'est pas une valeur.** Trois ecrans comparaient les entrees de
+suivi, chacun a sa maniere, et l'accueil le faisait par identite
+(`entry !== target`). Un rafraichissement remplace les objets entre le rendu et
+le geste : le filtre ne retirait plus rien et la suppression partait quand meme
+en commit. `watchKey` / `ruleKey` tranchent une fois pour toutes, `undefined`
+face a `''` compris, et `setWatch` / `setRule` retirent avant d'ajouter — meme
+raison que `toggleBooking`.
+
 **Ce qui est personnel ne va pas dans le depot.** Il est public — l'application
 lit ses donnees sur `raw.githubusercontent.com` sans authentification — et
 `reservations.json` y publiait dates, sens et numeros de train, c'est-a-dire
@@ -443,7 +480,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 116 tests sur fixtures, aucun acces reseau
+npm test              # 123 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
