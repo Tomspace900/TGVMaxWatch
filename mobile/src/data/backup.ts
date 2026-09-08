@@ -139,7 +139,7 @@ export async function importFromFile(): Promise<
   if (!parsed) {
     return {
       kind: 'error',
-      message: 'Ce fichier n’est pas une sauvegarde TGVmax. Rien n’a été modifié.',
+      message: 'Ce fichier n’est pas une sauvegarde TGV Max. Rien n’a été modifié.',
     };
   }
 

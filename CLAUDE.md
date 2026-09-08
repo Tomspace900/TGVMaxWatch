@@ -100,6 +100,25 @@ Corollaire de typage : `File.pickFileAsync` est surchargee trois fois, dont une
 signature depreciee qui rend un `File` nu. Un `ReturnType` retient la derniere
 surcharge et fait disparaitre le `canceled` — le type se nomme explicitement.
 
+**L'icone porte son sens dans sa geometrie, pas dans sa couleur.** L'ancienne
+grille 4x4 etait peinte avec `SCALE`, c'est-a-dire l'echelle de disponibilite
+employee en decoration : exactement la faute que ce projet s'interdit partout
+ailleurs, commise sur sa propre icone. Une icone est de l'habillage, donc du
+Carmillon. Et la silhouette monochrome d'Android 13+ ne lit que l'alpha :
+`android-icon-foreground.png` et `android-icon-monochrome.png` etaient le meme
+fichier au bit pres, toutes cases opaques, donc un pave uniforme ou la densite —
+toute l'idee — disparaissait. Le motif retenu est une colonne de quatre creneaux
+dont un est ouvert, **plus large et plus haut que les autres** : c'est ce qui le
+distingue encore quand toute couleur a disparu. Un motif dont le sens tient dans
+la couleur ne peut pas avoir de version monochrome.
+
+Deux mesures a garder : la zone sure d'Android n'est que les 72 dp centraux d'un
+canevas de 108, soit 66 %, et le motif occupant 55 % du carre de dessin, un
+facteur de 0,727 le pose sur 40 % du canevas — donc 60 % de ce qu'on voit. Et
+les bords sont anti-crenelees par distance signee au rectangle arrondi : un test
+binaire laissait des escaliers sur les coins, l'alpha du PNG n'ayant jamais
+servi qu'a dire « dedans » ou « dehors ».
+
 **Un degrade ne coute pas un APK, une police non plus — mais il faut le
 verifier.** `react-native-svg` est deja embarque et sait faire un
 `LinearGradient` : passer par `expo-linear-gradient` aurait demande un nouveau
