@@ -117,6 +117,29 @@ export function hasToken(): Promise<boolean> {
   return getToken().then((token) => token !== null && token !== '');
 }
 
+/**
+ * `cache-control: no-cache`, et ce n'est pas la meme histoire que le CDN.
+ *
+ * React Native installe un cache de reponses OkHttp de 10 Mo, et l'API GitHub
+ * repond `cache-control: private, max-age=60` : une lecture faite dans la
+ * minute qui suit une ecriture etait resservie depuis le disque du telephone,
+ * sans requete. Le suivi qu'on venait de poser disparaissait au
+ * rafraichissement et revenait une minute plus tard, a la seconde pres.
+ *
+ * Contre un cache *client*, la directive de requete marche — c'est un cache
+ * dont on est le proprietaire, et `no-cache` lui demande de revalider avant de
+ * servir. Contre un intermediaire comme le CDN de `raw.githubusercontent.com`,
+ * elle ne peut rien : c'est toute la difference, et elle explique pourquoi
+ * `remote.ts` portait deja cet en-tete sans que le probleme soit resolu pour
+ * autant. `no-cache` plutot que `no-store` : la revalidation par `ETag` rend un
+ * 304 quand rien n'a bouge, qui ne compte meme pas dans le quota.
+ *
+ * Ca valait aussi pour l'ecriture : `writeFile` relit le `sha` avant chaque
+ * PUT, et ce `sha` etait mis en cache comme le reste. Deux editions a moins
+ * d'une minute d'intervalle partaient donc avec un `sha` perime, et se
+ * faisaient refuser en 409 — trois fois de suite, puisque chaque tentative
+ * relisait le meme cache.
+ */
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const token = await getToken();
   if (!token) throw new NoTokenError();
@@ -127,6 +150,7 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
       accept: 'application/vnd.github+json',
       authorization: `Bearer ${token}`,
       'content-type': 'application/json',
+      'cache-control': 'no-cache',
       ...init?.headers,
     },
   });
@@ -157,6 +181,22 @@ export async function readFile<T>(path: string): Promise<{ value: T; sha: string
 }
 
 /**
+ * Ce qu'une ecriture laisse derriere elle.
+ *
+ * Les deux `sha` sont ce qui permet, plus tard, de reconnaitre une lecture
+ * perimee : une reponse qui porte encore le `sha` d'avant notre ecriture n'est
+ * pas une edition venue d'ailleurs, c'est un cache en retard. Sans eux, les
+ * deux cas sont indiscernables — et c'est le genre de distinction qu'on ne peut
+ * pas fonder sur une supposition quant au comportement d'un cache.
+ */
+export interface Written {
+  /** `sha` du contenu ecrit. */
+  sha: string;
+  /** `sha` d'avant, ou `null` si le fichier n'existait pas. */
+  previous: string | null;
+}
+
+/**
  * Ecrit un fichier du depot, en retentant sur conflit.
  *
  * Le `sha` courant est relu juste avant l'envoi : le collecteur commite deux
@@ -167,7 +207,11 @@ export async function readFile<T>(path: string): Promise<{ value: T; sha: string
  * chose : le `sha` a bouge. On le relit et on rejoue, l'etat envoye etant
  * complet et non un increment.
  */
-export async function writeFile(path: string, value: unknown, message: string): Promise<void> {
+export async function writeFile(
+  path: string,
+  value: unknown,
+  message: string,
+): Promise<Written> {
   const content = encodeBase64(`${JSON.stringify(value, null, 2)}\n`);
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -183,7 +227,10 @@ export async function writeFile(path: string, value: unknown, message: string): 
       }),
     });
 
-    if (response.ok) return;
+    if (response.ok) {
+      const payload = (await response.json()) as { content?: { sha?: string } };
+      return { sha: payload.content?.sha ?? '', previous: existing?.sha ?? null };
+    }
     if (response.status !== 409 && response.status !== 422) {
       throw new Error(`Ecriture refusee sur ${path} (HTTP ${response.status})`);
     }

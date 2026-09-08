@@ -359,6 +359,30 @@ pendant cinq minutes la version d'avant — le suivi supprime revenait, celui
 qu'on venait d'ajouter manquait. Une lecture qui doit etre juste apres une
 ecriture passe par l'API Contents, qui repond depuis la ref.
 
+**Et il y a deux caches, pas un — la meme correction ne vaut pas pour les
+deux.** Passer la watchlist sur l'API n'a pas suffi : le suivi disparaissait au
+rafraichissement et revenait exactement une minute plus tard. React Native
+installe un cache de reponses OkHttp de 10 Mo, et l'API GitHub repond
+`cache-control: private, max-age=60` — la lecture etait resservie depuis le
+disque du telephone, sans requete. Contre ce cache-la, dont on est le
+proprietaire, la directive de requete `no-cache` marche ; contre un
+intermediaire comme Fastly, non. C'est pour ca que `remote.ts` portait deja cet
+en-tete sans que le probleme du CDN soit resolu, et c'est ce qui a fait rater le
+report de l'en-tete sur le chemin API. Le meme oubli touchait l'ecriture :
+`writeFile` relit le `sha` avant chaque PUT, et ce `sha` etait mis en cache
+comme le reste — deux editions a moins d'une minute d'intervalle partaient avec
+un `sha` perime et se faisaient refuser en 409, trois fois de suite puisque
+chaque tentative relisait le meme cache.
+
+**Un `sha` ne suppose rien, et c'est pour ca qu'il tranche.** Deux fois de suite
+une supposition sur le comportement d'un cache a coute un suivi disparu a
+l'ecran. La regle ne porte donc plus sur le cache mais sur le contenu : on
+retient les `sha` que nos propres ecritures ont remplaces, et une reponse qui en
+porte un est en retard — elle ne peut pas etre une edition venue d'ailleurs,
+elle serait passee par ici. Un ensemble et non le dernier `sha` : deux editions
+rapprochees empilent deux etats remplaces, et une reponse en retard peut porter
+le plus ancien des deux.
+
 **L'appareil est l'auteur de la watchlist, le depot en est la publication.**
 Le collecteur ne peut pas filtrer sur un fichier qu'il ne lit pas : le fichier
 reste donc dans le depot. Mais il n'en est plus la *source affichee*. Le miroir

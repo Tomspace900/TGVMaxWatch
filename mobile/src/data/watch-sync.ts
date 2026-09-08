@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NoTokenError, hasToken, readFile, writeFile } from './github.ts';
+import type { Written } from './github.ts';
 import { parseWatchlist } from '../../../src/watchlist.ts';
 import type { Watchlist } from '../../../src/types.ts';
 
@@ -167,11 +168,36 @@ async function run(): Promise<void> {
   }
 }
 
+/**
+ * Les etats du fichier que nos propres ecritures ont deja remplaces.
+ *
+ * Sert a reconnaitre une lecture perimee : une reponse qui porte l'un de ces
+ * `sha` est un cache en retard, pas une edition venue d'ailleurs — elle serait
+ * passee par ici. L'en-tete `no-cache` sur l'API devrait suffire, mais c'est
+ * exactement ce qu'on croyait du CDN, et deux fois de suite la supposition a
+ * coute un suivi disparu a l'ecran. Un `sha` ne suppose rien.
+ *
+ * Un ensemble et non le dernier `sha` : deux editions rapprochees empilent deux
+ * etats remplaces, et une reponse en retard peut porter le plus ancien des
+ * deux. Ne surveiller que le plus recent laissait passer l'autre.
+ *
+ * En memoire seulement : passe le redemarrage, le depot porte deja notre
+ * contenu et il n'y a plus de retard a rattraper.
+ */
+const superseded = new Set<string>();
+
+function remember(written: Written): void {
+  if (written.previous) superseded.add(written.previous);
+  // Notre propre resultat n'est pas un etat remplace : le relire est la preuve
+  // qu'on est a jour, pas le symptome d'un retard.
+  superseded.delete(written.sha);
+}
+
 /** Rend faux quand il faut s'arreter : l'etat porte alors la raison. */
 async function publish(value: Watchlist, message: string): Promise<boolean> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      await writeFile(PATH, value, message);
+      remember(await writeFile(PATH, value, message));
       return true;
     } catch (error) {
       if (error instanceof NoTokenError) {
@@ -191,18 +217,25 @@ async function publish(value: Watchlist, message: string): Promise<boolean> {
 /**
  * La version du depot, lue la ou elle est juste.
  *
- * Par l'API quand un jeton existe — elle repond depuis la ref et voit le
- * commit des qu'il est fait. Sans jeton, rien : le CDN pourrait rendre une
- * version d'il y a cinq minutes, et l'appareil est de toute facon le seul
- * auteur. Un `null` veut dire « je n'ai pas su lire », jamais « c'est vide ».
+ * Par l'API quand un jeton existe — elle repond depuis la ref et voit le commit
+ * des qu'il est fait. Les trois issues sont distinctes et doivent le rester :
+ * une lecture ratee n'est ni une liste vide, ni l'absence de jeton, et les
+ * confondre etait la faute d'origine.
  */
-export async function readRepoWatchlist(): Promise<Watchlist | null> {
-  if (!(await hasToken())) return null;
+type RepoRead =
+  | { kind: 'ok'; value: Watchlist; sha: string }
+  | { kind: 'no-token' }
+  | { kind: 'error' };
+
+async function readRepoWatchlist(): Promise<RepoRead> {
+  if (!(await hasToken())) return { kind: 'no-token' };
   try {
     const file = await readFile<unknown>(PATH);
-    return file === null ? null : parseWatchlist(file.value);
+    if (file === null) return { kind: 'error' };
+    const value = parseWatchlist(file.value);
+    return value === null ? { kind: 'error' } : { kind: 'ok', value, sha: file.sha };
   } catch {
-    return null;
+    return { kind: 'error' };
   }
 }
 
@@ -214,13 +247,16 @@ export async function readRepoWatchlist(): Promise<Watchlist | null> {
  * 1. une edition non publiee gagne toujours — c'est la seule chose qui empeche
  *    un rafraichissement d'annuler un geste, et elle survit a la fermeture de
  *    l'application ;
- * 2. sinon le depot lu par l'API, qui est juste ;
- * 3. sinon une lecture reseau fraiche du fichier public, pour l'appareil sans
- *    jeton ;
- * 4. sinon le miroir, puis seulement le cache.
+ * 2. une reponse du depot qui porte un `sha` que nos propres ecritures ont deja
+ *    remplace est un cache en retard : on la laisse passer ;
+ * 3. sinon le depot lu par l'API, qui fait foi ;
+ * 4. sans jeton seulement, une lecture reseau fraiche du fichier public ;
+ * 5. sinon le miroir, puis le cache.
  *
  * Une lecture ratee n'apparait nulle part dans cette liste : elle n'est pas une
- * liste vide, elle laisse en place ce qu'on avait deja.
+ * liste vide, elle laisse en place ce qu'on avait deja. Et quand un jeton
+ * existe, le fichier public n'est jamais adopte — il peut avoir cinq minutes de
+ * retard, et l'API est disponible pour dire mieux.
  */
 export async function resolveWatchlist(remote: {
   value: Watchlist;
@@ -228,25 +264,35 @@ export async function resolveWatchlist(remote: {
   fresh: boolean;
 }): Promise<{ watchlist: Watchlist; ok: boolean }> {
   const local = await readLocalWatchlist();
+  const keep = (watchlist: Watchlist) => ({ watchlist, ok: local.ok });
 
   if (local.pending && local.watchlist) {
     if (!isPending()) publishWatchlist(local.watchlist, 'watchlist: reprise apres redemarrage');
-    return { watchlist: local.watchlist, ok: local.ok };
+    return keep(local.watchlist);
   }
 
-  if (isPending() && local.watchlist) return { watchlist: local.watchlist, ok: local.ok };
+  if (isPending() && local.watchlist) return keep(local.watchlist);
 
   const repo = await readRepoWatchlist();
-  if (repo) {
-    await writeLocal(repo, false);
-    return { watchlist: repo, ok: local.ok };
+
+  if (repo.kind === 'ok') {
+    if (superseded.has(repo.sha) && local.watchlist) {
+      // Le depot nous rend un etat que nous avons nous-memes remplace : ce ne
+      // peut pas etre une edition venue d'ailleurs, elle serait passee par ici.
+      return keep(local.watchlist);
+    }
+    // Cette reponse est au moins aussi recente que tout ce qu'on a ecrit : ce
+    // qui la precede ne peut plus revenir, et n'a plus a etre surveille.
+    superseded.clear();
+    await writeLocal(repo.value, false);
+    return keep(repo.value);
   }
 
-  if (remote.fresh) {
+  if (repo.kind === 'no-token' && remote.fresh) {
     await writeLocal(remote.value, false);
-    return { watchlist: remote.value, ok: local.ok };
+    return keep(remote.value);
   }
 
-  if (local.watchlist) return { watchlist: local.watchlist, ok: local.ok };
-  return { watchlist: remote.value, ok: local.ok };
+  if (local.watchlist) return keep(local.watchlist);
+  return keep(remote.value);
 }
