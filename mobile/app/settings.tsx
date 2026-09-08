@@ -62,7 +62,16 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { bundle, setWatchlist, setReservations } = useStore();
 
-  const [message, setMessage] = useState<string | null>(null);
+  /*
+   * Un message porte son registre, pas seulement son texte.
+   *
+   * « Écriture impossible » s'affichait dans le meme gris discret que
+   * « 3 creneaux restaures », en tete d'un ecran qu'on parcourt : l'erreur
+   * etait bien la, et elle est passee inapercue. Une panne sur la sauvegarde
+   * touche la seule donnee que ce projet ne sait pas reconstituer — elle prend
+   * l'accent, comme tout ce qui engage ici.
+   */
+  const [message, setMessage] = useState<{ text: string; bad: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const persist = useCallback(async (path: string, value: unknown, note: string) => {
@@ -71,7 +80,7 @@ export default function SettingsScreen() {
       setMessage(null);
       return true;
     } catch (error) {
-      setMessage((error as Error).message);
+      setMessage({ text: (error as Error).message, bad: true });
       return false;
     }
   }, []);
@@ -167,7 +176,11 @@ export default function SettingsScreen() {
     const result = await exportToFile(bundle.reservations, bundle.watchlist);
     setBusy(false);
     if (result.kind === 'cancelled') return;
-    setMessage(result.kind === 'ok' ? `Sauvegardé dans ${result.label}.` : result.message);
+    setMessage(
+      result.kind === 'ok'
+        ? { text: `Sauvegardé dans ${result.label}.`, bad: false }
+        : { text: result.message, bad: true },
+    );
   };
 
   const importState = async () => {
@@ -176,7 +189,10 @@ export default function SettingsScreen() {
     setBusy(false);
     if (result.kind === 'cancelled') return;
     if (result.kind === 'error' || !result.data) {
-      setMessage(result.kind === 'error' ? result.message : 'Sauvegarde illisible.');
+      setMessage({
+        text: result.kind === 'error' ? result.message : 'Sauvegarde illisible.',
+        bad: true,
+      });
       return;
     }
 
@@ -184,7 +200,7 @@ export default function SettingsScreen() {
     setReservations(() => reservations);
     setWatchlist(() => watchlist, 'watchlist: restauration');
     void syncConfirmReminders(reservations.slots);
-    setMessage(`${reservations.slots.length} créneaux restaurés.`);
+    setMessage({ text: `${reservations.slots.length} créneaux restaurés.`, bad: false });
   };
 
   // ----------------------------------------------------------- mises a jour
@@ -209,8 +225,18 @@ export default function SettingsScreen() {
       </View>
 
       {message && (
-        <View style={[styles.message, { backgroundColor: theme.sunken, borderRadius: radius.sm }]}>
-          <Text style={[styles.messageText, { color: theme.text }]}>{message}</Text>
+        <View
+          style={[
+            styles.message,
+            {
+              backgroundColor: message.bad ? theme.accent : theme.sunken,
+              borderRadius: radius.sm,
+            },
+          ]}
+        >
+          <Text style={[styles.messageText, { color: message.bad ? theme.onBrand : theme.text }]}>
+            {message.text}
+          </Text>
         </View>
       )}
 

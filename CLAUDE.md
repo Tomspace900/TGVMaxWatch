@@ -273,6 +273,20 @@ revenue d'une messagerie porte souvent `application/octet-stream`, et filtrer
 sur `application/json` la rendrait invisible dans le selecteur — en silence,
 comme toujours. C'est le contenu qui tranche.
 
+Et le fichier s'obtient par `directory.createFile(nom, type)`, jamais par
+`new File(directory, nom)` : le constructeur de `File` ne fait que joindre des
+chaines, ce qui est juste pour un dossier ordinaire et ne designe rien sur
+l'URI d'arborescence que rend le selecteur — `content://…/tree/…`. Un dossier
+choisi par l'utilisateur passe par le Storage Access Framework, ou un fichier ne
+s'obtient qu'en le demandant au systeme.
+
+**Un message porte son registre, pas seulement son texte.** « Ecriture
+impossible » s'affichait dans le meme gris discret que « 3 creneaux
+restaures », en tete d'un ecran qu'on parcourt : l'erreur etait bien la, et elle
+est passee inapercue — ce qui revient au silence qu'on croyait avoir evite. Une
+panne prend l'accent, comme tout ce qui engage ici ; une confirmation reste
+neutre.
+
 **Un voyage passe se masque, il ne s'efface pas.** Il ne demande plus rien et
 n'a donc plus a etre affiche, mais il reste dans le stockage et dans l'export :
 effacer une donnee utilisateur en silence est exactement ce qui a deja coute une

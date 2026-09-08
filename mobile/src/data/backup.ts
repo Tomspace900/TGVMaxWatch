@@ -31,6 +31,14 @@ export type BackupResult =
 /**
  * Ecrit la sauvegarde dans un dossier choisi par l'utilisateur.
  *
+ * `directory.createFile(nom, type)`, et surtout pas `new File(directory, nom)`.
+ * Le constructeur de `File` ne fait que joindre des chaines : c'est juste pour
+ * un dossier ordinaire, et ca ne designe rien sur l'URI d'arborescence que rend
+ * le selecteur Android — `content://…/tree/primary%3ADownload`. Un dossier
+ * choisi par l'utilisateur passe par le Storage Access Framework, ou un fichier
+ * ne s'obtient qu'en le demandant au systeme. Le module le dit lui-meme quand on
+ * se trompe : « File.create does not work with SAF content:// uris ».
+ *
  * `pickDirectoryAsync` rejette aussi bien quand on annule que quand il echoue,
  * et ne permet pas de distinguer les deux. On tranche par la position : tant
  * qu'on n'a pas de dossier, un rejet est un renoncement et ne dit rien ; une
@@ -47,15 +55,52 @@ export async function exportToFile(
     return { kind: 'cancelled' };
   }
 
-  const name = `tgvmax-${todayInParis()}.json`;
+  const wanted = `tgvmax-${todayInParis()}.json`;
+  const payload = exportLocalState(reservations, watchlist);
 
   try {
-    const file = new File(directory, name);
-    if (!file.exists) file.create({ overwrite: true });
-    file.write(exportLocalState(reservations, watchlist));
-    return { kind: 'ok', label: name };
+    const file = directory.createFile(wanted, 'application/json');
+    file.write(payload);
+
+    /*
+     * Relire avant d'annoncer, mais sans inventer d'echec.
+     *
+     * Une sauvegarde annoncee et absente serait le pire defaut possible sur la
+     * seule donnee que ce projet ne sait pas reconstituer. Un fournisseur SAF
+     * qui refuse la relecture ne doit pas pour autant faire passer une ecriture
+     * reussie pour une panne : seul un contenu lu *et* different tranche.
+     */
+    let readBack: string | null;
+    try {
+      readBack = file.textSync();
+    } catch {
+      readBack = null;
+    }
+    if (readBack !== null && readBack !== payload) {
+      return { kind: 'error', message: 'Le fichier n’a pas pu être écrit dans ce dossier.' };
+    }
+
+    return { kind: 'ok', label: writtenName(file, wanted) };
   } catch (error) {
     return { kind: 'error', message: `Écriture impossible : ${(error as Error).message}` };
+  }
+}
+
+/**
+ * Le nom que le fichier porte reellement.
+ *
+ * Android renomme en « … (1).json » quand le nom demande est deja pris :
+ * annoncer celui qu'on a demande enverrait chercher un fichier qui n'existe
+ * pas. Le nom se lit donc sur l'URI rendue, percent-encodee et porteuse du
+ * chemin entier — et si elle ne ressemble a rien de connu, on retombe sur le
+ * nom demande plutot que d'afficher de l'URI brute.
+ */
+function writtenName(file: File, fallback: string): string {
+  try {
+    const tail = decodeURIComponent(file.name).split('/').pop() ?? '';
+    return tail.endsWith('.json') ? tail : fallback;
+  } catch {
+    return fallback;
   }
 }
 
