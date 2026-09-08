@@ -292,6 +292,25 @@ n'a donc plus a etre affiche, mais il reste dans le stockage et dans l'export :
 effacer une donnee utilisateur en silence est exactement ce qui a deja coute une
 reservation a ce projet.
 
+**Une regle se relit dans la langue ou elle a ete decidee.** Personne ne choisit
+« apres 05:00 » : on choisit « le matin ». La liste affichait pourtant « chaque
+lundi apres 5:00 », et le bouton qui pose la regle disait « Suivre les lundis »
+— la periode choisie disparaissait purement et simplement du seul endroit ou
+l'on confirme son choix. `periodOf` faisait deja la traduction dans un sens ;
+`recurringLabel` et `followLabel` la font dans l'autre, au meme endroit pour les
+deux ecrans. Une fenetre posee a la main dans le depot ne nomme aucune periode
+connue : elle se relit par ses bornes, ce qui est honnete plutot que faux.
+
+**Le calendrier marque une reservation par un anneau, jamais par une teinte.**
+Le fond d'une case appartient a l'echelle `avail` et ne se partage pas. L'anneau
+est une marque posee par-dessus, dans la famille qui designe ce qui t'engage —
+une reservation en est. Un point aurait dispute la place aux deux nombres que la
+case porte deja. Et la bordure est sur **toutes** les cases, transparente quand
+il n'y a rien : sinon les deux ou trois cases marquees auraient une boite
+interieure plus petite, et leurs chiffres sauteraient de deux pixels au milieu
+de la grille. Le marqueur du jour est parti dans le meme mouvement : la grille
+commence a aujourd'hui, il n'y a aucun jour d'avant dont le distinguer.
+
 **Les periodes de la journee se recouvrent d'une heure, et c'est le point.** Un
 depart a 11h30 est autant une fin de matinee qu'un debut de midi : avec des
 bornes jointives, quelqu'un qui suit « le matin » manque ce train pour trente

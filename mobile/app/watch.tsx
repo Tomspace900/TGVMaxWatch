@@ -7,7 +7,7 @@ import { DIRECTIONS } from '../../src/config.ts';
 import { DAY_PERIODS } from '../../src/periods.ts';
 import { hasRule, pruneWatch, setRule } from '../../src/watchlist.ts';
 import { useStore } from '../src/data/store.ts';
-import { dirLabel, watchCutoff, weekdayName } from '../src/format.ts';
+import { dirLabel, followLabel, watchCutoff, weekdayName } from '../src/format.ts';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
 import type { Weekday, WatchRule } from '../../src/types.ts';
 
@@ -152,7 +152,7 @@ export default function WatchScreen() {
         ]}
       >
         <Text style={[typo.section, { color: theme.onBrand }]}>
-          {already ? 'Ce créneau est déjà suivi' : `Suivre les ${weekdayName(weekday)}s`}
+          {already ? 'Ce créneau est déjà suivi' : followLabel(rule)}
         </Text>
       </Pressable>
     </ScrollView>

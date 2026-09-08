@@ -30,6 +30,17 @@ export default function CalendarScreen() {
   const today = useMemo(() => todayInParis(), []);
   const calendar = useMemo(() => buildCalendar(bundle.latest), [bundle.latest]);
 
+  /*
+   * Les jours deja reserves, pour que le calendrier les marque.
+   *
+   * La cle porte le sens : un aller reserve le 12 ne doit pas faire croire a un
+   * retour reserve le meme jour dans l'autre panneau.
+   */
+  const bookedDays = useMemo(
+    () => new Set(bundle.reservations.slots.map((slot) => `${slot.date}|${slot.dir}`)),
+    [bundle.reservations.slots],
+  );
+
   const [index, setIndex] = useState(0);
   const progress = useSharedValue(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -283,6 +294,7 @@ export default function CalendarScreen() {
             today={today}
             directions={DIRECTIONS}
             index={index}
+            booked={bookedDays}
             progress={progress}
             onIndexChange={setIndex}
             onSelect={(date, selectedDir) =>

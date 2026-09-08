@@ -6,7 +6,7 @@ import { trainsWord } from '../../../src/label.ts';
 import { periodOf } from '../../../src/periods.ts';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
 import { isExpired } from '../../../src/watchlist.ts';
-import { dirLabel, longDate, watchCutoff, weekdayName } from '../format.ts';
+import { dirLabel, longDate, recurringLabel, watchCutoff } from '../format.ts';
 import { horizonDates, type Calendar, type Train } from '../model.ts';
 import { SwipeRow } from './SwipeRow.tsx';
 import { WatchedChip } from './TrainRow.tsx';
@@ -160,8 +160,7 @@ export function WatchList({
 
               <View style={styles.body}>
                 <Text style={[typo.section, { color: theme.text }]} numberOfLines={1}>
-                  chaque {weekdayName(rule.weekday)}
-                  {rule.after ? ` après ${rule.after}` : ''}
+                  {recurringLabel(rule)}
                 </Text>
                 <Text style={[typo.small, { color: theme.muted }]} numberOfLines={1}>
                   {rule.dir ? dirLabel(rule.dir) : 'les deux sens'}

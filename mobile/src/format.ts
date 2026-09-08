@@ -5,6 +5,7 @@ import {
   WATCH_GRACE_HOURS,
 } from '../../src/config.ts';
 import { addDays } from '../../src/dates.ts';
+import { periodOf } from '../../src/periods.ts';
 
 export { formatDuration } from '../../src/duration.ts';
 
@@ -71,6 +72,45 @@ export function ageLabel(isoInstant: string): string {
 
 export function hoursSince(isoInstant: string): number {
   return (Date.now() - Date.parse(isoInstant)) / 3_600_000;
+}
+
+/**
+ * La fenetre d'un suivi, dite comme on y pense.
+ *
+ * Personne ne decide « apres 05:00 » : on decide « le matin ». La table de
+ * `src/periods.ts` fait deja la traduction dans un sens ; ici c'est l'inverse,
+ * et c'est le sens qui compte a la relecture. Une fenetre posee a la main dans
+ * le depot ne nommera aucune periode connue — elle se relit alors par ses
+ * bornes, ce qui est honnete plutot que faux.
+ */
+export function windowLabel(after?: string, before?: string): string | null {
+  const period = periodOf(after, before);
+  if (period) return period.label;
+  if (!after && !before) return null;
+  if (after && after === before) return `à ${after}`;
+  if (after && before) return `de ${after} à ${before}`;
+  return after ? `après ${after}` : `avant ${before}`;
+}
+
+/**
+ * Une regle recurrente en toutes lettres : « chaque lundi matin ».
+ *
+ * Deux ecrans nomment la meme regle — la liste de suivi et le bouton du
+ * formulaire qui la cree — et ils en disaient deux choses differentes :
+ * « chaque lundi apres 5:00 » d'un cote, « Suivre les lundis » de l'autre, ou
+ * la periode choisie disparaissait purement et simplement.
+ */
+export function recurringLabel(rule: { weekday: string; after?: string; before?: string }): string {
+  const when = windowLabel(rule.after, rule.before);
+  const day = weekdayName(rule.weekday);
+  return when ? `chaque ${day} ${when}` : `chaque ${day}`;
+}
+
+/** Le meme creneau a l'imperatif, pour le bouton qui le pose. */
+export function followLabel(rule: { weekday: string; after?: string; before?: string }): string {
+  const when = windowLabel(rule.after, rule.before);
+  const days = `${weekdayName(rule.weekday)}s`;
+  return when ? `Suivre les ${days} ${when}` : `Suivre tous les ${days}`;
 }
 
 /**

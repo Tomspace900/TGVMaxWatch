@@ -22,6 +22,13 @@ interface Props {
   today: string;
   directions: readonly string[];
   index: number;
+  /**
+   * Les jours ou un train est reserve, par `date|sens`.
+   *
+   * Un sens et pas seulement une date : marquer le 12 dans les deux panneaux
+   * ferait croire a un retour reserve qui n'existe pas.
+   */
+  booked: Set<string>;
   /** Position continue partagee avec le selecteur, en fraction de panneau. */
   progress: SharedValue<number>;
   onIndexChange: (index: number) => void;
@@ -33,6 +40,7 @@ export function CalendarPager({
   today,
   directions,
   index,
+  booked,
   progress,
   onIndexChange,
   onSelect,
@@ -89,9 +97,9 @@ export function CalendarPager({
               key={dir}
               width={width}
               dates={dates}
-              today={today}
               dir={dir}
               calendar={calendar}
+              booked={booked}
               onSelect={onSelect}
             />
           ))}
@@ -104,13 +112,13 @@ export function CalendarPager({
 interface GridProps {
   width: number;
   dates: string[];
-  today: string;
   dir: string;
   calendar: Calendar;
+  booked: Set<string>;
   onSelect: (date: string, dir: string) => void;
 }
 
-function Grid({ width, dates, today, dir, calendar, onSelect }: GridProps) {
+function Grid({ width, dates, dir, calendar, booked, onSelect }: GridProps) {
   const theme = useTheme();
   // Aligne la grille sur les jours de la semaine : « les vendredis soir » est
   // le raisonnement reel devant cette donnee, il doit se lire en colonne.
@@ -135,6 +143,7 @@ function Grid({ width, dates, today, dir, calendar, onSelect }: GridProps) {
         {dates.map((date) => {
           const day = calendar.get(date)?.get(dir) ?? emptyDay(date, dir);
           const bucket = availabilityBucket(day.available);
+          const isBooked = booked.has(`${date}|${dir}`);
 
           return (
             <Pressable
@@ -143,26 +152,44 @@ function Grid({ width, dates, today, dir, calendar, onSelect }: GridProps) {
                 void Haptics.selectionAsync();
                 onSelect(date, dir);
               }}
+              /*
+               * Un anneau Carmillon, et non une teinte.
+               *
+               * Le fond de la case appartient a l'echelle de disponibilite et
+               * ne se partage pas : la repeindre pour dire autre chose la
+               * rendrait illisible. L'anneau est une marque posee par-dessus,
+               * dans la famille qui designe ce qui t'engage — une reservation
+               * en est. Un point aurait dispute la place aux deux nombres que
+               * la case porte deja.
+               *
+               * La bordure est sur *toutes* les cases, transparente quand il
+               * n'y a rien : sinon les deux ou trois cases marquees auraient
+               * une boite interieure plus petite, et leurs chiffres sauteraient
+               * de deux pixels au milieu de la grille.
+               */
               style={({ pressed }) => [
                 styles.cell,
                 {
                   width: cell,
                   height: cell / 0.74,
                   backgroundColor: theme.avail[bucket],
+                  borderColor: isBooked ? theme.accent : 'transparent',
                   borderRadius: radius.sm,
                   transform: [{ scale: pressed ? 0.93 : 1 }],
                 },
               ]}
-              accessibilityLabel={`${date}, ${day.available} trains ouverts`}
+              accessibilityLabel={`${date}, ${day.available} trains ouverts${
+                isBooked ? ', train réservé' : ''
+              }`}
             >
               {/* Une case porte deux nombres au maximum : le quantieme et le
                   compte. Le triangle qui marquait « tous les trains ouverts
                   sont longs » demandait une memoire que l'usage par vagues ne
-                  permet pas — il n'etait explique nulle part, et cette
-                  information se dit en toutes lettres dans l'ecran du jour. */}
+                  permet pas, et le point qui marquait aujourd'hui ne
+                  distinguait rien — la grille commence a aujourd'hui, il n'y a
+                  aucun jour d'avant dont le separer. */}
               <Text style={[styles.dayNumber, { color: theme.availInk[bucket] }]}>
                 {dayNumber(date)}
-                {date === today ? ' ·' : ''}
               </Text>
               <Text style={[styles.count, { color: theme.availInk[bucket] }]}>
                 {day.available}
@@ -182,7 +209,7 @@ const styles = StyleSheet.create({
   weekdays: { flexDirection: 'row', gap: space.sm, marginBottom: space.sm },
   weekday: { ...typo.chip, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  cell: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  cell: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2 },
   dayNumber: { ...typo.small, fontSize: 10.5, opacity: 0.72, lineHeight: 13 },
   // Le compte se lit comme un afficheur : chiffres de largeur egale, une
   // colonne de cases qui ne s'alignent pas se lit comme un defaut.
