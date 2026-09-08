@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-07T12:34:51.415Z",
-  "snapshotCount": 7,
+  "generatedAt": "2026-09-08T11:21:10.207Z",
+  "snapshotCount": 8,
   "ready": {
     "burnRate": true,
     "reopen": true,
@@ -23,16 +23,16 @@
       "sample": 6
     },
     "8441": {
-      "closed": 5,
-      "reopened": 2,
-      "rate": 0.4,
-      "sample": 5
+      "closed": 6,
+      "reopened": 4,
+      "rate": 0.6666666666666666,
+      "sample": 6
     },
     "8478": {
-      "closed": 8,
-      "reopened": 2,
-      "rate": 0.25,
-      "sample": 8
+      "closed": 9,
+      "reopened": 3,
+      "rate": 0.3333333333333333,
+      "sample": 9
     },
     "8483": {
       "closed": 5,
@@ -47,10 +47,10 @@
       "sample": 8
     },
     "8501": {
-      "closed": 7,
+      "closed": 8,
       "reopened": 2,
-      "rate": 0.2857142857142857,
-      "sample": 7
+      "rate": 0.25,
+      "sample": 8
     },
     "8516": {
       "closed": 10,
@@ -89,10 +89,10 @@
       "sample": 5
     },
     "8580": {
-      "closed": 6,
+      "closed": 7,
       "reopened": 5,
-      "rate": 0.8333333333333334,
-      "sample": 6
+      "rate": 0.7142857142857143,
+      "sample": 7
     },
     "8582": {
       "closed": 5,
