@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
@@ -12,7 +12,7 @@ import {
   writeFile,
   type TokenCheck,
 } from '../src/data/github.ts';
-import { exportLocalState, parseExport } from '../src/data/local.ts';
+import { exportToFile, importFromFile } from '../src/data/backup.ts';
 import { syncConfirmReminders } from '../src/data/reminders.ts';
 import { currentPushState, requestPushToken, type PushState } from '../src/data/push.ts';
 import { maskToken } from '../src/format.ts';
@@ -63,7 +63,7 @@ export default function SettingsScreen() {
   const { bundle, setWatchlist, setReservations } = useStore();
 
   const [message, setMessage] = useState<string | null>(null);
-  const [restore, setRestore] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const persist = useCallback(async (path: string, value: unknown, note: string) => {
     try {
@@ -154,21 +154,37 @@ export default function SettingsScreen() {
 
   // ------------------------------------------------------------ sauvegarde
 
-  const exportState = () => {
-    void Share.share({ message: exportLocalState(bundle.reservations, bundle.watchlist) });
+  /*
+   * Annuler n'est pas echouer.
+   *
+   * Ressortir du selecteur de fichiers est un geste ordinaire, pas une panne :
+   * il ne laisse aucun message. Le reste — un dossier ou l'on ne peut pas
+   * ecrire, un fichier qui n'est pas une sauvegarde — se dit, comme tout ce qui
+   * echoue ici.
+   */
+  const exportState = async () => {
+    setBusy(true);
+    const result = await exportToFile(bundle.reservations, bundle.watchlist);
+    setBusy(false);
+    if (result.kind === 'cancelled') return;
+    setMessage(result.kind === 'ok' ? `Sauvegardé dans ${result.label}.` : result.message);
   };
 
-  const importState = () => {
-    const parsed = parseExport(restore.trim());
-    if (!parsed) {
-      setMessage('Sauvegarde illisible : rien n’a été modifié.');
+  const importState = async () => {
+    setBusy(true);
+    const result = await importFromFile();
+    setBusy(false);
+    if (result.kind === 'cancelled') return;
+    if (result.kind === 'error' || !result.data) {
+      setMessage(result.kind === 'error' ? result.message : 'Sauvegarde illisible.');
       return;
     }
-    setReservations(() => parsed.reservations);
-    setWatchlist(() => parsed.watchlist, 'watchlist: restauration');
-    void syncConfirmReminders(parsed.reservations.slots);
-    setRestore('');
-    setMessage(`${parsed.reservations.slots.length} créneaux restaurés.`);
+
+    const { reservations, watchlist } = result.data;
+    setReservations(() => reservations);
+    setWatchlist(() => watchlist, 'watchlist: restauration');
+    void syncConfirmReminders(reservations.slots);
+    setMessage(`${reservations.slots.length} créneaux restaurés.`);
   };
 
   // ----------------------------------------------------------- mises a jour
@@ -252,28 +268,17 @@ export default function SettingsScreen() {
           emporte la liste.
         </Note>
 
-        <Action label="Exporter" onPress={exportState} />
-
-        <TextInput
-          value={restore}
-          onChangeText={setRestore}
-          placeholder="Coller une sauvegarde"
-          placeholderTextColor={theme.muted}
-          multiline
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[
-            styles.field,
-            {
-              backgroundColor: theme.sunken,
-              color: theme.text,
-              borderRadius: radius.sm,
-              minHeight: 60,
-            },
-          ]}
-        />
-
-        {restore.trim().length > 0 && <Action label="Restaurer" onPress={importState} />}
+        {/* Deux gestes symetriques, deux boutons de meme poids : ecrire un
+            fichier, en relire un. Le champ de collage demandait de traiter sa
+            propre sauvegarde comme un message. */}
+        <Actions>
+          <View style={{ flex: 1 }}>
+            <Action label="Exporter" disabled={busy} onPress={() => void exportState()} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Action label="Restaurer" disabled={busy} onPress={() => void importState()} />
+          </View>
+        </Actions>
       </Section>
 
       <Section title="Jeton GitHub">

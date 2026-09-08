@@ -85,6 +85,21 @@ proprietaire : ni l'une ni l'autre n'est utilisable ici. Les valeurs retenues
 viennent de la palette publiee de SNCF Voyageurs, et les polices sont Archivo et
 Share Tech Mono, sous licence SIL Open Font.
 
+**Le selecteur de fichiers du systeme etait deja dans le binaire.** Le premier
+reflexe pour un bouton « ouvrir un fichier » est `expo-document-picker` :
+mesure faite, il fait passer l'empreinte de `0a2596bb` a `e500879e`, donc un APK
+de ~108 Mo et une installation qui cesse de recevoir les mises a jour en
+attendant qu'on l'installe. Or `expo-file-system`, deja embarque pour le cache
+hors ligne, porte `File.pickFileAsync` et `Directory.pickDirectoryAsync` — les
+memes selecteurs systeme, pour zero octet de natif en plus. Regarder ce que les
+dependances presentes savent deja faire vient avant d'en ajouter une ;
+l'empreinte est la mesure qui tranche, et elle se prend avant d'ecrire la
+premiere ligne, pas apres.
+
+Corollaire de typage : `File.pickFileAsync` est surchargee trois fois, dont une
+signature depreciee qui rend un `File` nu. Un `ReturnType` retient la derniere
+surcharge et fait disparaitre le `canceled` — le type se nomme explicitement.
+
 **Un degrade ne coute pas un APK, une police non plus — mais il faut le
 verifier.** `react-native-svg` est deja embarque et sait faire un
 `LinearGradient` : passer par `expo-linear-gradient` aurait demande un nouveau
@@ -243,6 +258,20 @@ est la ; il ne manquait qu'un endroit pour le proposer, et le bon endroit est
 celui ou l'on est deja. La question ne se pose que quand elle a une reponse —
 `isUpdatePending`, jamais `isUpdateAvailable` — meme regle que le rappel de
 confirmation : un rappel avant que l'action soit possible n'est pas un rappel.
+
+**Une sauvegarde n'est pas un message.** L'export partageait le JSON en texte
+et la restauration se collait dans un champ : il fallait retrouver sa propre
+sauvegarde dans une conversation des mois plus tard, et la selectionner en
+entier sans en perdre la fin. Pour la seule donnee de ce projet qui ne se
+reconstitue pas depuis l'archive, c'est trop fragile. Deux gestes symetriques,
+deux selecteurs du systeme. Et une distinction que le selecteur de dossier ne
+fait pas lui-meme : `pickDirectoryAsync` rejette aussi bien sur une annulation
+que sur une panne, donc c'est la position qui tranche — tant qu'on n'a pas de
+dossier, un rejet est un renoncement et reste muet ; apres, c'est une panne et
+ca se dit. Enfin, l'import ne filtre sur aucun type MIME : une sauvegarde
+revenue d'une messagerie porte souvent `application/octet-stream`, et filtrer
+sur `application/json` la rendrait invisible dans le selecteur — en silence,
+comme toujours. C'est le contenu qui tranche.
 
 **Un voyage passe se masque, il ne s'efface pas.** Il ne demande plus rien et
 n'a donc plus a etre affiche, mais il reste dans le stockage et dans l'export :
