@@ -188,13 +188,36 @@ export default function DayScreen() {
    * changer ce que la journee contient.
    */
   const [hideLong, setHideLong] = useState(false);
+
+  /*
+   * OUIGO n'est jamais eligible au TGVmax.
+   *
+   * Mesure sur l'archive : 1 916 rames OUIGO, **zero** ouverte. Ce n'est pas un
+   * hasard de la semaine, MAX JEUNE ne couvre pas OUIGO. Ces lignes ne sont donc
+   * pas des trains a evaluer, ce sont des trains qu'on ne peut pas prendre — un
+   * bon septieme de la liste.
+   *
+   * Elles restent visibles par defaut : les masquer d'office ferait disparaitre
+   * des trains sans que personne ne l'ait demande. La pastille, elle, apprend
+   * quelque chose que l'application ne disait nulle part.
+   */
+  const [hideOuigo, setHideOuigo] = useState(false);
+
   const longCount = useMemo(
     () => day.trains.filter((train) => train.tier === 'long').length,
     [day.trains],
   );
+  const ouigoCount = useMemo(
+    () => day.trains.filter((train) => train.carrier === 'OUIGO').length,
+    [day.trains],
+  );
   const shown = useMemo(
-    () => (hideLong ? day.trains.filter((train) => train.tier !== 'long') : day.trains),
-    [day.trains, hideLong],
+    () =>
+      day.trains.filter(
+        (train) =>
+          !(hideLong && train.tier === 'long') && !(hideOuigo && train.carrier === 'OUIGO'),
+      ),
+    [day.trains, hideLong, hideOuigo],
   );
 
   const forecast = useMemo(() => {
@@ -281,17 +304,30 @@ export default function DayScreen() {
               ))}
             </View>
 
-            {longCount > 0 && (
+            {(longCount > 0 || ouigoCount > 0) && (
               <View style={[styles.pills, { marginTop: space.md }]}>
-                <Pill
-                  label={
-                    hideLong
-                      ? `${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h masqué${longCount > 1 ? 's' : ''}`
-                      : `masquer les ${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h`
-                  }
-                  active={hideLong}
-                  onPress={() => setHideLong((current) => !current)}
-                />
+                {longCount > 0 && (
+                  <Pill
+                    label={
+                      hideLong
+                        ? `${longCount} long${longCount > 1 ? 's' : ''} masqué${longCount > 1 ? 's' : ''}`
+                        : `masquer les ${longCount} trajet${longCount > 1 ? 's' : ''} de plus de 3 h`
+                    }
+                    active={hideLong}
+                    onPress={() => setHideLong((current) => !current)}
+                  />
+                )}
+                {ouigoCount > 0 && (
+                  <Pill
+                    label={
+                      hideOuigo
+                        ? `${ouigoCount} OUIGO masqué${ouigoCount > 1 ? 's' : ''}`
+                        : `masquer les ${ouigoCount} OUIGO, jamais TGVmax`
+                    }
+                    active={hideOuigo}
+                    onPress={() => setHideOuigo((current) => !current)}
+                  />
+                )}
               </View>
             )}
 
@@ -321,7 +357,7 @@ export default function DayScreen() {
         ListEmptyComponent={
           <Text style={[typo.body, styles.empty, { color: theme.muted }]}>
             {day.trains.length > 0
-              ? 'Tous les trains de ce jour dépassent 3 h.'
+              ? 'Tous les trains de ce jour sont masqués par les filtres.'
               : 'Aucun train connu pour ce jour.'}
           </Text>
         }

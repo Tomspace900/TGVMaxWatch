@@ -99,10 +99,16 @@ une courbe de l'évolution, et — quand il y a assez d'historique — une phras
 genre « ce créneau part en général vers J-18 », toujours avec le nombre
 d'observations sur lequel elle repose.
 
-Juste en dessous, un bouton pour **masquer les trajets de plus de 3 h**. Sur cet
-axe, un omnibus coûte le même prix qu'un direct et met une heure et demie de
-plus : le plus souvent, autant ne pas les voir. Le total, lui, continue de
-compter la journée entière.
+Juste en dessous, deux boutons pour alléger la liste. **Masquer les trajets de
+plus de 3 h** : sur cet axe, un omnibus coûte le même prix qu'un direct et met
+une heure et demie de plus. **Masquer les OUIGO** : ton abonnement ne les couvre
+pas — mesuré sur toute l'archive, aucune rame OUIGO n'a jamais été ouverte au
+TGVmax, c'est un bon septième de la liste que tu ne peux pas prendre. Le total,
+lui, continue de compter la journée entière.
+
+Toute la liste est accrochée à **une voie** qui descend le long de l'écran,
+chaque train relié par une traverse : la journée a la forme de ce qu'elle
+décrit.
 
 Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
 
@@ -110,13 +116,16 @@ Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
 - **la durée du trajet** — sur cet axe les temps vont de 2 h 05 à 3 h 30 pour le
   même prix ; « 3h12 » à côté de « 2h05 » se lit tout seul, sans qu'on ait
   besoin de le peindre en rouge ;
+- **une motrice en tête de ligne**, dont les barres de vitesse disent le
+  palier : trois pour un direct (moins de 2 h 20), une pour un arrêt de plus,
+  aucune et la couleur d'avertissement au-delà de 3 h ;
 - **une petite frise à droite** : les sept derniers jours de collecte, plein
   quand le train était ouvert au TGVmax. C'est là qu'on voit un train qui tient
   depuis une semaine et un train qui vient de rouvrir ;
 - **un mot, quand l'archive a quelque chose à dire** : `VIENT DE ROUVRIR` ou
   `OUVERT · INSTABLE`. Rien le reste du temps — un train ouvert qui l'était
   déjà hier ne mérite pas qu'on l'écrive sur trente-cinq lignes ;
-- **`+ DE 3 H`** sur les trajets longs ;
+- **`LONG`**, en ambre, sur les trajets de plus de 3 h ;
 - un badge **suivi** ou **réservé** si tu l'as marqué — « réservé » est en
   couleur, parce que c'est le seul des deux qui t'engage ;
 - un train fermé est barré et grisé.

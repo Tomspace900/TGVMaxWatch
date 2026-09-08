@@ -51,6 +51,21 @@ export interface Palette {
   onBrand: string;
   /** Fond de la navbar une fois qu'elle a decolle du haut de l'ecran. */
   navBg: string;
+  /**
+   * L'avertissement : « ce train est un mauvais choix par defaut ».
+   *
+   * Troisieme famille, etanche aux deux autres — la disponibilite se compare,
+   * l'engagement se reconnait, l'avertissement se craint. Elle ne sert
+   * aujourd'hui qu'aux trajets de plus de trois heures ; tout autre usage doit
+   * passer le meme test : une categorie, jamais une mesure, et **toujours
+   * doublee d'un mot**. C'est ce doublage qui la rend sure — vert et ambre se
+   * ressemblent en deuteranopie, la pastille dit le mot, la couleur ne fait que
+   * l'accelerer.
+   */
+  amber: string;
+  amberSoft: string;
+  /** Teinte du materiel roulant. Une rame est grise, sur les deux themes. */
+  steel: string;
 }
 
 /**
@@ -82,6 +97,9 @@ const light: Palette = {
   accent: '#c21758',
   onBrand: '#ffffff',
   navBg: 'rgba(251,251,249,0.94)',
+  amber: '#9a6210',
+  amberSoft: 'rgba(154,98,16,0.12)',
+  steel: '#7b8288',
 };
 
 const dark: Palette = {
@@ -107,22 +125,10 @@ const dark: Palette = {
   accent: '#c21758',
   onBrand: '#ffffff',
   navBg: 'rgba(14,16,18,0.92)',
+  amber: '#d9a03c',
+  amberSoft: 'rgba(217,160,60,0.16)',
+  steel: '#c9cdd2',
 };
-
-/**
- * Le materiel roulant garde ses vraies couleurs.
- *
- * Une rame est grise et blanche, quel que soit le theme du telephone. Lui
- * appliquer la palette de l'interface la ferait disparaitre sur fond clair et
- * la transformerait en tache sombre sur fond sombre : elle ne se lirait plus
- * comme un train.
- */
-export const rolling = {
-  body: '#e9e9e6',
-  bodyShade: '#cfcfca',
-  glass: '#1b1e22',
-  gear: '#33383e',
-} as const;
 
 /**
  * Deux polices, et une frontiere nette entre les deux.

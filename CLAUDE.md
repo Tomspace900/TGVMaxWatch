@@ -242,6 +242,49 @@ trente. Le mot reste pour les deux cas qui decident.
 s'appelait « Surveillance », le geste disait « suivre » et le badge « suivi » :
 l'application parlait deux langues sur le meme objet.
 
+**Trois familles de couleur, etanches, et une regle qui les separe.** `avail`
+est une **echelle** — elle se compare, plus dense veut dire plus, et elle ne
+vit que dans le calendrier et la frise. `brand` designe **ce qui t'engage** :
+reservation, echeance, panne. `amber` est **l'avertissement** : ce train est un
+mauvais choix par defaut. Une echelle et une categorie ne peuvent pas se
+confondre parce qu'elles ne cohabitent jamais au meme endroit — c'est ce qui
+permet d'ouvrir la palette sans rejouer l'accent qui signifiait quatre choses.
+
+L'ambre ne sert aujourd'hui qu'aux trajets de plus de trois heures. Tout autre
+usage doit passer le meme test : **une categorie, jamais une mesure**, et
+toujours doublee d'un mot. C'est le doublage qui la rend sure — vert et ambre se
+ressemblent en deuteranopie, la pastille dit le mot, la couleur ne fait que
+l'accelerer. Deux candidats ont deja ete ecartes : la donnee perimee, qui est
+Carmillon parce qu'elle t'engage, et un creneau qui se vide, qui est une mesure.
+
+**OUIGO n'est jamais eligible au TGVmax.** Mesure sur l'archive complete : 1 916
+rames OUIGO, **zero** ouverte. C'est structurel, MAX JEUNE ne couvre pas OUIGO.
+Consequence de design, contre-intuitive : colorer ces lignes par transporteur
+n'aurait peint que des lignes barrees — un septieme de la liste qu'on ne peut de
+toute facon pas prendre. Ce ne sont pas des lignes a distinguer, ce sont des
+lignes a **ecarter**, comme les trajets longs. Elles restent visibles par
+defaut : masquer d'office ferait disparaitre des trains sans que personne ne
+l'ait demande.
+
+**Les paliers de duree sont a 2h20 et 3h00 parce que la grille horaire les y
+met.** Histogramme des rames ouvertes : 240 sous 2h20, puis **9** entre 2h20 et
+2h29, puis la distribution reprend a 2h30. Le seuil tombe pile dans le creux ;
+le deplacer a 2h30 n'attraperait que ces neuf-la et casserait une frontiere que
+la donnee dessine elle-meme. Trois familles reelles : le direct, l'arret en
+plus, l'omnibus.
+
+**La motrice porte la vitesse, jamais le transporteur.** Nez a droite, barres de
+vitesse a gauche : c'est le sens de lecture, et la rame entre ainsi dans les
+donnees de sa ligne. Trois barres pour un direct, une pour un arret de plus,
+aucune et la couleur d'avertissement au-dela de trois heures. C'est une
+substitution et non un ajout — le glyphe remplace une pastille de duree qui
+prenait la meme largeur en toutes lettres.
+
+**La voie est la structure de la liste, pas un ornement.** L'espacement entre
+deux cartes est un `paddingBottom` du conteneur et non une marge de la carte :
+sans quoi la voie se coupe a chaque rangee. Elle reste hors du `SwipeRow` — du
+decor fixe, c'est la carte seule qui se deplace sous le doigt.
+
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
 convertir. Seul le cron est en UTC.
 
