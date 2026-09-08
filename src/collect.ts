@@ -144,12 +144,15 @@ async function notify(
   today: string,
   lastPushOk: string | null,
 ): Promise<string | null> {
-  const { events, signals } = diffSnapshots(previous, current, today);
-  console.log(`[collect] ${events.length} evenements, ${signals.length} signaux`);
+  const watchlist = readWatchlist();
+  const { events, signals, slots } = diffSnapshots(previous, current, today, watchlist);
+  console.log(
+    `[collect] ${events.length} evenements, ${signals.length} signaux, ${slots.length} creneaux suivis`,
+  );
 
-  const watched = filterEvents(readWatchlist(), events);
+  const watched = filterEvents(watchlist, events);
 
-  const notification = buildNotification(watched, signals);
+  const notification = buildNotification(watched, signals, slots);
   if (!notification) {
     console.log('[collect] rien a signaler, aucune notification');
     return lastPushOk;

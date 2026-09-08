@@ -7,7 +7,7 @@ import {
   STALE_ALARM_HOURS,
 } from '../../../src/config.ts';
 import type { Reservation } from '../../../src/types.ts';
-import { CHANNEL_ID } from './notifications.ts';
+import { CHANNELS } from './notifications.ts';
 import { dirLabel, eveOf, longDate } from '../format.ts';
 
 /**
@@ -55,7 +55,7 @@ export async function scheduleConfirmReminder(slot: Reservation): Promise<void> 
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: when,
-        channelId: CHANNEL_ID,
+        channelId: CHANNELS.confirm,
       },
     });
   } catch {
@@ -109,7 +109,7 @@ export async function scheduleStaleAlarm(collectedAt: string | null): Promise<vo
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: when,
-        channelId: CHANNEL_ID,
+        channelId: CHANNELS.health,
       },
     });
   } catch {

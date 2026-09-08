@@ -2,7 +2,7 @@ import { diffSnapshots } from './diff.ts';
 import { isTracked } from './duration.ts';
 import { buildNotification } from './notify.ts';
 import { sendPush } from './push.ts';
-import { listSnapshotDates, readSnapshot } from './storage.ts';
+import { listSnapshotDates, readSnapshot, readWatchlist } from './storage.ts';
 
 /**
  * Envoie une notification de verification, sur demande.
@@ -13,8 +13,12 @@ import { listSnapshotDates, readSnapshot } from './storage.ts';
  * jeton revoque a la reinstallation, un canal Android supprime — rien de tout
  * cela ne se voit dans un run vert.
  *
- * Le message part du vrai diff des deux derniers snapshots, en ignorant la
- * watchlist : c'est le chemin de production, avec du contenu reel, donc le tap
+ * Le message part du vrai diff des deux derniers snapshots. Les evenements de
+ * train ne sont pas filtres par la watchlist — sinon le test n'aurait presque
+ * jamais rien a envoyer — mais les **creneaux suivis**, eux, la reclament : un
+ * signal de creneau n'existe que parce qu'on a demande a suivre cette fenetre.
+ * L'ignorer priverait le test du seul type d'alerte qu'il ne peut pas
+ * fabriquer. C'est le chemin de production, avec du contenu reel, donc le tap
  * ouvre une date qui existe. Rien n'est ecrit, rien n'est simule.
  */
 const dates = listSnapshotDates();
@@ -34,12 +38,18 @@ const current = readSnapshot(currentDate).filter(isTracked);
  * la date du jour ecarterait, sur une archive un peu ancienne, toutes les dates
  * de voyage entre-temps passees — et le test n'aurait plus rien a envoyer.
  */
-const { events, signals } = diffSnapshots(previous, current, currentDate);
+const { events, signals, slots } = diffSnapshots(
+  previous,
+  current,
+  currentDate,
+  readWatchlist(),
+);
 console.log(
-  `[test] ${previousDate} -> ${currentDate} : ${events.length} evenements, ${signals.length} signaux`,
+  `[test] ${previousDate} -> ${currentDate} : ${events.length} evenements, ` +
+    `${signals.length} signaux, ${slots.length} creneaux suivis`,
 );
 
-const notification = buildNotification(events, signals);
+const notification = buildNotification(events, signals, slots);
 
 if (!notification) {
   console.error('[test] aucun evenement entre ces deux snapshots, rien a envoyer');

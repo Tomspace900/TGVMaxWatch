@@ -81,9 +81,37 @@ export interface DateSignal {
   after: number;
 }
 
+/**
+ * Ce qui bouge sur un creneau explicitement suivi.
+ *
+ * Les deux alertes generales portent sur le compte d'une (date, sens) entiere
+ * et ne consultent aucune preference — c'est ce qui les rend universelles. Un
+ * signal de creneau porte au contraire sur une fenetre horaire que quelqu'un a
+ * demande a suivre : « les jeudis matin ». Les deux mecanismes ont ete separes
+ * volontairement ; celui-ci est le pont, et il ne s'applique qu'a ce qui est
+ * suivi.
+ */
+export type SlotSignalKind = 'SLOT_OPENED' | 'SLOT_DRAINING';
+
+export interface SlotSignal {
+  kind: SlotSignalKind;
+  date: string;
+  dir: Dir;
+  /** Bornes de la fenetre suivie, absentes pour une journee entiere. */
+  after?: string;
+  before?: string;
+  /** Nom lisible de la fenetre : `matin`, `toute la journee`, `18:00-20:00`. */
+  label: string;
+  /** Trains ouverts *dans la fenetre* au snapshot precedent, puis au courant. */
+  before_count: number;
+  after_count: number;
+}
+
 export interface DiffResult {
   events: TrainEvent[];
   signals: DateSignal[];
+  /** Vide tant que rien n'est suivi : ces signaux dependent des preferences. */
+  slots: SlotSignal[];
 }
 
 /** Une entree explicite de surveillance. */

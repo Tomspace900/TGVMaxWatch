@@ -173,7 +173,18 @@ sur l'accueil, là où tu es quand ils comptent.
 Tu reçois **au plus une notification par collecte**, soit une par jour. Elle
 regroupe tout ce qui s'est passé.
 
-Trois raisons de te déranger :
+**En tête, ce que tu suis.** Si un créneau que tu suis — « les jeudis matin » —
+passe de rien à quelque chose, ou se vide alors qu'il n'en restait presque plus,
+c'est la première ligne du message et c'est elle qui donne le titre :
+« 17/09 Paris → Bordeaux matin : 3 trains ». Les horaires qui ont ouvert le
+créneau ne sont pas répétés en dessous : tu as demandé à suivre un créneau, on
+te prévient pour un créneau. Touche la notification pour voir lesquels.
+
+Un créneau est vide la plupart du temps — 65 % à midi, 63 % le soir — donc
+« il s'ouvre » se déclenche dès **un** train : ce qu'on veut savoir, c'est qu'il
+devient possible.
+
+Ensuite, trois raisons de te déranger même sans rien suivre :
 
 1. **Une date rouvre.** Une journée qui n'avait plus un seul train en a de
    nouveau au moins cinq. C'est le moment où le choix est le plus large.
@@ -181,7 +192,12 @@ Trois raisons de te déranger :
    reste trois ou moins. Autrement dit : ça part, et il faut décider maintenant.
 3. **Un créneau que tu suis a bougé.**
 
-Les deux premières partent toujours, même si tu ne surveilles rien.
+Les deux premières partent toujours, même si tu ne suis rien.
+
+**Trois canaux Android séparés** : les disponibilités, le rappel de
+confirmation, et la panne de collecte. Tu peux en couper un dans les réglages
+Android sans perdre les autres — couper le rappel ne doit pas te priver des
+alertes.
 
 **Deux autres alertes, qui viennent du téléphone et pas d'internet :**
 

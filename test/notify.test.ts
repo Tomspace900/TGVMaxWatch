@@ -142,3 +142,56 @@ describe('construction du message', () => {
     assert.ok(Buffer.byteLength(JSON.stringify(notification)) < 4096);
   });
 });
+
+/*
+ * Un creneau suivi est la seule ligne d'un message dont on sait qu'elle a ete
+ * demandee. Elle passe donc avant les alertes universelles, et prend le titre.
+ */
+describe('buildNotification, creneaux suivis', () => {
+  const slot = {
+    kind: 'SLOT_OPENED' as const,
+    date: '2026-09-17',
+    dir: PB,
+    after: '05:00',
+    before: '12:00',
+    label: 'matin',
+    before_count: 0,
+    after_count: 3,
+  };
+
+  it('nomme le creneau par son mot, avec l avant et l apres', () => {
+    const notification = buildNotification([], [], [slot])!;
+    assert.equal(
+      notification.body.split('\n')[0],
+      'ouvre 17/09 Paris > Bordeaux matin : 3 trains, 0 hier',
+    );
+  });
+
+  it('prend le titre, meme en presence d une alerte generale', () => {
+    const general: DateSignal = {
+      kind: 'REOPENED',
+      date: '2026-09-20',
+      dir: BP,
+      before: 0,
+      after: 12,
+    };
+    const notification = buildNotification([], [general], [slot])!;
+    assert.equal(notification.title, '17/09 Paris > Bordeaux matin : 3 trains');
+    assert.match(notification.body.split('\n')[0]!, /^ouvre 17\/09/);
+  });
+
+  it('absorbe les trains qui ont ouvert le creneau', () => {
+    // Le 07:12 est dans le matin, le 19:04 non : seul le second reste visible.
+    const inside = event('OPEN', '2026-09-17', '8441', '07:12');
+    const outside = event('OPEN', '2026-09-17', '8999', '19:04');
+    const notification = buildNotification([inside, outside], [], [slot])!;
+
+    assert.equal(notification.body.includes('07:12'), false);
+    assert.equal(notification.body.includes('19:04'), true);
+  });
+
+  it('pointe le lien sur le creneau, pas sur autre chose', () => {
+    const notification = buildNotification([], [], [slot])!;
+    assert.match(notification.url, /date=2026-09-17/);
+  });
+});

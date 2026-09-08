@@ -41,7 +41,7 @@ const FILTER_KEYS = ['ouigo', 'long', 'closed'] as const satisfies readonly Filt
 
 const FILTER_LABELS: Record<FilterKey, string> = {
   ouigo: 'OUIGO',
-  long: 'plus de 3 h',
+  long: 'longs',
   closed: 'complets',
 };
 

@@ -41,7 +41,10 @@ function matchesRule(rule: WatchRule, candidate: Candidate): boolean {
  * satisfaite : c'est a l'appelant de verifier qu'au moins un train de la date
  * tombe dans la fenetre, ce qu'il sait faire et pas nous.
  */
-function withinWindow(window: { after?: string; before?: string }, depart?: string): boolean {
+export function withinWindow(
+  window: { after?: string; before?: string },
+  depart?: string,
+): boolean {
   if (!depart) return true;
   const minutes = timeToMinutes(depart);
   if (window.after && minutes < timeToMinutes(window.after)) return false;

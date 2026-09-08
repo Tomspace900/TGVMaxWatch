@@ -294,6 +294,42 @@ deux cartes est un `paddingBottom` du conteneur et non une marge de la carte :
 sans quoi la voie se coupe a chaque rangee. Elle reste hors du `SwipeRow` — du
 decor fixe, c'est la carte seule qui se deplace sous le doigt.
 
+**Un creneau suivi est vide la plupart du temps, et c'est ce qui rend l'alerte
+utile.** Mesure sur l'archive, tous creneaux du calendrier confondus : 65 % de
+zeros a midi, 63 % le soir, 56 % l'apres-midi, 39 % le matin. « Le creneau
+s'ouvre » est donc l'evenement frequent et actionnable — un seul train suffit a
+le declencher, parce que ce qu'on veut savoir est qu'il devient possible, pas
+qu'il devient confortable. Les seuils de la journee entiere (rouvre a 5, perd 3
+et il en reste 3) sont calibres sur une trentaine de trains : les reutiliser sur
+une poignee rendrait le signal muet. `SLOT_*` porte les siens.
+
+**Le compte d'un creneau porte sur tous ses trains, jamais sur les seuls
+ouverts.** Sinon un creneau vide n'a pas de cle, et la transition « 0 vers
+quelque chose » ne peut litteralement jamais etre observee — c'est exactement
+l'erreur que `filterNewDates` avait deja faite a l'echelle de la date, et elle
+s'est reproduite dans la premiere mesure faite pour calibrer ces seuils.
+
+**La maille du message suit la maille du suivi.** Un suivi pose sur une minute
+designe un train : c'est l'evenement de train qui le porte. Un suivi pose sur
+une fenetre designe un creneau : c'est le signal de creneau, et `isCoveredBySlot`
+retire alors les evenements de train qu'il absorbe — sans quoi « le matin du 18
+s'ouvre » serait suivi des trois horaires qui l'ont ouvert.
+
+**Les deux alertes universelles ne consultent toujours aucune preference.**
+`slots.ts` est un pont a sens unique : il applique la dynamique d'une date aux
+seules fenetres explicitement suivies. Les signaux `REOPENED` et `DRAINING`
+continuent de partir pour tout le monde — c'est ce qui les rend fiables, et une
+regle taillee pour amortir le bruit des trains les avait deja reduits au
+silence six jours sur sept.
+
+**Un canal Android par nature de message.** Couper durablement une categorie et
+balayer un message une fois sont deux besoins differents, et Android n'exprime
+le premier que par canal : avec un canal unique, faire taire le rappel de
+confirmation faisait taire tout le produit. Trois canaux — `alerts`, `confirm`,
+`health`. Attention, Android **verrouille les reglages d'un canal des sa
+creation** : en ajouter un nouveau marche, changer l'importance d'un canal
+existant ne prend jamais effet sur les appareils qui l'ont deja.
+
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
 convertir. Seul le cron est en UTC.
 
@@ -407,7 +443,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 99 tests sur fixtures, aucun acces reseau
+npm test              # 116 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
@@ -420,8 +456,11 @@ Le bundle Metro est la seule verification qui attrape une resolution cassee
 vers les modules partages, qui vivent hors du dossier du projet.
 
 Le canal d'alerte ne se verifie pas en lisant du code : declencher
-`notify-test.yml`. Il rejoue le vrai diff des deux derniers snapshots en
-ignorant la watchlist et envoie le message obtenu, sans rien ecrire. En local,
+`notify-test.yml`. Il rejoue le vrai diff des deux derniers snapshots et envoie
+le message obtenu, sans rien ecrire. Les evenements de train n'y sont pas
+filtres par la watchlist — sinon il n'aurait presque jamais rien a envoyer —
+mais les creneaux suivis la reclament, un signal de creneau n'existant que
+parce qu'on a demande a suivre cette fenetre. En local,
 `TGVMAX_PUSH_URL` pointe le meme chemin vers un faux endpoint.
 
 Le domaine `ressources.data.sncf.com` peut etre injoignable selon

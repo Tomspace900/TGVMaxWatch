@@ -161,6 +161,33 @@ export const DRAIN_MIN_DROP = 3;
 export const DRAIN_MAX_LEFT = 3;
 
 /**
+ * Seuils des alertes de creneau suivi.
+ *
+ * Les trois seuils precedents sont calibres sur une journee entiere, ou une
+ * (date, sens) porte une trentaine de trains. Un creneau suivi — « les jeudis
+ * matin » — en porte une poignee, et les reutiliser tels quels rendrait ses
+ * alertes muettes.
+ *
+ * Mesure sur l'archive, tous creneaux du calendrier confondus : **un creneau est
+ * vide la plupart du temps** — 65 % a midi, 63 % le soir, 56 % l'apres-midi,
+ * 39 % le matin. « Il s'ouvre » est donc l'evenement frequent et utile, et c'est
+ * pourquoi un seul train suffit a le declencher : ce qu'on veut savoir, c'est
+ * que le creneau devient possible, pas qu'il devient confortable.
+ *
+ * Le compte doit porter sur **tous** les trains du creneau, ouverts ou non,
+ * sinon un creneau a zero n'a pas de cle et la transition ne peut litteralement
+ * jamais etre observee — c'est l'erreur exacte que `filterNewDates` avait deja
+ * faite a l'echelle de la date.
+ *
+ * Cote fonte, les transitions mesurees sont surtout des pertes de 1 (108 fois
+ * sur 1 452 observations) ; exiger 2 et n'en laisser que 2 ramene le signal a
+ * ce qui decide vraiment. A retoucher en octobre, avec un vrai recul.
+ */
+export const SLOT_OPEN_MIN_TRAINS = 1;
+export const SLOT_DRAIN_MIN_DROP = 2;
+export const SLOT_DRAIN_MAX_LEFT = 2;
+
+/**
  * Amplitude minimale d'une courbe d'erosion, en jours.
  *
  * Il n'y a plus de seuil global sur le nombre de snapshots : chaque

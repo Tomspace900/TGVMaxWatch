@@ -1,7 +1,15 @@
 import { DRAIN_MAX_LEFT, DRAIN_MIN_DROP, REOPEN_MIN_TRAINS } from './config.ts';
 import { recordDir, recordDuration, recordKey, durationTier } from './duration.ts';
 import { countSnapshot } from './history.ts';
-import type { DateSignal, DiffResult, Snapshot, TrainEvent, TrainRecord } from './types.ts';
+import { slotSignals } from './slots.ts';
+import type {
+  DateSignal,
+  DiffResult,
+  Snapshot,
+  TrainEvent,
+  TrainRecord,
+  Watchlist,
+} from './types.ts';
 
 /**
  * Compare deux snapshots consecutifs.
@@ -12,10 +20,19 @@ import type { DateSignal, DiffResult, Snapshot, TrainEvent, TrainRecord } from '
  * et confondre les deux fait croire a une saturation. Les signaux, eux, portent
  * sur le compte d'une (date, sens), la maille a laquelle on decide de partir.
  *
+ * Une troisieme maille s'y ajoute, mais seulement pour qui la demande : les
+ * creneaux explicitement suivis, dans `slots.ts`. Les deux premieres ne
+ * consultent aucune preference et ne doivent jamais commencer a le faire.
+ *
  * Ce module reste hors du graphe d'imports de `mobile/` : il tire `history.ts`,
  * donc `storage.ts`, donc `node:`. Le bundle Metro de `ci.yml` le verifie.
  */
-export function diffSnapshots(previous: Snapshot, current: Snapshot, today: string): DiffResult {
+export function diffSnapshots(
+  previous: Snapshot,
+  current: Snapshot,
+  today: string,
+  watchlist: Watchlist = { watch: [], rules: [] },
+): DiffResult {
   const before = index(previous);
   const after = index(current);
 
@@ -42,7 +59,11 @@ export function diffSnapshots(previous: Snapshot, current: Snapshot, today: stri
     if (!after.has(key)) events.push(toEvent('REMOVED', record));
   }
 
-  return { events: sortEvents(events), signals: findSignals(previous, current, today) };
+  return {
+    events: sortEvents(events),
+    signals: findSignals(previous, current, today),
+    slots: slotSignals(watchlist, previous, current, today),
+  };
 }
 
 /**

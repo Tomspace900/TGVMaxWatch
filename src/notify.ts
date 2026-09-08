@@ -1,7 +1,8 @@
 import { APP_URL, STATION_LABELS } from './config.ts';
 import { formatDuration } from './duration.ts';
 import { trainsWord } from './label.ts';
-import type { DateSignal, TrainEvent } from './types.ts';
+import { isCoveredBySlot } from './slots.ts';
+import type { DateSignal, SlotSignal, TrainEvent } from './types.ts';
 
 /** Contenu d'une notification, tel qu'envoye au service worker. */
 export interface Notification {
@@ -42,13 +43,24 @@ export function shortDate(iso: string): string {
 export function buildNotification(
   events: TrainEvent[],
   signals: DateSignal[],
+  slots: SlotSignal[] = [],
 ): Notification | null {
-  const opens = events.filter((event) => event.kind === 'OPEN');
-  const closes = events.filter((event) => event.kind === 'CLOSE');
+  /*
+   * Un creneau qui s'ouvre absorbe les trains qui l'ont ouvert.
+   *
+   * Sans ce filtre, « le matin du 18 s'ouvre » serait suivi des trois horaires
+   * qui viennent de s'ouvrir dedans : quatre lignes pour un evenement. La
+   * maille du message suit la maille du suivi.
+   */
+  const loose = events.filter((event) => !isCoveredBySlot(slots, event));
+  const opens = loose.filter((event) => event.kind === 'OPEN');
+  const closes = loose.filter((event) => event.kind === 'CLOSE');
   const reopened = signals.filter((signal) => signal.kind === 'REOPENED');
   const draining = signals.filter((signal) => signal.kind === 'DRAINING');
 
-  if (opens.length === 0 && closes.length === 0 && signals.length === 0) return null;
+  if (opens.length === 0 && closes.length === 0 && signals.length === 0 && slots.length === 0) {
+    return null;
+  }
 
   /*
    * Les signaux passent devant les evenements de train, et non l'inverse.
@@ -58,7 +70,16 @@ export function buildNotification(
    * qu'on avait explicitement mis en suivi. Le premier decide d'un voyage, le
    * second confirme une attente.
    */
+  /*
+   * Les creneaux suivis passent devant tout le reste.
+   *
+   * Une alerte generale porte sur une journee que personne n'a demandee ; un
+   * signal de creneau porte sur une fenetre qu'on a explicitement mise en
+   * suivi. Le second est toujours plus pertinent que le premier pour celui qui
+   * lit le message.
+   */
   const lines = [
+    ...slots.map(slotLine),
     ...signals.map(signalLine),
     ...group(opens),
     ...group(closes, 'parti '),
@@ -69,17 +90,32 @@ export function buildNotification(
     shown.push(`+${lines.length - shown.length} autres`);
   }
 
-  const focus = signals[0] ?? opens[0] ?? closes[0];
+  const focus = slots[0] ?? signals[0] ?? opens[0] ?? closes[0];
   const url = focus
     ? `${APP_URL}?date=${focus.date}&dir=${encodeURIComponent(focus.dir)}`
     : APP_URL;
 
   return truncate({
-    title: buildTitle(reopened, draining, opens.length, closes.length),
+    title: buildTitle(slots, reopened, draining, opens.length, closes.length),
     body: shown.join('\n'),
     url,
     tag: 'tgvmax',
   });
+}
+
+/**
+ * Une ligne de creneau suivi.
+ *
+ * Elle porte le nom de la fenetre — « matin » plutot que « 05:00-12:00 » — parce
+ * que c'est le mot avec lequel le suivi a ete pose. Et l'avant/apres, pour la
+ * meme raison que partout ailleurs : « 2 trains » ne dit pas s'il en restait
+ * cinq hier ou deux.
+ */
+function slotLine(signal: SlotSignal): string {
+  const verb = signal.kind === 'SLOT_OPENED' ? 'ouvre' : 'se vide';
+  return `${verb} ${shortDate(signal.date)} ${dirLabel(signal.dir)} ${signal.label} : ${
+    signal.after_count
+  } ${trainsWord(signal.after_count)}, ${signal.before_count} hier`;
 }
 
 /**
@@ -157,11 +193,31 @@ function group(events: TrainEvent[], prefix = ''): string[] {
  * fait decider ; un titre qui designe une date et un sens le garde.
  */
 function buildTitle(
+  slots: SlotSignal[],
   reopened: DateSignal[],
   draining: DateSignal[],
   opens: number,
   closes: number,
 ): string {
+  /*
+   * Un creneau suivi prend le titre, toujours.
+   *
+   * C'est la seule ligne du message dont on sait qu'elle a ete demandee. Lui
+   * preferer une alerte generale reviendrait a annoncer la meteo a quelqu'un
+   * qui attend un coup de fil.
+   */
+  const slot = slots[0];
+  if (slot && slots.length === 1) {
+    return slot.kind === 'SLOT_OPENED'
+      ? `${shortDate(slot.date)} ${dirLabel(slot.dir)} ${slot.label} : ${slot.after_count} ${trainsWord(
+          slot.after_count,
+        )}`
+      : `${shortDate(slot.date)} ${dirLabel(slot.dir)} ${slot.label} : plus que ${
+          slot.after_count
+        } ${trainsWord(slot.after_count)}`;
+  }
+  if (slots.length > 1) return `${slots.length} creneaux suivis bougent`;
+
   const only = reopened[0];
   if (only && reopened.length === 1) {
     return `${shortDate(only.date)} ${dirLabel(only.dir)} rouvre : ${only.after} trains`;
