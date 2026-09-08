@@ -99,12 +99,18 @@ une courbe de l'évolution, et — quand il y a assez d'historique — une phras
 genre « ce créneau part en général vers J-18 », toujours avec le nombre
 d'observations sur lequel elle repose.
 
-Juste en dessous, deux boutons pour alléger la liste. **Masquer les trajets de
-plus de 3 h** : sur cet axe, un omnibus coûte le même prix qu'un direct et met
-une heure et demie de plus. **Masquer les OUIGO** : ton abonnement ne les couvre
-pas — mesuré sur toute l'archive, aucune rame OUIGO n'a jamais été ouverte au
-TGVmax, c'est un bon septième de la liste que tu ne peux pas prendre. Le total,
-lui, continue de compter la journée entière.
+Juste en dessous, une rangée **MASQUER** pour alléger la liste, construite
+comme la précédente. Trois filtres, chacun avec son compte :
+
+- **OUIGO** — actif par défaut. Ton abonnement ne les couvre pas : mesuré sur
+  toute l'archive, aucune rame OUIGO n'a jamais été ouverte au TGVmax. C'est un
+  bon septième de la liste que tu ne peux de toute façon pas prendre. La
+  pastille reste affichée et comptée, pour que rien ne disparaisse en silence.
+- **plus de 3 h** — un omnibus coûte le même prix qu'un direct et met une heure
+  et demie de plus.
+- **complets** — quand tu ne veux voir que ce qui est réservable.
+
+Le total en haut, lui, continue de compter la journée entière.
 
 Toute la liste est accrochée à **une voie** qui descend le long de l'écran,
 chaque train relié par une traverse : la journée a la forme de ce qu'elle
@@ -116,9 +122,6 @@ Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
 - **la durée du trajet** — sur cet axe les temps vont de 2 h 05 à 3 h 30 pour le
   même prix ; « 3h12 » à côté de « 2h05 » se lit tout seul, sans qu'on ait
   besoin de le peindre en rouge ;
-- **une motrice en tête de ligne**, dont les barres de vitesse disent le
-  palier : trois pour un direct (moins de 2 h 20), une pour un arrêt de plus,
-  aucune et la couleur d'avertissement au-delà de 3 h ;
 - **une petite frise à droite** : les sept derniers jours de collecte, plein
   quand le train était ouvert au TGVmax. C'est là qu'on voit un train qui tient
   depuis une semaine et un train qui vient de rouvrir ;

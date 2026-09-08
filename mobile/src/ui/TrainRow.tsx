@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
 import { formatDuration } from '../format.ts';
 import type { Train } from '../model.ts';
-import { Locomotive, RailSpine, SPINE_WIDTH } from './rail.tsx';
+import { RailSpine, SPINE_WIDTH } from './rail.tsx';
 import { SwipeRow } from './SwipeRow.tsx';
 import { Trace } from './Trace.tsx';
 import { radius, space, typo, useTheme } from '../theme.ts';
@@ -60,14 +60,6 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
               },
             ]}
           >
-            {/* Trois barres pour un direct, une pour un arret de plus, aucune et
-                la couleur d'avertissement au-dela de trois heures. */}
-            <Locomotive
-              tier={train.tier}
-              dim={dim}
-              glass={dim ? theme.sunken : theme.raised}
-            />
-
             <View style={styles.times}>
               <Text
                 style={[typo.clock, { color: dim ? theme.muted : theme.text }, dim && styles.struck]}
@@ -158,9 +150,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm + 2,
+    gap: space.md,
     paddingVertical: 11,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },

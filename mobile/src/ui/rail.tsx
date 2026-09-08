@@ -1,22 +1,23 @@
 import { useId } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, Line, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useTheme } from '../theme.ts';
-import type { DurationTier } from '../../../src/types.ts';
 
 /*
- * La motrice et les voitures ont ete retirees.
+ * Du materiel roulant, il ne reste que la voie.
  *
- * La motrice habillait un bandeau qui repetait le sens deja porte par le
- * selecteur juste au-dessus, et poussait sous la ligne de flottaison la carte
- * qui porte le coeur du produit. Les voitures comptaient un quota de six
- * reservations dont personne n'a besoin. Une illustration qui coute la
- * premiere moitie d'un ecran de telephone doit porter une information ; ni
- * l'une ni l'autre n'en portait.
+ * La motrice a ete essayee deux fois. En bandeau d'accueil elle repetait le
+ * sens deja porte par le selecteur au-dessus ; en tete de chaque ligne de
+ * train, elle encodait un palier de duree que l'horaire et la pastille `LONG`
+ * disaient deja — trente-cinq glyphes pour une information deja lisible deux
+ * fois sur la meme rangee. Une illustration doit porter quelque chose que le
+ * texte ne porte pas ; celle-ci n'y est jamais arrivee.
  *
- * Reste ce qui sert : le degrade identitaire, et un filet de separation.
- * `react-native-svg` est deja embarque, ce qui evite un `expo-linear-gradient`
- * et donc un nouvel APK pour un fond.
+ * La voie, elle, ne dit rien et c'est son role : elle donne a la liste la forme
+ * de ce qu'elle decrit, sans occuper la place d'une donnee. Avec le degrade
+ * identitaire, c'est tout ce que ce fichier garde. `react-native-svg` est deja
+ * embarque, ce qui evite un `expo-linear-gradient` et donc un nouvel APK pour
+ * un fond.
  */
 
 /**
@@ -97,81 +98,6 @@ export function RailTrack({ style }: { style?: StyleProp<ViewStyle> }) {
         <Line x1="0" y1={4} x2="100%" y2={4} stroke={theme.line} strokeWidth={1.2} />
       </Svg>
     </View>
-  );
-}
-
-/*
- * Une motrice a grande vitesse, reduite a ce qui la rend reconnaissable.
- *
- * Le nez pointe a droite et les barres de vitesse trainent a gauche : c'est le
- * sens de lecture, et la rame « entre » ainsi dans les donnees de sa ligne. Le
- * nez court sur un tiers de la longueur, la caisse est basse, le pantographe
- * est a l'arriere — trois traits qui suffisent a dire TGV plutot que « train ».
- *
- * Les barres portent le palier de duree, et elles seules : trois pour un
- * direct, une pour un arret de plus, aucune pour un omnibus — qui prend en plus
- * la couleur d'avertissement. C'est une substitution, pas un ajout : le glyphe
- * remplace la pastille de duree qui occupait la meme largeur en toutes lettres.
- */
-const LOCO_RATIO = 66 / 22;
-
-/** Caisse : toit plat, nez long et plongeant sur le tiers avant. */
-const BODY =
-  'M18 6 L44 6 C51 6.1 57 7.8 61.5 10.8 C64.2 12.6 65.7 14.8 66 17.2 L18 17.2 Z';
-/** Pare-brise, couche sur la pente du nez. */
-const SCREEN = 'M48 9.2 C52 9.7 55.4 11 58.2 12.9 L48 12.9 Z';
-
-/** Barres de vitesse, de la plus longue a la plus courte. */
-const SPEED_LINES = [
-  'M2 9 H14',
-  'M0 12.4 H11.5',
-  'M4 15.6 H14',
-] as const;
-
-interface LocomotiveProps {
-  tier: DurationTier;
-  /** Train complet : la rame recule d'un plan avec le reste de la ligne. */
-  dim?: boolean;
-  height?: number;
-  /** Couleur des vitres : celle du fond de la ligne, pour qu'elles percent. */
-  glass: string;
-}
-
-export function Locomotive({ tier, dim = false, height = 14, glass }: LocomotiveProps) {
-  const theme = useTheme();
-  const body = tier === 'long' ? theme.amber : theme.steel;
-  const lines = tier === 'direct' ? SPEED_LINES : tier === 'intermediaire' ? [SPEED_LINES[1]!] : [];
-
-  return (
-    <Svg
-      width={height * LOCO_RATIO}
-      height={height}
-      viewBox="0 0 66 22"
-      opacity={dim ? 0.4 : 1}
-    >
-      <G stroke={theme.steel} strokeWidth={1.7} strokeLinecap="round" opacity={0.7}>
-        {lines.map((line) => (
-          <Path key={line} d={line} />
-        ))}
-      </G>
-
-      {/* Pantographe : le seul detail qui dit « electrique » d'un coup d'oeil. */}
-      <G stroke={body} strokeWidth={1.3} strokeLinecap="round">
-        <Path d="M30 6 L27 2.6" />
-        <Path d="M30 6 L33.4 2.6" />
-        <Path d="M26.4 2.6 H34" />
-      </G>
-
-      <Path d={BODY} fill={body} />
-      <Rect x={21} y={8.6} width={24} height={3.6} rx={1.2} fill={glass} />
-      <Path d={SCREEN} fill={glass} />
-      <Rect x={18} y={14} width={40} height={1.5} fill={glass} opacity={0.45} />
-
-      <G fill={theme.lineStrong}>
-        <Circle cx={25} cy={18} r={2.4} />
-        <Circle cx={54} cy={18} r={2.4} />
-      </G>
-    </Svg>
   );
 }
 

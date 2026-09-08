@@ -64,8 +64,6 @@ export interface Palette {
    */
   amber: string;
   amberSoft: string;
-  /** Teinte du materiel roulant. Une rame est grise, sur les deux themes. */
-  steel: string;
 }
 
 /**
@@ -99,7 +97,6 @@ const light: Palette = {
   navBg: 'rgba(251,251,249,0.94)',
   amber: '#9a6210',
   amberSoft: 'rgba(154,98,16,0.12)',
-  steel: '#7b8288',
 };
 
 const dark: Palette = {
@@ -127,7 +124,6 @@ const dark: Palette = {
   navBg: 'rgba(14,16,18,0.92)',
   amber: '#d9a03c',
   amberSoft: 'rgba(217,160,60,0.16)',
-  steel: '#c9cdd2',
 };
 
 /**

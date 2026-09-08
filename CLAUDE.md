@@ -273,12 +273,21 @@ le deplacer a 2h30 n'attraperait que ces neuf-la et casserait une frontiere que
 la donnee dessine elle-meme. Trois familles reelles : le direct, l'arret en
 plus, l'omnibus.
 
-**La motrice porte la vitesse, jamais le transporteur.** Nez a droite, barres de
-vitesse a gauche : c'est le sens de lecture, et la rame entre ainsi dans les
-donnees de sa ligne. Trois barres pour un direct, une pour un arret de plus,
-aucune et la couleur d'avertissement au-dela de trois heures. C'est une
-substitution et non un ajout — le glyphe remplace une pastille de duree qui
-prenait la meme largeur en toutes lettres.
+**La motrice a ete essayee deux fois, et retiree deux fois.** En bandeau
+d'accueil elle repetait le sens deja porte par le selecteur au-dessus ; en tete
+de chaque ligne de train, ses barres de vitesse encodaient un palier de duree
+que l'horaire et la pastille `LONG` disaient deja — trente-cinq glyphes pour une
+information deja lisible deux fois sur la meme rangee. Une illustration doit
+porter ce que le texte ne porte pas. La voie, elle, reste : elle ne dit rien, et
+c'est son role — donner a la liste la forme de ce qu'elle decrit sans occuper la
+place d'une donnee.
+
+**Ce qu'on masque par defaut doit rester compte a l'ecran.** Les OUIGO sont
+caches d'office parce qu'aucun n'est eligible ; la pastille reste affichee,
+active, avec son nombre. Les longs et les complets, eux, restent visibles :
+un train complet qui existe est une information, et un omnibus reste
+reservable — les masquer d'office retirerait des trains que personne n'a demande
+a ne plus voir.
 
 **La voie est la structure de la liste, pas un ornement.** L'espacement entre
 deux cartes est un `paddingBottom` du conteneur et non une marge de la carte :
