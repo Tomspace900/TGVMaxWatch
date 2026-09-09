@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-08T11:21:10.207Z",
-  "snapshotCount": 8,
+  "generatedAt": "2026-09-09T11:25:08.015Z",
+  "snapshotCount": 9,
   "ready": {
     "burnRate": true,
     "reopen": true,
@@ -16,6 +16,18 @@
     }
   ],
   "reopen": {
+    "8404": {
+      "closed": 5,
+      "reopened": 2,
+      "rate": 0.4,
+      "sample": 5
+    },
+    "8414": {
+      "closed": 5,
+      "reopened": 2,
+      "rate": 0.4,
+      "sample": 5
+    },
     "8440": {
       "closed": 6,
       "reopened": 1,
@@ -24,8 +36,8 @@
     },
     "8441": {
       "closed": 6,
-      "reopened": 4,
-      "rate": 0.6666666666666666,
+      "reopened": 5,
+      "rate": 0.8333333333333334,
       "sample": 6
     },
     "8478": {
@@ -52,6 +64,12 @@
       "rate": 0.25,
       "sample": 8
     },
+    "8514": {
+      "closed": 5,
+      "reopened": 1,
+      "rate": 0.2,
+      "sample": 5
+    },
     "8516": {
       "closed": 10,
       "reopened": 3,
@@ -60,26 +78,26 @@
     },
     "8530": {
       "closed": 6,
-      "reopened": 3,
-      "rate": 0.5,
+      "reopened": 4,
+      "rate": 0.6666666666666666,
       "sample": 6
     },
     "8531": {
-      "closed": 10,
+      "closed": 11,
       "reopened": 4,
-      "rate": 0.4,
-      "sample": 10
+      "rate": 0.36363636363636365,
+      "sample": 11
     },
     "8544": {
-      "closed": 8,
+      "closed": 9,
       "reopened": 2,
-      "rate": 0.25,
-      "sample": 8
+      "rate": 0.2222222222222222,
+      "sample": 9
     },
     "8549": {
       "closed": 6,
-      "reopened": 0,
-      "rate": 0,
+      "reopened": 1,
+      "rate": 0.16666666666666666,
       "sample": 6
     },
     "8551": {
@@ -90,8 +108,8 @@
     },
     "8580": {
       "closed": 7,
-      "reopened": 5,
-      "rate": 0.7142857142857143,
+      "reopened": 6,
+      "rate": 0.8571428571428571,
       "sample": 7
     },
     "8582": {
@@ -102,8 +120,8 @@
     },
     "8584": {
       "closed": 11,
-      "reopened": 3,
-      "rate": 0.2727272727272727,
+      "reopened": 4,
+      "rate": 0.36363636363636365,
       "sample": 11
     }
   },
