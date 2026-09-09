@@ -1,3 +1,5 @@
+import { weekday } from './dates.ts';
+
 /**
  * Le mot juste pour ce que compte ce projet.
  *
@@ -14,6 +16,24 @@
  * `carrierLabel` a deja ete perdue une fois en changeant de front, et
  * l'application affichait « PASUDOUEST » sur quatre lignes sur cinq.
  */
+
+const WEEKDAYS_SHORT = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'] as const;
+
+/**
+ * Le jour de la semaine, en trois lettres.
+ *
+ * « le 14 » ne decide rien : c'est « lundi » qui dit si le voyage est possible.
+ * La notification donnait la date nue, et il fallait ouvrir un calendrier pour
+ * savoir de quel jour on parlait — sur le seul message dont tout l'interet est
+ * d'etre lu d'un oeil.
+ *
+ * La table vit ici et non dans l'interface parce que les deux la lisent, et que
+ * deux tables de jours qui divergeraient d'un rang seraient impossibles a
+ * diagnostiquer depuis l'ecran.
+ */
+export function weekdayShort(iso: string): string {
+  return WEEKDAYS_SHORT[weekday(iso)]!;
+}
 
 /** `12 trains`, `1 train`, `aucun train`. */
 export function trainsLabel(count: number): string {

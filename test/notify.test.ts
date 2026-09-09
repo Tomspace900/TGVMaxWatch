@@ -49,14 +49,14 @@ describe('construction du message', () => {
       [signal('REOPENED', '2026-11-16', 0, 10)],
     )!;
 
-    assert.match(notification.title, /16\/11 Paris > Bordeaux rouvre : 10 trains/);
-    assert.equal(notification.body.split('\n')[0], 'rouvre 16/11 Paris > Bordeaux : 10 trains, 0 hier');
+    assert.match(notification.title, /lun 16\/11 Paris → Bordeaux rouvre : 10 trains/);
+    assert.equal(notification.body.split('\n')[0], '🟢 rouvre lun 16/11 Paris → Bordeaux : 10 trains, 0 hier');
     assert.match(notification.url, /date=2026-11-16/);
   });
 
   it('nomme la date et le sens plutot qu un total', () => {
     const notification = buildNotification([], [signal('DRAINING', '2026-09-30', 9, 2, BP)])!;
-    assert.match(notification.title, /30\/09 Bordeaux > Paris : plus que 2 trains/);
+    assert.match(notification.title, /mer 30\/09 Bordeaux → Paris : plus que 2 trains/);
   });
 
   it('accorde le singulier quand il ne reste qu un train', () => {
@@ -91,7 +91,7 @@ describe('construction du message', () => {
     const lines = notification.body.split('\n');
 
     assert.equal(lines.length, 1);
-    assert.equal(lines[0], '17/10 Paris > Bordeaux 08:11 10:11 12:46 14:46 +2');
+    assert.equal(lines[0], '🟢 sam 17/10 Paris → Bordeaux 08:11 10:11 12:46 14:46 +2');
   });
 
   /*
@@ -101,7 +101,7 @@ describe('construction du message', () => {
    */
   it('porte le sens sur chaque ligne', () => {
     const notification = buildNotification([event('OPEN', '2026-10-17', '8441')], [])!;
-    assert.match(notification.body, /Paris > Bordeaux/);
+    assert.match(notification.body, /Paris → Bordeaux/);
   });
 
   it('ne repete pas un horaire partage par deux trains', () => {
@@ -114,7 +114,7 @@ describe('construction du message', () => {
       [],
     )!;
 
-    assert.equal(notification.body, '17/10 Paris > Bordeaux 10:41 12:46');
+    assert.equal(notification.body, '🟢 sam 17/10 Paris → Bordeaux 10:41 12:46');
   });
 
   it('tronque au-dela de six lignes', () => {
@@ -163,7 +163,7 @@ describe('buildNotification, creneaux suivis', () => {
     const notification = buildNotification([], [], [slot])!;
     assert.equal(
       notification.body.split('\n')[0],
-      'ouvre 17/09 Paris > Bordeaux matin : 3 trains, 0 hier',
+      '🟢 ouvre jeu 17/09 Paris → Bordeaux matin : 3 trains, 0 hier',
     );
   });
 
@@ -176,8 +176,8 @@ describe('buildNotification, creneaux suivis', () => {
       after: 12,
     };
     const notification = buildNotification([], [general], [slot])!;
-    assert.equal(notification.title, '17/09 Paris > Bordeaux matin : 3 trains');
-    assert.match(notification.body.split('\n')[0]!, /^ouvre 17\/09/);
+    assert.equal(notification.title, 'jeu 17/09 Paris → Bordeaux matin : 3 trains');
+    assert.match(notification.body.split('\n')[0]!, /^🟢 ouvre jeu 17\/09/);
   });
 
   it('absorbe les trains qui ont ouvert le creneau', () => {
@@ -193,5 +193,50 @@ describe('buildNotification, creneaux suivis', () => {
   it('pointe le lien sur le creneau, pas sur autre chose', () => {
     const notification = buildNotification([], [], [slot])!;
     assert.match(notification.url, /date=2026-09-17/);
+  });
+});
+
+describe('lisibilite du message', () => {
+  /*
+   * Le message est lu sur un ecran verrouille, entre deux autres notifications,
+   * en une seconde. Ces trois assertions portent sur ce qui se lit dans cette
+   * seconde-la, et rien d'autre.
+   */
+  it('donne le jour de la semaine, pas seulement la date', () => {
+    const notification = buildNotification([event('OPEN', '2026-09-14', '8401')], [])!;
+    // « le 14 » ne decide rien : c'est « lundi » qui dit si le voyage est possible.
+    assert.match(notification.body, /lun 14\/09/);
+    assert.match(notification.title, /1 train ouvert/);
+  });
+
+  it('remplace « parti » par une marque, au lieu de repeter le titre', () => {
+    const notification = buildNotification([event('CLOSE', '2026-09-14', '8401')], [])!;
+
+    // Le titre disait deja « parti », la ligne le redisait : la marque prend sa
+    // place plutot que de s'y ajouter.
+    assert.match(notification.title, /1 train parti/);
+    assert.equal(notification.body.includes('parti'), false);
+    assert.match(notification.body, /^⚫ lun 14\/09/);
+  });
+
+  it('distingue ce qui monte de ce qui baisse, sans retirer le mot', () => {
+    const notification = buildNotification(
+      [],
+      [signal('REOPENED', '2026-09-14', 0, 8), signal('DRAINING', '2026-09-15', 9, 2, BP)],
+    )!;
+    const [up = '', down = ''] = notification.body.split('\n');
+
+    assert.match(up, /^🟢 rouvre /);
+    assert.match(down, /^🟠 se vide /);
+    // La marque accelere, elle ne remplace pas : vert et orange se ressemblent
+    // en deuteranopie, « rouvre » et « se vide » non.
+    assert.equal(up.includes('rouvre'), true);
+    assert.equal(down.includes('se vide'), true);
+  });
+
+  it('ne met aucune marque dans le titre', () => {
+    const notification = buildNotification([], [signal('REOPENED', '2026-09-14', 0, 8)])!;
+    // Un signal pose partout redevient un fond, et l'icone est deja a cote.
+    assert.equal(/[🟢🟠⚫]/u.test(notification.title), false);
   });
 });

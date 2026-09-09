@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { trainsLabel, trainsWord } from '../src/label.ts';
+import { trainsLabel, trainsWord, weekdayShort } from '../src/label.ts';
 
 /*
  * Le vocabulaire est teste parce qu'il a deja ete faux partout.
@@ -20,5 +20,23 @@ describe('trainsLabel', () => {
     assert.equal(trainsWord(0), 'train');
     assert.equal(trainsWord(1), 'train');
     assert.equal(trainsWord(2), 'trains');
+  });
+});
+
+describe('jour de la semaine', () => {
+  it('nomme les sept jours, dimanche compris', () => {
+    // Le 2026-09-14 est un lundi ; la semaine se lit ensuite d'affilee.
+    const semaine = [
+      '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17',
+      '2026-09-18', '2026-09-19', '2026-09-20',
+    ].map(weekdayShort);
+
+    assert.deepEqual(semaine, ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim']);
+  });
+
+  it('ne convertit pas la date : elle est deja locale', () => {
+    // Une conversion de fuseau ferait basculer d'un jour les dates de voyage.
+    assert.equal(weekdayShort('2026-01-01'), 'jeu');
+    assert.equal(weekdayShort('2026-12-31'), 'jeu');
   });
 });

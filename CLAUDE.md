@@ -535,6 +535,28 @@ raison pour l'avant/apres d'un signal : « 7 places parties » ne dit pas s'il e
 reste vingt ou deux, et c'est la seule chose qui decide s'il faut ouvrir
 l'application maintenant.
 
+**Une notification se lit en une seconde, sur un ecran verrouille.** Trois
+consequences deja payees. La date nue ne decide rien : « le 14 » demandait
+d'ouvrir un calendrier pour savoir de quel jour on parlait, et c'est le jour de
+la semaine qui dit si le voyage est possible — `weekdayShort` vit dans
+`src/label.ts` parce que la notification *et* l'ecran la lisent, et que deux
+tables de jours divergeant d'un rang seraient indiagnosticables. Une marque par
+nature d'evenement — 🟢 monte, 🟠 baisse, ⚫ fini — se balaie plus vite qu'un
+mot, mais **le mot reste** : c'est la meme regle que l'ambre de l'interface, et
+c'est ce qui la rend sure, vert et orange se ressemblant en deuteranopie. Trois
+marques et un seul axe : la granularite — un train, un creneau, une journee — se
+lit ensuite, dans les mots. Et elles sont en tete de ligne, jamais dans le
+titre : alignees elles forment une colonne qui se balaie, posees partout elles
+redeviennent un fond.
+
+**Le titre et le corps ne disent pas la meme chose.** Le titre annoncait
+« 1 train parti » et la seule ligne du corps commencait par « parti » : six
+caracteres de la seule ligne informative depenses a repeter ce qui etait deja
+lu. La marque a pris cette place au lieu de s'y ajouter. La faute subsiste
+ailleurs, et n'est pas encore corrigee : sur un signal unique, le titre et la
+ligne portent tous deux la date, le sens et le compte — le corps n'ajoute que le
+« hier ».
+
 **Le pari du plan sur l'entree d'une date a J+30 etait faux, et l'alerte batie
 dessus ne pouvait litteralement jamais partir.** Le plan supposait qu'une date
 entre dans la fenetre avec dix a quinze trains eligibles ; les quatre mesurees
@@ -611,7 +633,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 123 tests sur fixtures, aucun acces reseau
+npm test              # 129 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 

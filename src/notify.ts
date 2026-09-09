@@ -1,6 +1,6 @@
 import { APP_URL, STATION_LABELS } from './config.ts';
 import { formatDuration } from './duration.ts';
-import { trainsWord } from './label.ts';
+import { trainsWord, weekdayShort } from './label.ts';
 import { isCoveredBySlot } from './slots.ts';
 import type { DateSignal, SlotSignal, TrainEvent } from './types.ts';
 
@@ -23,14 +23,45 @@ const MAX_PAYLOAD_BYTES = 3_500;
 
 export function dirLabel(dir: string): string {
   const [from = '', to = ''] = dir.split('>');
-  return `${STATION_LABELS[from] ?? from} > ${STATION_LABELS[to] ?? to}`;
+  return `${STATION_LABELS[from] ?? from} → ${STATION_LABELS[to] ?? to}`;
 }
 
-/** `2026-10-17` -> `17/10`. Format court, la notification est lue d'un oeil. */
-export function shortDate(iso: string): string {
+/**
+ * `2026-09-14` -> `lun 14/09`.
+ *
+ * Le jour de la semaine et non la seule date : « le 14 » ne decide rien, et il
+ * fallait ouvrir un calendrier pour savoir de quel jour on parlait — sur le
+ * seul message dont tout l'interet est d'etre lu d'un oeil.
+ */
+export function dateLabel(iso: string): string {
   const [, month = '', day = ''] = iso.split('-');
-  return `${day}/${month}`;
+  return `${weekdayShort(iso)} ${day}/${month}`;
 }
+
+/**
+ * Une marque par nature d'evenement, en tete de ligne.
+ *
+ * Trois marques, un seul axe : la disponibilite monte, baisse, ou est finie.
+ * C'est la question qu'on se pose en un dixieme de seconde devant l'ecran
+ * verrouille ; la granularite — un train, un creneau, une journee — se lit
+ * ensuite, dans les mots.
+ *
+ * Le mot reste, la marque ne fait que l'accelerer : c'est la meme regle que
+ * l'ambre de l'interface, et c'est ce qui la rend sure. Vert et orange se
+ * ressemblent en deuteranopie, « ouvre » et « se vide » non.
+ *
+ * En tete de ligne et jamais dans le titre : alignees les unes sous les autres
+ * elles forment une colonne qui se balaie, tandis qu'un signal pose partout
+ * redevient un fond.
+ */
+const MARK = {
+  /** Il y a plus de trains qu'hier. */
+  up: '🟢',
+  /** Il en reste moins, et peu. */
+  down: '🟠',
+  /** Ceux-la sont partis, il n'y a plus rien a en attendre. */
+  gone: '⚫',
+} as const;
 
 /**
  * Construit l'unique message d'une execution.
@@ -81,8 +112,10 @@ export function buildNotification(
   const lines = [
     ...slots.map(slotLine),
     ...signals.map(signalLine),
-    ...group(opens),
-    ...group(closes, 'parti '),
+    ...group(opens, MARK.up),
+    // Plus de « parti » en tete : le titre le dit deja, et la marque le
+    // redisait une troisieme fois. Elle prend sa place au lieu de s'y ajouter.
+    ...group(closes, MARK.gone),
   ];
 
   const shown = lines.slice(0, MAX_LINES);
@@ -112,10 +145,12 @@ export function buildNotification(
  * cinq hier ou deux.
  */
 function slotLine(signal: SlotSignal): string {
-  const verb = signal.kind === 'SLOT_OPENED' ? 'ouvre' : 'se vide';
-  return `${verb} ${shortDate(signal.date)} ${dirLabel(signal.dir)} ${signal.label} : ${
-    signal.after_count
-  } ${trainsWord(signal.after_count)}, ${signal.before_count} hier`;
+  const opened = signal.kind === 'SLOT_OPENED';
+  return `${opened ? MARK.up : MARK.down} ${opened ? 'ouvre' : 'se vide'} ${dateLabel(
+    signal.date,
+  )} ${dirLabel(signal.dir)} ${signal.label} : ${signal.after_count} ${trainsWord(
+    signal.after_count,
+  )}, ${signal.before_count} hier`;
 }
 
 /**
@@ -127,12 +162,12 @@ function slotLine(signal: SlotSignal): string {
  * Le compte porte des trains, jamais des sieges : voir `trainsWord`.
  */
 function signalLine(signal: DateSignal): string {
-  const verb = signal.kind === 'REOPENED' ? 'rouvre' : 'se vide';
+  const reopened = signal.kind === 'REOPENED';
   // Pas de fleche pour la transition : `dirLabel` en porte deja une, et deux
   // fleches sur la meme ligne se lisent comme une seule suite de gares.
-  return `${verb} ${shortDate(signal.date)} ${dirLabel(signal.dir)} : ${signal.after} ${trainsWord(
-    signal.after,
-  )}, ${signal.before} hier`;
+  return `${reopened ? MARK.up : MARK.down} ${reopened ? 'rouvre' : 'se vide'} ${dateLabel(
+    signal.date,
+  )} ${dirLabel(signal.dir)} : ${signal.after} ${trainsWord(signal.after)}, ${signal.before} hier`;
 }
 
 /**
@@ -146,7 +181,7 @@ function signalLine(signal: DateSignal): string {
  * previsible et occupe la place des horaires, tandis qu'un « 3h30 » a cote d'un
  * trajet habituellement en 2h05 est l'avertissement, sans avoir a le nommer.
  */
-function group(events: TrainEvent[], prefix = ''): string[] {
+function group(events: TrainEvent[], mark: string): string[] {
   const groups = new Map<string, TrainEvent[]>();
 
   for (const event of events) {
@@ -179,7 +214,7 @@ function group(events: TrainEvent[], prefix = ''): string[] {
       );
     const rest = unique.length - times.length;
 
-    return `${prefix}${shortDate(first.date)} ${dirLabel(first.dir)} ${times.join(' ')}${
+    return `${mark} ${dateLabel(first.date)} ${dirLabel(first.dir)} ${times.join(' ')}${
       rest > 0 ? ` +${rest}` : ''
     }`;
   });
@@ -209,10 +244,10 @@ function buildTitle(
   const slot = slots[0];
   if (slot && slots.length === 1) {
     return slot.kind === 'SLOT_OPENED'
-      ? `${shortDate(slot.date)} ${dirLabel(slot.dir)} ${slot.label} : ${slot.after_count} ${trainsWord(
+      ? `${dateLabel(slot.date)} ${dirLabel(slot.dir)} ${slot.label} : ${slot.after_count} ${trainsWord(
           slot.after_count,
         )}`
-      : `${shortDate(slot.date)} ${dirLabel(slot.dir)} ${slot.label} : plus que ${
+      : `${dateLabel(slot.date)} ${dirLabel(slot.dir)} ${slot.label} : plus que ${
           slot.after_count
         } ${trainsWord(slot.after_count)}`;
   }
@@ -220,13 +255,13 @@ function buildTitle(
 
   const only = reopened[0];
   if (only && reopened.length === 1) {
-    return `${shortDate(only.date)} ${dirLabel(only.dir)} rouvre : ${only.after} trains`;
+    return `${dateLabel(only.date)} ${dirLabel(only.dir)} rouvre : ${only.after} trains`;
   }
   if (reopened.length > 1) return `${reopened.length} dates rouvrent`;
 
   const tight = draining[0];
   if (tight && draining.length === 1) {
-    return `${shortDate(tight.date)} ${dirLabel(tight.dir)} : plus que ${tight.after} train${
+    return `${dateLabel(tight.date)} ${dirLabel(tight.dir)} : plus que ${tight.after} train${
       tight.after > 1 ? 's' : ''
     }`;
   }

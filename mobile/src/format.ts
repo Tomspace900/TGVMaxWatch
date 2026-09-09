@@ -5,11 +5,11 @@ import {
   WATCH_GRACE_HOURS,
 } from '../../src/config.ts';
 import { addDays } from '../../src/dates.ts';
+import { weekdayShort } from '../../src/label.ts';
 import { periodOf } from '../../src/periods.ts';
 
 export { formatDuration } from '../../src/duration.ts';
 
-const WEEKDAYS_SHORT = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
 const WEEKDAYS_FULL = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const WEEKDAY_BY_KEY: Record<string, string> = {
   mon: 'lundi', tue: 'mardi', wed: 'mercredi', thu: 'jeudi',
@@ -43,8 +43,11 @@ export function reverseDir(dir: string): string {
 
 /** `ven 17 octobre`. */
 export function longDate(iso: string): string {
-  const { day, month, weekday } = parts(iso);
-  return `${WEEKDAYS_SHORT[weekday]} ${day} ${MONTHS[month - 1]}`;
+  const { day, month } = parts(iso);
+  // Les trois lettres du jour viennent de `src/label.ts` : la notification les
+  // ecrit aussi, et deux tables qui divergeraient d'un rang seraient
+  // impossibles a diagnostiquer depuis l'ecran.
+  return `${weekdayShort(iso)} ${day} ${MONTHS[month - 1]}`;
 }
 
 /** Nom complet : « mar » en capitales se lirait comme le mois de mars. */
