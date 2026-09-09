@@ -93,8 +93,12 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
                   {verdictLabel(verdict).toUpperCase()}
                 </Text>
               )}
+              {/* Les numeros a saisir chez SNCF, et eux seuls.
+                  Deux rames peuvent partager la minute sans partager
+                  l'eligibilite : afficher celle qui est complete enverrait
+                  reserver un train qu'on ne peut pas prendre. */}
               <Text style={[typo.digits, { color: theme.muted, opacity: 0.75 }]}>
-                {train.trainNo}
+                {(train.available ? train.openTrainNos : train.trainNos).join(' · ')}
               </Text>
             </View>
 

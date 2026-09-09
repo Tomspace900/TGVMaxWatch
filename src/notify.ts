@@ -250,16 +250,13 @@ function group(events: TrainEvent[], mark: string): Line[] {
     const first = bucket[0]!;
 
     /*
-     * Deux trains peuvent partir a la meme minute — le 06/09, les 8473 et 8505
-     * partent a 10:41 et arrivent a 12:45. La ligne liste des horaires de
-     * depart, pas des trains : repeter « 10:41 10:41 » se lit comme un defaut
-     * d'affichage sans rien apprendre de plus.
+     * Plus de doublon d'horaire a ecarter ici : deux rames a la meme minute
+     * — le 06/09, les 8473 et 8505 partent a 10:41 — sont repliees en un seul
+     * depart par `foldDepartures`, et un evenement porte une cle de depart.
+     * La deduplication qui vivait a cet endroit est devenue impossible a
+     * declencher.
      */
-    const unique = bucket.filter(
-      (event, index) => bucket.findIndex((other) => other.depart === event.depart) === index,
-    );
-
-    const times = unique
+    const times = bucket
       .slice(0, MAX_TIMES)
       .map(
         (event) =>
@@ -267,7 +264,7 @@ function group(events: TrainEvent[], mark: string): Line[] {
             event.tier === 'long' ? ` (${formatDuration(event.durationMin)})` : ''
           }`,
       );
-    const rest = unique.length - times.length;
+    const rest = bucket.length - times.length;
 
     return {
       dir: first.dir,

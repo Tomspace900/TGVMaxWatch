@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { createStatsBuilder, median, slotOf } from '../src/stats.ts';
-import { PB, snapshot, t } from './helpers.ts';
+import { BP, PB, departures, t } from './helpers.ts';
 import type { Availability } from '../src/types.ts';
 
 describe('statistiques derivees', () => {
@@ -19,7 +19,7 @@ describe('statistiques derivees', () => {
 
   it('ne publie rien tant qu aucune metrique n a d echantillon', () => {
     const builder = createStatsBuilder('2026-09-01');
-    builder.add('2026-08-01', snapshot(t('2026-08-15', '8441', 'OUI')));
+    builder.add('2026-08-01', departures(t('2026-08-15', '8441', 'OUI')));
 
     const stats = builder.finish('2026-09-01', 3);
     assert.deepEqual(stats.ready, { burnRate: false, reopen: false, erosion: false });
@@ -43,7 +43,7 @@ describe('statistiques derivees', () => {
         [open, 'OUI'],
         [close, 'NON'],
       ] as [string, Availability][]) {
-        builder.add(day, snapshot(t(travel, '8441', availability, '16:12', PB)));
+        builder.add(day, departures(t(travel, '8441', availability, '16:12', PB)));
       }
     }
 
@@ -76,7 +76,7 @@ describe('statistiques derivees', () => {
 
     for (const { travel, points } of cases) {
       for (const [day, availability] of points) {
-        builder.add(day, snapshot(t(travel, '8441', availability as Availability, '16:12', PB)));
+        builder.add(day, departures(t(travel, '8441', availability as Availability, '16:12', PB)));
       }
     }
 
@@ -90,8 +90,8 @@ describe('statistiques derivees', () => {
 
   it('ne compte pas une date de voyage encore a venir', () => {
     const builder = createStatsBuilder('2026-09-01');
-    builder.add('2026-08-05', snapshot(t('2026-09-04', '8441', 'OUI', '16:12')));
-    builder.add('2026-08-09', snapshot(t('2026-09-04', '8441', 'NON', '16:12')));
+    builder.add('2026-08-05', departures(t('2026-09-04', '8441', 'OUI', '16:12')));
+    builder.add('2026-08-09', departures(t('2026-09-04', '8441', 'NON', '16:12')));
 
     // Le 2026-09-04 est posterieur au « aujourd'hui » passe a finish : la mesure
     // serait censuree, on l'ecarte.
@@ -99,7 +99,7 @@ describe('statistiques derivees', () => {
     assert.deepEqual(stats.burnRate, []);
   });
 
-  it('mesure le taux de reouverture par numero de train', () => {
+  it('mesure le taux de reouverture par depart', () => {
     const builder = createStatsBuilder('2026-11-01');
 
     // Cinq instances du train 8441 : trois ferment puis rouvrent, deux restent fermees.
@@ -114,16 +114,45 @@ describe('statistiques derivees', () => {
     sequences.forEach((sequence, index) => {
       const travel = `2026-09-${String(10 + index).padStart(2, '0')}`;
       sequence.forEach((availability, step) => {
-        builder.add(`2026-08-${String(10 + step).padStart(2, '0')}`, [
-          t(travel, '8441', availability, '16:12'),
-        ]);
+        builder.add(
+          `2026-08-${String(10 + step).padStart(2, '0')}`,
+          departures(t(travel, '8441', availability, '16:12')),
+        );
       });
     });
 
     const stats = builder.finish('2026-11-01', 60);
     assert.equal(stats.ready.reopen, true);
-    assert.equal(stats.reopen['8441']?.closed, 5);
-    assert.equal(stats.reopen['8441']?.reopened, 3);
-    assert.equal(stats.reopen['8441']?.rate, 0.6);
+    assert.equal(stats.reopen[`${PB}|16:12`]?.closed, 5);
+    assert.equal(stats.reopen[`${PB}|16:12`]?.reopened, 3);
+    assert.equal(stats.reopen[`${PB}|16:12`]?.rate, 0.6);
+  });
+
+  /*
+   * Le 06h46 vers Bordeaux et le 06h46 vers Paris sont deux trains. Sur
+   * l'horaire seul, ils tombaient dans le meme compteur et melangeaient deux
+   * comportements dans une seule statistique — d'autant plus invisible que
+   * l'echantillon paraissait deux fois plus gros.
+   */
+  it('ne melange pas les deux sens sur le meme horaire', () => {
+    const builder = createStatsBuilder('2026-11-01');
+
+    for (let index = 0; index < 5; index++) {
+      const travel = `2026-09-${String(10 + index).padStart(2, '0')}`;
+      ['OUI', 'NON', 'OUI'].forEach((availability, step) => {
+        builder.add(
+          `2026-08-${String(10 + step).padStart(2, '0')}`,
+          departures(
+            t(travel, '8441', availability as Availability, '16:12', PB),
+            // Le sens retour ferme sans jamais rouvrir.
+            t(travel, '8442', step === 0 ? 'OUI' : 'NON', '16:12', BP),
+          ),
+        );
+      });
+    }
+
+    const stats = builder.finish('2026-11-01', 60);
+    assert.equal(stats.reopen[`${PB}|16:12`]?.rate, 1);
+    assert.equal(stats.reopen[`${BP}|16:12`]?.rate, 0);
   });
 });

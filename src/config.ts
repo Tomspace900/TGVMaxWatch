@@ -154,6 +154,14 @@ export const STALE_ALARM_HOURS = 40;
  * qu'il en reste vingt n'a rien d'urgent, et un creneau qui passe de 1 a 0 est
  * deja perdu. C'est entre les deux que l'information a de la valeur.
  *
+ * Rejoues sur l'archive apres le passage de la rame au depart : les seuils
+ * tiennent tels quels. Sur les six paires de snapshots disponibles, les deux
+ * unites tirent les memes signaux a une exception pres — le 16/09 Paris >
+ * Bordeaux, 6 -> 3 rames, qui declenchait `DRAINING`, est 5 -> 3 departs et ne
+ * le declenche plus. C'est le bon comportement : une des trois rames perdues
+ * doublait un depart dont l'autre rame est restee ouverte, et le signal
+ * annoncait donc une perte plus grande que la realite.
+ *
  * A retoucher en octobre, avec un vrai recul.
  */
 export const REOPEN_MIN_TRAINS = 5;
@@ -180,8 +188,14 @@ export const DRAIN_MAX_LEFT = 3;
  * faite a l'echelle de la date.
  *
  * Cote fonte, les transitions mesurees sont surtout des pertes de 1 (108 fois
- * sur 1 452 observations) ; exiger 2 et n'en laisser que 2 ramene le signal a
- * ce qui decide vraiment. A retoucher en octobre, avec un vrai recul.
+ * sur 1 440 observations) ; exiger 2 et n'en laisser que 2 ramene le signal a
+ * ce qui decide vraiment.
+ *
+ * Mesure refaite en departs : les taux de vide sont **identiques au point de
+ * pourcentage pres**, et la distribution des baisses aussi. Le repli ne touche
+ * presque pas le compte d'ouverts d'un creneau, parce que les deux rames d'un
+ * meme depart divergent rarement en eligibilite. Les seuils tiennent donc sans
+ * retouche. A revoir en octobre, avec un vrai recul.
  */
 export const SLOT_OPEN_MIN_TRAINS = 1;
 export const SLOT_DRAIN_MIN_DROP = 2;

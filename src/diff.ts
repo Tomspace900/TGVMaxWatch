@@ -1,24 +1,23 @@
 import { DRAIN_MAX_LEFT, DRAIN_MIN_DROP, REOPEN_MIN_TRAINS } from './config.ts';
-import { recordDir, recordDuration, recordKey, durationTier } from './duration.ts';
+import { departureKey, type Departure } from './departures.ts';
 import { countSnapshot } from './history.ts';
 import { slotSignals } from './slots.ts';
-import type {
-  DateSignal,
-  DiffResult,
-  Snapshot,
-  TrainEvent,
-  TrainRecord,
-  Watchlist,
-} from './types.ts';
+import type { DateSignal, DiffResult, TrainEvent, Watchlist } from './types.ts';
 
 /**
  * Compare deux snapshots consecutifs.
  *
- * Deux mailles differentes, et c'est voulu. Les evenements portent sur un train
- * — dont un que la source ne donne pas : un train qui disparait du dataset
- * n'est pas complet, il est supprime (travaux, greve, changement de service),
- * et confondre les deux fait croire a une saturation. Les signaux, eux, portent
- * sur le compte d'une (date, sens), la maille a laquelle on decide de partir.
+ * Deux mailles differentes, et c'est voulu. Les evenements portent sur un
+ * depart — dont un que la source ne donne pas : un depart qui disparait du
+ * dataset n'est pas complet, il est supprime (travaux, greve, changement de
+ * service), et confondre les deux fait croire a une saturation. Les signaux,
+ * eux, portent sur le compte d'une (date, sens), la maille a laquelle on decide
+ * de partir.
+ *
+ * Les deux comptent des **departs**, jamais des rames : une rame qui s'ouvre
+ * alors que l'autre du meme depart l'etait deja ne change rien pour qui voyage,
+ * et l'annoncer serait une fausse alerte — 53 departs par snapshot sont dans ce
+ * cas.
  *
  * Une troisieme maille s'y ajoute, mais seulement pour qui la demande : les
  * creneaux explicitement suivis, dans `slots.ts`. Les deux premieres ne
@@ -28,8 +27,8 @@ import type {
  * donc `storage.ts`, donc `node:`. Le bundle Metro de `ci.yml` le verifie.
  */
 export function diffSnapshots(
-  previous: Snapshot,
-  current: Snapshot,
+  previous: Departure[],
+  current: Departure[],
   today: string,
   watchlist: Watchlist = { watch: [], rules: [] },
 ): DiffResult {
@@ -38,25 +37,25 @@ export function diffSnapshots(
 
   const events: TrainEvent[] = [];
 
-  for (const [key, record] of after) {
+  for (const [key, departure] of after) {
     const old = before.get(key);
 
     if (!old) {
-      // Une cle inconnue sur une date deja suivie est un train ajoute au plan
-      // de transport. On ne la signale que si elle est effectivement reservable.
-      if (record.od_happy_card === 'OUI') events.push(toEvent('OPEN', record));
+      // Une cle inconnue sur une date deja suivie est un depart ajoute au plan
+      // de transport. On ne la signale que s'il est effectivement reservable.
+      if (departure.available) events.push(toEvent('OPEN', departure));
       continue;
     }
 
-    if (old.od_happy_card === 'NON' && record.od_happy_card === 'OUI') {
-      events.push(toEvent('OPEN', record));
-    } else if (old.od_happy_card === 'OUI' && record.od_happy_card === 'NON') {
-      events.push(toEvent('CLOSE', record));
+    if (!old.available && departure.available) {
+      events.push(toEvent('OPEN', departure));
+    } else if (old.available && !departure.available) {
+      events.push(toEvent('CLOSE', departure));
     }
   }
 
-  for (const [key, record] of before) {
-    if (!after.has(key)) events.push(toEvent('REMOVED', record));
+  for (const [key, departure] of before) {
+    if (!after.has(key)) events.push(toEvent('REMOVED', departure));
   }
 
   return {
@@ -81,7 +80,7 @@ export function diffSnapshots(
  * reapparaissent en nombre : le 06/09 Paris > Bordeaux est passe de 1 a 17 en
  * une journee, a trois jours du depart.
  */
-function findSignals(previous: Snapshot, current: Snapshot, today: string): DateSignal[] {
+function findSignals(previous: Departure[], current: Departure[], today: string): DateSignal[] {
   const before = countAvailable(previous);
   const after = countAvailable(current);
   const signals: DateSignal[] = [];
@@ -116,30 +115,29 @@ function findSignals(previous: Snapshot, current: Snapshot, today: string): Date
   );
 }
 
-/** `<date>|<sens>` -> nombre de trains eligibles. */
-function countAvailable(snapshot: Snapshot): Map<string, number> {
+/** `<date>|<sens>` -> nombre de departs eligibles. */
+function countAvailable(departures: Departure[]): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const [date, byDir] of countSnapshot(snapshot)) {
+  for (const [date, byDir] of countSnapshot(departures)) {
     for (const [dir, observation] of byDir) counts.set(`${date}|${dir}`, observation.oui);
   }
   return counts;
 }
 
-function index(snapshot: Snapshot): Map<string, TrainRecord> {
-  return new Map(snapshot.map((record) => [recordKey(record), record]));
+function index(departures: Departure[]): Map<string, Departure> {
+  return new Map(departures.map((departure) => [departureKey(departure), departure]));
 }
 
-function toEvent(kind: TrainEvent['kind'], record: TrainRecord): TrainEvent {
-  const durationMin = recordDuration(record);
+function toEvent(kind: TrainEvent['kind'], departure: Departure): TrainEvent {
   return {
     kind,
-    date: record.date,
-    dir: recordDir(record),
-    trainNo: record.train_no,
-    depart: record.heure_depart,
-    arrivee: record.heure_arrivee,
-    durationMin,
-    tier: durationTier(durationMin),
+    date: departure.date,
+    dir: departure.dir,
+    trainNos: departure.trainNos,
+    depart: departure.depart,
+    arrivee: departure.arrivee,
+    durationMin: departure.durationMin,
+    tier: departure.tier,
   };
 }
 

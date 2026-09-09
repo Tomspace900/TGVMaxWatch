@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { countSnapshot, createHistoryBuilder, purgeHistory } from '../src/history.ts';
-import { BP, PB, snapshot, t } from './helpers.ts';
+import { BP, PB, departures, t } from './helpers.ts';
 import type { History } from '../src/types.ts';
 
 describe('agregats history', () => {
   it('compte les OUI et les NON par date et par sens', () => {
     const counts = countSnapshot(
-      snapshot(
+      departures(
         t('2026-10-17', '8441', 'OUI', '08:00', PB),
         t('2026-10-17', '8443', 'NON', '10:00', PB),
         t('2026-10-17', '8445', 'NON', '12:00', PB),
@@ -23,8 +23,8 @@ describe('agregats history', () => {
 
   it('empile une observation par jour de collecte, dans l ordre', () => {
     const builder = createHistoryBuilder();
-    builder.add('2026-09-17', snapshot(t('2026-10-17', '8441', 'OUI')));
-    builder.add('2026-09-18', snapshot(t('2026-10-17', '8441', 'NON')));
+    builder.add('2026-09-17', departures(t('2026-10-17', '8441', 'OUI')));
+    builder.add('2026-09-18', departures(t('2026-10-17', '8441', 'NON')));
 
     const history = builder.finish('2026-09-18');
     assert.deepEqual(history['2026-10-17']?.[PB], [

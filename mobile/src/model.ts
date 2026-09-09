@@ -1,24 +1,23 @@
 import { AVAILABILITY_BUCKETS, HORIZON_DAYS } from '../../src/config.ts';
 import { addDays, todayInParis } from '../../src/dates.ts';
-import { carrierLabel, durationTier, recordDir, recordDuration } from '../../src/duration.ts';
-import type { DurationTier, TrainRecord } from '../../src/types.ts';
+import { foldDepartures, type Departure } from '../../src/departures.ts';
+import type { TrainRecord } from '../../src/types.ts';
 
-export interface Train {
-  trainNo: string;
-  /** `OUIGO`, ou absent : voir `carrierLabel`. */
-  carrier?: string;
-  depart: string;
-  arrivee: string;
-  durationMin: number;
-  tier: DurationTier;
-  available: boolean;
-}
+/**
+ * Ce que l'application appelle un train est un **depart**.
+ *
+ * Le dataset publie les deux rames d'un meme depart comme deux lignes ; pour
+ * qui voyage c'est un seul train, meme minute et meme arrivee. Le type vient
+ * donc de `src/departures.ts`, qui porte la regle — l'interface ne redefinit
+ * pas ce que la source signifie.
+ */
+export type Train = Departure;
 
 export interface Day {
   date: string;
   dir: string;
   trains: Train[];
-  /** Trains eligibles. C'est ce que compte le calendrier. */
+  /** Departs eligibles. C'est ce que compte le calendrier. */
   available: number;
   /**
    * Vrai quand toutes les places du jour sont sur des trains de plus de 3h.
@@ -47,31 +46,21 @@ export type Calendar = Map<string, Map<string, Day>>;
 export function buildCalendar(records: TrainRecord[]): Calendar {
   const calendar: Calendar = new Map();
 
-  for (const record of records) {
-    const dir = recordDir(record);
-    const byDir = calendar.get(record.date) ?? new Map<string, Day>();
-    calendar.set(record.date, byDir);
+  // `foldDepartures` rend deja les departs tries par date, sens puis heure :
+  // chaque journee arrive donc dans l'ordre, sans tri supplementaire.
+  for (const departure of foldDepartures(records)) {
+    const byDir = calendar.get(departure.date) ?? new Map<string, Day>();
+    calendar.set(departure.date, byDir);
 
     const day =
-      byDir.get(dir) ??
-      ({ date: record.date, dir, trains: [], available: 0, onlyLong: false } as Day);
-    byDir.set(dir, day);
-
-    const durationMin = recordDuration(record);
-    day.trains.push({
-      trainNo: record.train_no,
-      ...(carrierLabel(record.entity) ? { carrier: carrierLabel(record.entity)! } : {}),
-      depart: record.heure_depart,
-      arrivee: record.heure_arrivee,
-      durationMin,
-      tier: durationTier(durationMin),
-      available: record.od_happy_card === 'OUI',
-    });
+      byDir.get(departure.dir) ??
+      ({ date: departure.date, dir: departure.dir, trains: [], available: 0, onlyLong: false } as Day);
+    byDir.set(departure.dir, day);
+    day.trains.push(departure);
   }
 
   for (const byDir of calendar.values()) {
     for (const day of byDir.values()) {
-      day.trains.sort((a, b) => a.depart.localeCompare(b.depart));
       const free = day.trains.filter((train) => train.available);
       day.available = free.length;
       day.onlyLong = free.length > 0 && free.every((train) => train.tier === 'long');
@@ -86,7 +75,7 @@ export function horizonDates(today = todayInParis()): string[] {
   return Array.from({ length: HORIZON_DAYS + 1 }, (_, offset) => addDays(today, offset));
 }
 
-/** Palier de couleur d'une case : 0, 1-2, 3-5, 6-11, 12+. */
+/** Palier de couleur d'une case : 0, 1-2, 3-5, 6-11, 12+ departs ouverts. */
 export function availabilityBucket(count: number): number {
   let bucket = 0;
   AVAILABILITY_BUCKETS.forEach((floor, index) => {

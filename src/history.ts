@@ -1,28 +1,35 @@
 import { HISTORY_RETENTION_DAYS } from './config.ts';
 import { addDays } from './dates.ts';
-import { recordDir } from './duration.ts';
+import type { Departure } from './departures.ts';
+import { foldDepartures } from './departures.ts';
+import { isTracked } from './duration.ts';
 import { listSnapshotDates, readSnapshot } from './storage.ts';
-import type { History, Observation, Snapshot } from './types.ts';
+import type { History, Observation } from './types.ts';
 
-/** Compte les OUI/NON d'un snapshot, par date de voyage puis par sens. */
-export function countSnapshot(snapshot: Snapshot): Map<string, Map<string, Observation>> {
+/**
+ * Compte les departs ouverts et complets, par date de voyage puis par sens.
+ *
+ * L'unite est le **depart**, jamais la rame : deux rames a la meme minute sont
+ * un seul train pour qui voyage, et les compter deux fois gonflait chaque
+ * chiffre publie par ce projet. Voir `src/departures.ts`.
+ */
+export function countSnapshot(departures: Departure[]): Map<string, Map<string, Observation>> {
   const byDate = new Map<string, Map<string, Observation>>();
 
-  for (const record of snapshot) {
-    let byDir = byDate.get(record.date);
+  for (const departure of departures) {
+    let byDir = byDate.get(departure.date);
     if (!byDir) {
       byDir = new Map();
-      byDate.set(record.date, byDir);
+      byDate.set(departure.date, byDir);
     }
 
-    const dir = recordDir(record);
-    let observation = byDir.get(dir);
+    let observation = byDir.get(departure.dir);
     if (!observation) {
       observation = { d: '', oui: 0, non: 0 };
-      byDir.set(dir, observation);
+      byDir.set(departure.dir, observation);
     }
 
-    if (record.od_happy_card === 'OUI') observation.oui++;
+    if (departure.available) observation.oui++;
     else observation.non++;
   }
 
@@ -30,7 +37,7 @@ export function countSnapshot(snapshot: Snapshot): Map<string, Map<string, Obser
 }
 
 export interface HistoryBuilder {
-  add(collectionDate: string, snapshot: Snapshot): void;
+  add(collectionDate: string, departures: Departure[]): void;
   finish(today: string): History;
 }
 
@@ -68,7 +75,7 @@ export function createHistoryBuilder(): HistoryBuilder {
 export function rebuildHistory(today: string, dates = listSnapshotDates()): History {
   const builder = createHistoryBuilder();
   for (const collectionDate of dates) {
-    builder.add(collectionDate, readSnapshot(collectionDate));
+    builder.add(collectionDate, foldDepartures(readSnapshot(collectionDate).filter(isTracked)));
   }
   return builder.finish(today);
 }

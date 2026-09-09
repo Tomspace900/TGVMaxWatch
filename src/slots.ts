@@ -4,10 +4,10 @@ import {
   SLOT_OPEN_MIN_TRAINS,
 } from './config.ts';
 import { weekdayKey } from './dates.ts';
-import { recordDir } from './duration.ts';
+import type { Departure } from './departures.ts';
 import { periodOf } from './periods.ts';
 import { withinWindow } from './watchlist.ts';
-import type { Snapshot, SlotSignal, TrainEvent, Watchlist } from './types.ts';
+import type { SlotSignal, TrainEvent, Watchlist } from './types.ts';
 
 /**
  * Ce qui bouge sur les creneaux qu'on suit.
@@ -56,13 +56,13 @@ function windowLabel(after?: string, before?: string): string {
  */
 export function watchedSlots(
   watchlist: Watchlist,
-  snapshot: Snapshot,
+  departures: Departure[],
   today: string,
 ): WatchedSlot[] {
   const pairs = new Set<string>();
-  for (const record of snapshot) {
-    if (record.date < today) continue;
-    pairs.add(`${record.date}|${recordDir(record)}`);
+  for (const departure of departures) {
+    if (departure.date < today) continue;
+    pairs.add(`${departure.date}|${departure.dir}`);
   }
 
   const slots = new Map<string, WatchedSlot>();
@@ -98,17 +98,17 @@ export function watchedSlots(
   return [...slots.values()];
 }
 
-/** Trains d'un creneau : ouverts, et total qui circule. */
-function countSlot(snapshot: Snapshot, slot: WatchedSlot): { oui: number; total: number } {
+/** Departs d'un creneau : ouverts, et total qui circule. */
+function countSlot(departures: Departure[], slot: WatchedSlot): { oui: number; total: number } {
   let oui = 0;
   let total = 0;
 
-  for (const record of snapshot) {
-    if (record.date !== slot.date) continue;
-    if (recordDir(record) !== slot.dir) continue;
-    if (!withinWindow(slot, record.heure_depart)) continue;
+  for (const departure of departures) {
+    if (departure.date !== slot.date) continue;
+    if (departure.dir !== slot.dir) continue;
+    if (!withinWindow(slot, departure.depart)) continue;
     total++;
-    if (record.od_happy_card === 'OUI') oui++;
+    if (departure.available) oui++;
   }
 
   return { oui, total };
@@ -125,8 +125,8 @@ function countSlot(snapshot: Snapshot, slot: WatchedSlot): { oui: number; total:
  */
 export function slotSignals(
   watchlist: Watchlist,
-  previous: Snapshot,
-  current: Snapshot,
+  previous: Departure[],
+  current: Departure[],
   today: string,
 ): SlotSignal[] {
   const signals: SlotSignal[] = [];

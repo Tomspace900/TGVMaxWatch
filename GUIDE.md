@@ -74,6 +74,13 @@ colorée, plus il y a de trains ouverts.** Une case grise veut dire aucun train
 ce jour-là, dans le sens affiché. Deux nombres par case et pas un de plus : le
 quantième, et le compte.
 
+Ce compte est un nombre de **trains**, jamais de places : la SNCF ne publie pas
+ses sièges, seulement si un train est ouvert au TGVmax. Et c'est un nombre de
+**départs** — deux rames à la même minute comptent pour un. Les chiffres du
+calendrier ont donc baissé d'environ un dixième le jour où ce changement est
+arrivé ; il n'y a pas moins de trains qu'avant, ils ne sont plus comptés deux
+fois.
+
 Juste au-dessus, le sélecteur de sens — Paris → Bordeaux ou Bordeaux → Paris.
 Il est là, et plus tout en haut de l'écran, parce qu'il ne gouverne que le
 calendrier. **Glisse horizontalement sur la grille pour changer de sens**, le
@@ -116,7 +123,17 @@ Toute la liste est accrochée à **une voie** qui descend le long de l'écran,
 chaque train relié par une traverse : la journée a la forme de ce qu'elle
 décrit.
 
-Puis tous les trains de la journée, dans l'ordre des départs. Pour chacun :
+Puis tous les trains de la journée, dans l'ordre des départs.
+
+**Un départ, une ligne.** La SNCF publie parfois deux rames pour le même train —
+même minute, même arrivée, deux numéros — parce que ce sont deux matériels. Pour
+toi c'est un seul train, et l'application le montre comme un seul : la liste
+d'une journée est un quart plus courte, et il n'y a plus deux lignes identiques à
+la suite qui se lisaient comme un bug. Quand une seule des deux rames est ouverte
+au TGVmax, c'est **son numéro** qui s'affiche — celui qu'il faut saisir chez
+SNCF.
+
+Pour chaque départ :
 
 - l'heure de départ, l'heure d'arrivée en dessous, le numéro de train ;
 - **la durée du trajet** — sur cet axe les temps vont de 2 h 05 à 3 h 30 pour le

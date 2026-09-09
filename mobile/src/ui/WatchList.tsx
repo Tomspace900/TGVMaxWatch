@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DIRECTIONS } from '../../../src/config.ts';
 import { daysBetween, weekdayKey } from '../../../src/dates.ts';
 import { trainsWord } from '../../../src/label.ts';
+import { bookableTrainNo } from '../../../src/departures.ts';
 import { periodOf } from '../../../src/periods.ts';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
 import { isExpired } from '../../../src/watchlist.ts';
@@ -216,7 +217,7 @@ function EntryRow({
    * le compte du jour redevient la bonne reponse.
    */
   const verdict = train
-    ? traceVerdict(trains.series[`${entry.date}|${entry.dir}`]?.[train.trainNo])
+    ? traceVerdict(trains.series[`${entry.date}|${entry.dir}`]?.[train.depart])
     : null;
   const state = verdict
     ? verdict.kind === 'inconnu'
@@ -229,7 +230,11 @@ function EntryRow({
       : '—';
 
   const left = daysBetween(today, entry.date);
-  const isBooked = Boolean(train && entry.dir && booked.has(`${entry.date}|${entry.dir}|${train.trainNo}`));
+  const isBooked = Boolean(
+    train &&
+      entry.dir &&
+      train.trainNos.some((trainNo) => booked.has(`${entry.date}|${entry.dir}|${trainNo}`)),
+  );
 
   return (
     <SwipeRow

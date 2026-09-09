@@ -9,6 +9,7 @@
   },
   "scripts": {
     "collect": "node src/collect.ts",
+    "rebuild": "node scripts/rebuild-derived.ts",
     "sync:data": "node scripts/sync-data.ts",
     "icons": "node scripts/gen-icons.ts",
     "typecheck": "tsc --noEmit",

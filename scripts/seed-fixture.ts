@@ -8,6 +8,7 @@
  *   TGVMAX_ROOT=.fixture node scripts/seed-fixture.ts
  */
 import { mkdirSync, rmSync } from 'node:fs';
+import { foldDepartures } from '../src/departures.ts';
 import { join } from 'node:path';
 import { DIR_BORDEAUX_PARIS, DIR_PARIS_BORDEAUX, HORIZON_DAYS } from '../src/config.ts';
 import { addDays, daysBetween, todayInParis, weekday } from '../src/dates.ts';
@@ -143,9 +144,9 @@ function main(): void {
   const history = createHistoryBuilder();
   const stats = createStatsBuilder(today);
   for (const date of dates) {
-    const snapshot = readSnapshot(date);
-    history.add(date, snapshot);
-    stats.add(date, snapshot);
+    const departures = foldDepartures(readSnapshot(date));
+    history.add(date, departures);
+    stats.add(date, departures);
   }
 
   writeHistory(history.finish(today));

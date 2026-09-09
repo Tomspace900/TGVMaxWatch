@@ -1,23 +1,19 @@
 import { todayInParis } from './dates.ts';
+import { foldDepartures } from './departures.ts';
+import { rebuildDerived } from './derive.ts';
 import { diffSnapshots } from './diff.ts';
 import { isTracked } from './duration.ts';
-import { createHistoryBuilder } from './history.ts';
 import { buildNotification } from './notify.ts';
 import { sendPush } from './push.ts';
 import { fetchDatasetInfo, fetchSnapshot, selectFor } from './sncf.ts';
-import { createStatsBuilder } from './stats.ts';
-import { createTrainsBuilder } from './trains.ts';
 import {
   listSnapshotDates,
   readSnapshot,
   readState,
   readWatchlist,
-  writeHistory,
-  writeJson,
   writeRecords,
   writeSnapshot,
   writeState,
-  writeTrains,
 } from './storage.ts';
 import { filterEvents } from './watchlist.ts';
 import type { Snapshot, State } from './types.ts';
@@ -103,33 +99,6 @@ function readPreviousSnapshot(today: string): Snapshot | null {
 }
 
 /**
- * Recalcule les agregats depuis l'ensemble de l'archive, en une seule passe.
- *
- * Les snapshots sont la source de verite ; `history.json` et `stats.json` n'en
- * sont que des vues. Un bug d'agregation se repare donc en relancant le job.
- */
-function rebuildDerived(today: string): void {
-  const dates = listSnapshotDates();
-  const history = createHistoryBuilder();
-  const stats = createStatsBuilder(today);
-  const trains = createTrainsBuilder(today);
-
-  for (const collectionDate of dates) {
-    // Les snapshots anterieurs au filtrage contiennent encore des gares hors
-    // perimetre : les ecarter ici evite qu'ils ne remontent dans les agregats.
-    const snapshot = readSnapshot(collectionDate).filter(isTracked);
-    history.add(collectionDate, snapshot);
-    stats.add(collectionDate, snapshot);
-    trains.add(collectionDate, snapshot);
-  }
-
-  writeHistory(history.finish(today));
-  writeJson('data/stats.json', stats.finish(today, dates.length));
-  writeTrains(trains.finish());
-  console.log(`[collect] agregats reconstruits sur ${dates.length} snapshots`);
-}
-
-/**
  * Diff, puis au plus un message pousse.
  *
  * Deux chemins distincts, et c'est le coeur du reglage : les evenements de
@@ -145,7 +114,12 @@ async function notify(
   lastPushOk: string | null,
 ): Promise<string | null> {
   const watchlist = readWatchlist();
-  const { events, signals, slots } = diffSnapshots(previous, current, today, watchlist);
+  const { events, signals, slots } = diffSnapshots(
+    foldDepartures(previous),
+    foldDepartures(current),
+    today,
+    watchlist,
+  );
   console.log(
     `[collect] ${events.length} evenements, ${signals.length} signaux, ${slots.length} creneaux suivis`,
   );

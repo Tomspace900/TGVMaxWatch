@@ -1,3 +1,4 @@
+import { foldDepartures } from './departures.ts';
 import { diffSnapshots } from './diff.ts';
 import { isTracked } from './duration.ts';
 import { buildNotification } from './notify.ts';
@@ -54,8 +55,8 @@ function chosenPair(): [string, string] {
 }
 
 const [previousDate, currentDate] = chosenPair();
-const previous = readSnapshot(previousDate).filter(isTracked);
-const current = readSnapshot(currentDate).filter(isTracked);
+const previous = foldDepartures(readSnapshot(previousDate).filter(isTracked));
+const current = foldDepartures(readSnapshot(currentDate).filter(isTracked));
 
 /*
  * Le diff est cadre sur la date de collecte du snapshot le plus recent, et non

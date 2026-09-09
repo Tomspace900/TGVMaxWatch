@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { buildNotification } from '../src/notify.ts';
 import { durationTier } from '../src/duration.ts';
-import { BP, PB } from './helpers.ts';
+import { diffSnapshots } from '../src/diff.ts';
+import { BP, PB, departures, t } from './helpers.ts';
 import type { DateSignal, TrainEvent } from '../src/types.ts';
 
 function event(kind: TrainEvent['kind'], date: string, trainNo: string, depart = '16:12'): TrainEvent {
@@ -10,7 +11,7 @@ function event(kind: TrainEvent['kind'], date: string, trainNo: string, depart =
     kind,
     date,
     dir: PB,
-    trainNo,
+    trainNos: [trainNo],
     depart,
     arrivee: '18:26',
     durationMin: 134,
@@ -136,16 +137,29 @@ describe('construction du message', () => {
     ]);
   });
 
-  it('ne repete pas un horaire partage par deux trains', () => {
-    const notification = buildNotification(
-      [
-        event('OPEN', '2026-10-17', '8473', '10:41'),
-        event('OPEN', '2026-10-17', '8505', '10:41'),
-        event('OPEN', '2026-10-17', '8441', '12:46'),
-      ],
-      [],
-    )!;
+  /*
+   * Deux rames a la meme minute — le 06/09, les 8473 et 8505 partent a 10:41 —
+   * donnaient deux evenements, et la ligne repetait « 10:41 10:41 ». Le repli
+   * en departs supprime le doublon a la source : le message n'a plus rien a
+   * dedupliquer, et c'est le diff qu'on verifie ici, pas une liste fabriquee a
+   * la main que le collecteur ne peut plus produire.
+   */
+  it('ne repete pas un horaire partage par deux rames', () => {
+    const before = departures(
+      t('2026-10-17', '8473', 'NON', '10:41'),
+      t('2026-10-17', '8505', 'NON', '10:41'),
+      t('2026-10-17', '8441', 'NON', '12:46'),
+    );
+    const after = departures(
+      t('2026-10-17', '8473', 'OUI', '10:41'),
+      t('2026-10-17', '8505', 'OUI', '10:41'),
+      t('2026-10-17', '8441', 'OUI', '12:46'),
+    );
 
+    const { events } = diffSnapshots(before, after, '2026-10-01');
+    assert.equal(events.length, 2);
+
+    const notification = buildNotification(events, [])!;
     assert.equal(notification.body, 'Paris → Bordeaux\n🟢 sam 17/10 10:41 12:46');
   });
 

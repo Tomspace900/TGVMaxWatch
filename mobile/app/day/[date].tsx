@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { DIRECTIONS, HORIZON_DAYS } from '../../../src/config.ts';
 import { addDays, todayInParis, weekday } from '../../../src/dates.ts';
+import { bookableTrainNo } from '../../../src/departures.ts';
 import { trainsWord } from '../../../src/label.ts';
 import { DAY_PERIODS } from '../../../src/periods.ts';
 import { slotOf } from '../../../src/stats.ts';
@@ -109,6 +110,17 @@ export default function DayScreen() {
   );
 
   /**
+   * Une reservation est enregistree sur une rame, l'ecran affiche un depart.
+   *
+   * Le badge doit donc reconnaitre le depart par n'importe laquelle de ses
+   * rames — sinon il disparaitrait des que la source reordonne ses lignes, et
+   * la reservation de l'une des deux rames ne se verrait plus sur l'autre.
+   * C'est aussi ce qui fait que le geste « j'ai reserve » se propage aux deux,
+   * comme le suivi le fait deja par son heure de depart.
+   */
+  const isBooked = (train: Train) => train.trainNos.some((trainNo) => booked.has(trainNo));
+
+  /**
    * Le badge « suivi » se lit « une alerte partira pour ce train ». Il se
    * decide donc par train, sur la fonction qui filtre reellement les
    * notifications cote collecteur.
@@ -173,13 +185,13 @@ export default function DayScreen() {
       {
         date,
         dir,
-        trainNo: train.trainNo,
+        trainNo: bookableTrainNo(train),
         depart: train.depart,
         arrivee: train.arrivee,
         bookedAt: today,
         confirmed: false,
       },
-      booked.has(train.trainNo),
+      isBooked(train),
     );
   };
 
@@ -249,7 +261,7 @@ export default function DayScreen() {
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <TrainList
         data={shown}
-        keyExtractor={(train) => `${train.trainNo}-${train.depart}`}
+        keyExtractor={(train) => train.depart}
         onScroll={onScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{
@@ -350,8 +362,8 @@ export default function DayScreen() {
           <TrainRow
             train={item}
             watched={isWatched(item.depart)}
-            booked={booked.has(item.trainNo)}
-            trace={traces[item.trainNo]}
+            booked={isBooked(item)}
+            trace={traces[item.depart]}
             onWatch={() => toggleWatchWindow(item.depart, item.depart, item.depart)}
             onBook={() => book(item)}
           />

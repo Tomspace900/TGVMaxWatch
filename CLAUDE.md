@@ -70,6 +70,65 @@ et devenait absurde des qu'il touchait un horaire : « 8 places » en face du
 `src/label.ts`, avec les autres lecteurs de la source — pas dans l'interface,
 qu'on remplace.
 
+**L'unite de compte est le depart, et le repli se fait a la lecture.** La
+source publie une ligne par materiel : deux rames a la meme minute sont deux
+lignes, ce qui est exact pour elle et faux pour qui voyage. `foldDepartures`
+les replie — 2 141 lignes en 1 585 departs (**-26 %**), 338 rames ouvertes en
+304 departs ouverts (**-10 %**), jamais plus de deux rames par depart, aucune
+divergence d'arrivee ni de transporteur, et 53 divergences d'eligibilite d'ou
+`openTrainNos`.
+
+Le piege etait que `history.json`, les seuils d'alerte et les courbes d'erosion
+comptaient tous des rames : changer le seul affichage aurait fait dire « 5
+trains » a la notification et en aurait montre 4 a l'ecran, en permanence et en
+silence. Le changement a donc traverse le collecteur, l'archive, les seuils et
+l'interface dans le meme commit. Rien ne doit desormais recompter des rames en
+aval de `foldDepartures`.
+
+Le repli est **une lecture, jamais une ecriture** : `data/snapshots/` garde ce
+que la source a publie, et une archive repliee ne se deplierait pas. C'est
+l'invariant du projet applique a une decision de comptage — les vues derivees se
+refont, le fichier source non.
+
+Corollaire mesure : les seuils n'ont pas bouge. Sur les six paires de snapshots,
+les deux unites tirent les memes signaux a **une exception**, un 6 -> 3 rames
+qui est 5 -> 3 departs et cesse de declencher `DRAINING` — le bon comportement,
+une des rames perdues doublant un depart dont l'autre est restee ouverte. Les
+taux de vide par creneau sont identiques au point pres. Verifier avant de
+recalibrer : ici, mesurer a evite de toucher a six constantes pour rien.
+
+Corollaire d'interface : le suivi se propageait deja aux deux rames, une entree
+de watchlist designant une minute ; la reservation, indexee sur le numero, ne se
+propageait pas — elle le fait maintenant, parce qu'un depart se reconnait par
+n'importe laquelle de ses rames. Et le numero affiche est celui qu'il faut
+reserver (`bookableTrainNo`), pas le premier du dataset.
+
+**Changer une regle d'agregation, c'est refaire les fichiers derives dans le
+meme commit.** `history.json`, `stats.json` et `trains.json` sont dans le depot,
+et l'application les lit sur `raw.githubusercontent.com`. Pousser le code sans
+les refaire livre une OTA qui cherche des cles que l'ancien fichier ne porte
+pas : `trains.json` etait indexe par numero de rame, l'application l'interroge
+par heure de depart, et chaque frise aurait disparu — en silence, jusqu'a la
+prochaine publication de la source. Le calcul a donc quitte `collect.ts`, qui
+collecte a l'import, pour `src/derive.ts` ; `npm run rebuild` le lance seul.
+C'est la meme faute que le deplacement des reservations sans migration, a
+l'echelle des vues.
+
+**Une cle d'agregation doit porter tout ce qui distingue deux objets.**
+`reopen` est passe du numero de rame a l'heure de depart — bien, c'est
+l'horaire qui identifie un train recurrent — mais sans le sens : le 06h46 vers
+Bordeaux et le 06h46 vers Paris tombaient dans le meme compteur, avec un
+echantillon qui paraissait deux fois plus gros. L'archive actuelle n'a pas
+encore de collision ; elle en aurait eu une des que les deux sens auraient
+franchi le seuil au meme horaire.
+
+**Un fixture doit etre plausible sans que l'appelant y pense.** Le helper `t()`
+posait une heure d'arrivee fixe : un train de 12:46 arrivant a 10:10 durait
+vingt-et-une heures et tombait dans le palier `long`, ce qui faisait sortir une
+duree dans un test qui ne parlait pas de duree. L'arrivee se deduit du depart.
+Meme famille de faute que `fleet()`, qui fabriquait huit trains a la meme minute
+— invisible tant que l'unite etait la rame, et huit fois faux ensuite.
+
 **Deux familles de couleur, et elles ne se croisent jamais.** `avail` est la
 seule echelle qui porte de l'information : plus il y a de trains ouverts, plus
 la case est dense. `brand` est le degrade Carmillon de SNCF Voyageurs — violet,
@@ -660,7 +719,11 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
+<<<<<<< HEAD
 npm test              # 130 tests sur fixtures, aucun acces reseau
+=======
+npm test              # 126 tests sur fixtures, aucun acces reseau
+>>>>>>> b3ab09e (Phase 5 : l'unite de compte passe de la rame au depart)
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
@@ -751,22 +814,6 @@ demande cinq fermetures observees sur un meme train ; seules les medianes de
 fonte ont besoin du long terme. La regle de fond ne bouge pas — jamais
 d'estimation inventee, et toujours la taille d'echantillon a cote du chiffre.
 L'archive a demarre le 2026-09-01.
-
-**L'unite de compte doit passer de la rame au depart.** Decision prise, pas
-encore appliquee. Le dataset publie les deux rames d'un meme depart comme deux
-lignes : mesure sur `data/latest.json`, 2 141 lignes se replient en 1 585
-departs (**-26 %**), et 338 rames ouvertes en 304 departs ouverts (**-10 %**).
-556 departs sur 1 585 portent deux rames, dont **67 divergent** — l'une ouverte,
-l'autre complete.
-
-Le piege est que `history.json`, les seuils d'alerte et les courbes d'erosion
-comptent tous des rames. Changer le seul affichage ferait dire « 5 trains » a la
-notification et en montrerait 4 a l'ecran, en permanence et en silence. Le
-changement doit donc traverser le collecteur, l'archive, les seuils et
-l'interface **dans le meme commit**, ou ne pas se faire. A noter aussi : le
-suivi se propage deja aux deux rames, parce qu'une entree de watchlist designe
-une minute et non un train ; la reservation, indexee sur le numero, ne se
-propage pas.
 
 **Le silence est le mode de panne du projet.** Un workflow qui ne se declenche
 pas n'envoie pas de mail d'echec, et une collecte manquee ne se voit nulle part

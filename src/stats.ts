@@ -1,5 +1,6 @@
 import { HISTORY_RETENTION_DAYS, MIN_EROSION_SPAN } from './config.ts';
 import { addDays, daysBetween, weekday } from './dates.ts';
+import { departureKey, type Departure } from './departures.ts';
 import { recordDir, recordKey } from './duration.ts';
 import type {
   BurnRate,
@@ -18,14 +19,14 @@ const MIN_BURN_SAMPLE = 3;
 interface Timeline {
   date: string;
   dir: string;
-  trainNo: string;
+  /** Heure de depart : l'identite d'un train, cote voyageur. */
   depart: string;
   /** Observations dans l'ordre chronologique de collecte. */
   points: { d: string; a: Availability }[];
 }
 
 export interface StatsBuilder {
-  add(collectionDate: string, snapshot: Snapshot): void;
+  add(collectionDate: string, departures: Departure[]): void;
   finish(today: string, snapshotCount: number): Stats;
 }
 
@@ -42,23 +43,25 @@ export function createStatsBuilder(today: string): StatsBuilder {
   const floor = addDays(today, -HISTORY_RETENTION_DAYS);
 
   return {
-    add(collectionDate, snapshot) {
-      for (const record of snapshot) {
-        if (record.date < floor) continue;
+    add(collectionDate, departures) {
+      for (const departure of departures) {
+        if (departure.date < floor) continue;
 
-        const key = recordKey(record);
+        const key = departureKey(departure);
         let timeline = timelines.get(key);
         if (!timeline) {
           timeline = {
-            date: record.date,
-            dir: recordDir(record),
-            trainNo: record.train_no,
-            depart: record.heure_depart,
+            date: departure.date,
+            dir: departure.dir,
+            depart: departure.depart,
             points: [],
           };
           timelines.set(key, timeline);
         }
-        timeline.points.push({ d: collectionDate, a: record.od_happy_card });
+        timeline.points.push({
+          d: collectionDate,
+          a: departure.available ? 'OUI' : 'NON',
+        });
       }
     },
 
@@ -147,9 +150,15 @@ function computeBurnRate(timelines: Timeline[], today: string): BurnRate[] {
 }
 
 /**
- * Taux de reouverture par numero de train.
+ * Taux de reouverture par depart recurrent : `<sens>|<heure>`.
  *
  * Transforme un « complet » en « attends, celui-la revient dans 7 cas sur 10 ».
+ *
+ * La cle etait le numero de rame, ce qui comptait deux fois le meme train et
+ * ratait une reouverture portee par l'autre rame. C'est l'horaire qui identifie
+ * un train recurrent — le 07h12 de tous les jours — mais **le sens en fait
+ * partie** : le 06h46 vers Bordeaux et le 06h46 vers Paris sont deux trains, et
+ * les confondre melangeait deux comportements dans une seule statistique.
  */
 function computeReopen(timelines: Timeline[]): Record<string, ReopenStat> {
   const counters = new Map<string, { closed: number; reopened: number }>();
@@ -166,16 +175,17 @@ function computeReopen(timelines: Timeline[]): Record<string, ReopenStat> {
     }
 
     if (!sawClose) continue;
-    const counter = counters.get(timeline.trainNo) ?? { closed: 0, reopened: 0 };
+    const key = `${timeline.dir}|${timeline.depart}`;
+    const counter = counters.get(key) ?? { closed: 0, reopened: 0 };
     counter.closed++;
     if (sawReopen) counter.reopened++;
-    counters.set(timeline.trainNo, counter);
+    counters.set(key, counter);
   }
 
   const stats: Record<string, ReopenStat> = {};
-  for (const [trainNo, counter] of counters) {
+  for (const [key, counter] of counters) {
     if (counter.closed < MIN_REOPEN_SAMPLE) continue;
-    stats[trainNo] = {
+    stats[key] = {
       closed: counter.closed,
       reopened: counter.reopened,
       rate: counter.reopened / counter.closed,

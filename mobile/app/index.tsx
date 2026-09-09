@@ -8,6 +8,7 @@ import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
 import { toggleBooking } from '../src/data/booking.ts';
 import { cancelConfirmReminder } from '../src/data/reminders.ts';
+import { bookableTrainNo } from '../../src/departures.ts';
 import { buildCalendar, type Train } from '../src/model.ts';
 import { ageLabel, dirLabel, hoursSince, reverseDir, watchCutoff } from '../src/format.ts';
 import { BookingList } from '../src/ui/BookingList.tsx';
@@ -117,7 +118,7 @@ export default function CalendarScreen() {
       {
         date,
         dir: bookedDir,
-        trainNo: train.trainNo,
+        trainNo: bookableTrainNo(train),
         depart: train.depart,
         arrivee: train.arrivee,
         bookedAt: today,

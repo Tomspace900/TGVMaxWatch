@@ -48,8 +48,26 @@ GET .../datasets/tgvmax/exports/json
 |---|---|
 | Volume | ~2 150 lignes par jour, sur les deux sens |
 | Champ decisif | `od_happy_card` : `OUI` / `NON`, binaire — **ni nombre de places, ni prix**. Tout ce que ce projet compte, ce sont donc des *trains* ouverts au TGVmax |
+| Doublons | Les deux rames d'un meme depart sont **deux lignes** : 2 141 lignes se replient en 1 585 departs. Voir « L'unite de compte » ci-dessous |
 | Colonnes optionnelles | `entity`, `axe` : demandees seulement si le dataset les declare, un `select` sur une colonne inconnue renvoyant 400 |
 | Licence | ODbL, mention obligatoire dans l'application |
+
+### L'unite de compte est le depart, pas la rame
+
+La source publie une ligne par **materiel**. Deux rames qui partent a la meme
+minute vers la meme gare sont deux lignes, et c'est exact de son point de vue —
+mais pour qui voyage c'est un seul train. `src/departures.ts` les replie.
+
+Mesure sur `data/latest.json` : 2 141 lignes -> **1 585 departs (-26 %)**, et
+338 rames ouvertes -> **304 departs ouverts (-10 %)**. 552 departs portent deux
+rames ; **jamais trois**. Aucune divergence d'heure d'arrivee, aucune de
+transporteur ; seule l'eligibilite TGVmax differe, dans 53 cas — le depart est
+alors reservable, mais sur une rame precise, d'ou `openTrainNos`.
+
+Le repli se fait **a la lecture, jamais a l'ecriture** : `data/snapshots/` garde
+ce que la source a publie, et une archive repliee ne se deplierait pas. Tout ce
+qui est en aval — `history.json`, `stats.json`, `trains.json`, les seuils
+d'alerte et l'application — compte des departs.
 
 **Trois garde-fous a la lecture** (`src/sncf.ts`) :
 
@@ -93,12 +111,21 @@ sans consequence.
    avant d'ecrire, sans quoi le diff comparerait le nouveau fichier a lui-meme.
 4. Ecrit `data/snapshots/<jour>.json.gz` et `data/latest.json`.
 5. **Recalcule integralement** `history.json`, `stats.json` et `trains.json`
-   depuis toute l'archive.
+   depuis toute l'archive, en repliant chaque snapshot en departs une seule
+   fois — toutes les vues derivees comptent ainsi la meme chose.
 6. Ecrit `data/state.json` — **avant** la notification.
 7. Diffe, filtre, envoie au plus un message.
 
 L'etape de commit est en `always()` : une panne du canal d'alerte fait echouer le
 job **apres** avoir mis les donnees a l'abri.
+
+L'etape 5 vit dans `src/derive.ts` et non plus dans `collect.ts`, et
+`npm run rebuild` la lance seule. C'est ce qui rend vraie la phrase « un bug
+d'agregation se repare en relancant le job » : sans point d'entree separe, un
+changement de regle d'agregation laissait les vues derivees dans l'ancienne
+regle jusqu'a la prochaine publication de la source, pendant que l'application
+mise a jour par OTA y cherchait des cles absentes — et n'affichait rien, en
+silence.
 
 ---
 
@@ -136,7 +163,9 @@ indentation complete ferait un diff de deux mille lignes.
 
 `trains.json` aligne chaque serie sur les dates de collecte : `O` disponible,
 `N` complet, `-` absent du dataset ce jour-la. Un train qui disparait n'est pas
-plein, il est supprime — travaux, greve, changement de service.
+plein, il est supprime — travaux, greve, changement de service. La serie est
+indexee par **heure de depart** et non par numero de rame : deux frises pour un
+seul train n'auraient jamais ete lues.
 
 ### Retentions
 
@@ -151,10 +180,11 @@ plein, il est supprime — travaux, greve, changement de service.
 
 ## 5. Les alertes
 
-Le diff (`src/diff.ts`) produit deux choses de **mailles differentes**.
+Le diff (`src/diff.ts`) produit trois choses de **mailles differentes**. Toutes
+comptent des **departs**, jamais des rames.
 
-**Des evenements par train** — `OPEN`, `CLOSE`, `REMOVED` — passes par la
-watchlist. Ce sont les creneaux explicitement mis en suivi.
+**Des evenements par depart** — `OPEN`, `CLOSE`, `REMOVED` — passes par la
+watchlist. Ce sont les trains explicitement mis en suivi.
 
 **Des signaux par (date, sens)** — la maille a laquelle on decide de partir.
 Ils **contournent la watchlist** : ils ne dependent d'aucune preference.
@@ -164,10 +194,44 @@ Ils **contournent la watchlist** : ils ne dependent d'aucune preference.
 | `REOPENED` | la veille 0 train ouvert, aujourd'hui ≥ 5 | `REOPEN_MIN_TRAINS = 5` |
 | `DRAINING` | perte ≥ 3 trains **et** il en reste ≤ 3 | `DRAIN_MIN_DROP = 3`, `DRAIN_MAX_LEFT = 3` |
 
+**Des signaux par creneau suivi** (`src/slots.ts`) — une fenetre horaire qu'on a
+explicitement demande a suivre, « les jeudis matin ». C'est le pont entre les
+deux precedents, et il ne franchit la separation que dans un sens : il applique
+la dynamique d'une date aux seules fenetres suivies, sans jamais toucher aux
+deux alertes universelles.
+
+| Signal | Condition | Constantes |
+|---|---|---|
+| `SLOT_OPENED` | la veille 0 dans la fenetre, aujourd'hui ≥ 1 | `SLOT_OPEN_MIN_TRAINS = 1` |
+| `SLOT_DRAINING` | perte ≥ 2 **et** il en reste 1 ou 2 | `SLOT_DRAIN_MIN_DROP = 2`, `SLOT_DRAIN_MAX_LEFT = 2` |
+
+Les seuils d'un creneau sont plus bas que ceux d'une journee, et c'est mesure :
+un creneau est **vide la plupart du temps** — 65 % a midi, 63 % le soir, 56 %
+l'apres-midi, 39 % le matin. « Il s'ouvre » est donc l'evenement frequent et
+actionnable, et un seul train suffit a le declencher : ce qu'on veut savoir est
+qu'il devient possible, pas qu'il devient confortable.
+
+Le compte d'un creneau porte sur **tous** ses trains, ouverts ou non. Sinon un
+creneau a zero n'a pas de cle, et la transition « 0 vers quelque chose » ne peut
+litteralement jamais etre observee — l'erreur exacte que `filterNewDates` avait
+deja faite a l'echelle de la date, et qui s'est reproduite dans la premiere
+mesure faite pour calibrer ces seuils.
+
+Un signal de creneau **absorbe** les evenements de train qu'il contient
+(`isCoveredBySlot`) : sans quoi « le matin du 18 s'ouvre » serait suivi des trois
+horaires qui l'ont ouvert. La maille du message suit la maille du suivi.
+
 Les seuils viennent de l'archive reelle, pas d'une intuition. Mesure sur le diff
 du 1er au 3 septembre : notifier chaque train qui s'ouvre donne **12 a 13 lignes
 par jour**, soit un message tronque quotidien et un canal mort en trois semaines.
 Ces deux regles en donnent **une a quatre**, toutes actionnables.
+
+Rejoues apres le passage de la rame au depart, les seuils tiennent tels quels :
+sur les six paires de snapshots disponibles, les deux unites tirent les memes
+signaux **a une exception pres**, un 6 → 3 rames qui est 5 → 3 departs et cesse
+donc de declencher `DRAINING`. C'est le bon comportement — une des trois rames
+perdues doublait un depart dont l'autre rame est restee ouverte, et le signal
+annoncait une perte plus grande que la realite.
 
 **Le pari initial du projet etait faux.** Le plan misait sur l'entree d'une date
 a J+30, supposee arriver avec dix a quinze trains. Les quatre dates mesurees sont
@@ -193,7 +257,7 @@ murissent pas au meme rythme, et un seuil global retenait la plus rapide.
 
 | Metrique | Ce qu'elle dit | Garde |
 |---|---|---|
-| `reopen` | par numero de train, frequence de reouverture apres fermeture | 5 fermetures observees (`MIN_REOPEN_SAMPLE`) |
+| `reopen` | par `<sens>\|<heure de depart>`, frequence de reouverture apres fermeture | 5 fermetures observees (`MIN_REOPEN_SAMPLE`) |
 | `erosion` | trains ouverts en moyenne selon la distance au depart | courbe couvrant ≥ 24 jours (`MIN_EROSION_SPAN`) |
 | `burnRate` | mediane du **nombre de jours avant le depart** ou le train passe a `NON` | 3 instances (`MIN_BURN_SAMPLE`) |
 
@@ -202,6 +266,11 @@ observation : cette derniere prenait pour origine la date a laquelle l'archive
 avait commence a regarder, et une fonte de vingt-cinq jours en rapportait deux.
 « Ce creneau part vers J-18 » est une consigne ; « part en 12 jours » n'en est
 pas une tant qu'on ne sait pas depuis quand.
+
+`reopen` est indexe par horaire **et par sens**. C'est l'horaire qui identifie
+un train recurrent — le 07h12 de tous les jours — mais le 06h46 vers Bordeaux et
+le 06h46 vers Paris sont deux trains : sur l'horaire seul ils tombaient dans le
+meme compteur, avec un echantillon qui paraissait deux fois plus gros.
 
 `burnRate` et `erosion` n'utilisent que des **dates de voyage deja passees** :
 une date a venir n'a pas eu toute sa chance de se fermer, et ne compter que

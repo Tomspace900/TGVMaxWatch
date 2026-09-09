@@ -10,7 +10,7 @@ import {
   setWatch,
 } from '../src/watchlist.ts';
 import { diffSnapshots } from '../src/diff.ts';
-import { BP, PB, snapshot, t } from './helpers.ts';
+import { BP, PB, departures, t } from './helpers.ts';
 import type { Watchlist } from '../src/types.ts';
 
 const EMPTY: Watchlist = { watch: [], rules: [] };
@@ -68,11 +68,11 @@ describe('filtrage par la watchlist', () => {
   });
 
   it('ne retient que les evenements surveilles', () => {
-    const before = snapshot(
+    const before = departures(
       t('2026-10-16', '8441', 'NON', '18:00', PB),
       t('2026-10-17', '8443', 'NON', '18:00', PB),
     );
-    const after = snapshot(
+    const after = departures(
       t('2026-10-16', '8441', 'OUI', '18:00', PB),
       t('2026-10-17', '8443', 'OUI', '18:00', PB),
     );

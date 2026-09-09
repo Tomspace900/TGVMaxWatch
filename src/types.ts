@@ -49,12 +49,19 @@ export type DurationTier = 'direct' | 'intermediaire' | 'long';
 
 export type EventKind = 'OPEN' | 'CLOSE' | 'REMOVED';
 
-/** Un changement detecte entre deux snapshots consecutifs, pour un train. */
+/**
+ * Un changement detecte entre deux snapshots consecutifs, pour un depart.
+ *
+ * La maille est le depart et non la rame : deux rames a la meme minute sont un
+ * seul train pour qui voyage, et l'une s'ouvrant quand l'autre etait deja
+ * ouverte ne change rien — l'annoncer serait une fausse alerte.
+ */
 export interface TrainEvent {
   kind: EventKind;
   date: string;
   dir: Dir;
-  trainNo: string;
+  /** Rames de ce depart. Une ou deux. */
+  trainNos: string[];
   depart: string;
   arrivee: string;
   durationMin: number;
