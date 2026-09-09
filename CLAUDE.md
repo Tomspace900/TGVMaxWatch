@@ -549,6 +549,33 @@ lit ensuite, dans les mots. Et elles sont en tete de ligne, jamais dans le
 titre : alignees elles forment une colonne qui se balaie, posees partout elles
 redeviennent un fond.
 
+**Le sens s'ecrit une fois, en sous-titre, et seulement quand il change.**
+« Paris → Bordeaux » occupait dix-huit caracteres sur les trente-six que tient
+une ligne de notification : chaque ligne se repliait, et une ligne repliee perd
+sa pastille et part du bord gauche — elle se lit comme un nouvel element. La
+colonne de marques, qui est tout l'interet du balayage, s'effondrait. Mesure
+apres coup, sur les huit vrais messages de l'archive : trois lignes sur
+trente-neuf debordent encore, contre la quasi-totalite avant.
+
+Regrouper les lignes par sens aurait casse l'ordre de priorite — creneau suivi,
+puis signal, puis ouverture, puis fermeture — qui est la seule chose garantissant
+que la ligne la plus utile est visible en premier. On garde donc l'ordre, et
+l'en-tete se reecrit quand le sens ne vaut plus. L'en-tete ne porte pas de
+marque : au milieu de lignes qui commencent toutes par une pastille, une ligne
+nue se lit comme un titre sans qu'on ait a la decorer.
+
+Consequence en cascade : l'avant/apres s'ecrit desormais en transition,
+`0 → 10 trains` au lieu de `10 trains, 0 hier`. Quatre caracteres de moins sur
+des lignes qui debordaient d'un ou deux, et ca se lit dans le sens du temps. La
+fleche y etait interdite parce que `dirLabel` en portait deja une sur la meme
+ligne — le sens ayant demenage, l'objection est tombee avec lui.
+
+**Attention a ce que le test montre.** `notify-test` contourne la watchlist,
+la production non (`filterEvents` dans `collect.ts`). Un message de test peut
+donc afficher trente-neuf lignes d'ouvertures la ou le vrai message en aurait
+trois : juger la mise en page sur le test, c'est optimiser un cas qui n'arrive
+jamais. Les vrais messages font deux a sept lignes, mesure sur l'archive.
+
 **Le titre et le corps ne disent pas la meme chose.** Le titre annoncait
 « 1 train parti » et la seule ligne du corps commencait par « parti » : six
 caracteres de la seule ligne informative depenses a repeter ce qui etait deja
@@ -633,7 +660,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 129 tests sur fixtures, aucun acces reseau
+npm test              # 130 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 

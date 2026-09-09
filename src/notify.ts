@@ -15,6 +15,20 @@ export interface Notification {
 /** Nombre de lignes detaillees avant de basculer sur un « et N autres ». */
 const MAX_LINES = 6;
 
+/**
+ * Une ligne de detail, et le sens auquel elle appartient.
+ *
+ * Le sens voyage a cote du texte au lieu d'etre dedans : « Paris → Bordeaux »
+ * occupait dix-huit caracteres sur les trente-six que tient une ligne de
+ * notification, donc chaque ligne se repliait — et une ligne repliee perd sa
+ * pastille, part du bord gauche, et se lit comme un nouvel element. La colonne
+ * de marques, qui est tout l'interet du balayage, s'effondrait.
+ */
+interface Line {
+  dir: string;
+  text: string;
+}
+
 /** Horaires listes par groupe avant de basculer sur un « +N ». */
 const MAX_TIMES = 4;
 
@@ -119,8 +133,9 @@ export function buildNotification(
   ];
 
   const shown = lines.slice(0, MAX_LINES);
+  const body = withDirections(shown);
   if (lines.length > shown.length) {
-    shown.push(`+${lines.length - shown.length} autres`);
+    body.push(`+${lines.length - shown.length} autres`);
   }
 
   const focus = slots[0] ?? signals[0] ?? opens[0] ?? closes[0];
@@ -130,10 +145,39 @@ export function buildNotification(
 
   return truncate({
     title: buildTitle(slots, reopened, draining, opens.length, closes.length),
-    body: shown.join('\n'),
+    body: body.join('\n'),
     url,
     tag: 'tgvmax',
   });
+}
+
+/**
+ * Le sens en sous-titre, ecrit une fois, et seulement quand il change.
+ *
+ * Regrouper les lignes par sens aurait casse l'ordre de priorite — un creneau
+ * suivi passe avant une alerte generale, qui passe avant une ouverture de train
+ * — et cet ordre est la seule chose qui garantit que la ligne la plus utile est
+ * visible en premier. On garde donc l'ordre, et on n'ecrit le sens que lorsqu'il
+ * ne vaut plus. La plupart des messages ne portent qu'un sens : l'en-tete
+ * n'apparait alors qu'une fois, en tete.
+ *
+ * L'en-tete ne porte pas de marque, et c'est ce qui le distingue : au milieu de
+ * lignes qui commencent toutes par une pastille, une ligne nue se lit comme un
+ * titre sans qu'on ait a la decorer.
+ */
+function withDirections(lines: Line[]): string[] {
+  const body: string[] = [];
+  let current: string | null = null;
+
+  for (const line of lines) {
+    if (line.dir !== current) {
+      body.push(dirLabel(line.dir));
+      current = line.dir;
+    }
+    body.push(line.text);
+  }
+
+  return body;
 }
 
 /**
@@ -144,13 +188,16 @@ export function buildNotification(
  * meme raison que partout ailleurs : « 2 trains » ne dit pas s'il en restait
  * cinq hier ou deux.
  */
-function slotLine(signal: SlotSignal): string {
+function slotLine(signal: SlotSignal): Line {
   const opened = signal.kind === 'SLOT_OPENED';
-  return `${opened ? MARK.up : MARK.down} ${opened ? 'ouvre' : 'se vide'} ${dateLabel(
-    signal.date,
-  )} ${dirLabel(signal.dir)} ${signal.label} : ${signal.after_count} ${trainsWord(
-    signal.after_count,
-  )}, ${signal.before_count} hier`;
+  return {
+    dir: signal.dir,
+    text: `${opened ? MARK.up : MARK.down} ${opened ? 'ouvre' : 'se vide'} ${dateLabel(
+      signal.date,
+    )} ${signal.label} : ${signal.before_count} → ${signal.after_count} ${trainsWord(
+      signal.after_count,
+    )}`,
+  };
 }
 
 /**
@@ -159,15 +206,23 @@ function slotLine(signal: SlotSignal): string {
  * « 7 trains partis » ne dit pas s'il en reste vingt ou deux, et c'est la
  * seule chose qui decide s'il faut ouvrir l'application maintenant.
  *
+ * L'avant et l'apres s'ecrivent desormais en transition — `0 → 10 trains` — et
+ * non plus en « 10 trains, 0 hier ». C'est quatre caracteres de moins, sur des
+ * lignes qui debordaient d'un ou deux, et ca se lit dans le sens du temps. La
+ * fleche etait jusqu'ici interdite ici parce que `dirLabel` en portait deja une
+ * sur la meme ligne, et que deux fleches se lisaient comme une seule suite de
+ * gares : le sens ayant demenage dans l'en-tete, l'objection est tombee avec.
+ *
  * Le compte porte des trains, jamais des sieges : voir `trainsWord`.
  */
-function signalLine(signal: DateSignal): string {
+function signalLine(signal: DateSignal): Line {
   const reopened = signal.kind === 'REOPENED';
-  // Pas de fleche pour la transition : `dirLabel` en porte deja une, et deux
-  // fleches sur la meme ligne se lisent comme une seule suite de gares.
-  return `${reopened ? MARK.up : MARK.down} ${reopened ? 'rouvre' : 'se vide'} ${dateLabel(
-    signal.date,
-  )} ${dirLabel(signal.dir)} : ${signal.after} ${trainsWord(signal.after)}, ${signal.before} hier`;
+  return {
+    dir: signal.dir,
+    text: `${reopened ? MARK.up : MARK.down} ${reopened ? 'rouvre' : 'se vide'} ${dateLabel(
+      signal.date,
+    )} : ${signal.before} → ${signal.after} ${trainsWord(signal.after)}`,
+  };
 }
 
 /**
@@ -181,7 +236,7 @@ function signalLine(signal: DateSignal): string {
  * previsible et occupe la place des horaires, tandis qu'un « 3h30 » a cote d'un
  * trajet habituellement en 2h05 est l'avertissement, sans avoir a le nommer.
  */
-function group(events: TrainEvent[], mark: string): string[] {
+function group(events: TrainEvent[], mark: string): Line[] {
   const groups = new Map<string, TrainEvent[]>();
 
   for (const event of events) {
@@ -214,9 +269,10 @@ function group(events: TrainEvent[], mark: string): string[] {
       );
     const rest = unique.length - times.length;
 
-    return `${mark} ${dateLabel(first.date)} ${dirLabel(first.dir)} ${times.join(' ')}${
-      rest > 0 ? ` +${rest}` : ''
-    }`;
+    return {
+      dir: first.dir,
+      text: `${mark} ${dateLabel(first.date)} ${times.join(' ')}${rest > 0 ? ` +${rest}` : ''}`,
+    };
   });
 }
 
@@ -251,7 +307,7 @@ function buildTitle(
           slot.after_count
         } ${trainsWord(slot.after_count)}`;
   }
-  if (slots.length > 1) return `${slots.length} creneaux suivis bougent`;
+  if (slots.length > 1) return `${slots.length} créneaux suivis bougent`;
 
   const only = reopened[0];
   if (only && reopened.length === 1) {
@@ -265,7 +321,10 @@ function buildTitle(
       tight.after > 1 ? 's' : ''
     }`;
   }
-  if (draining.length > 1) return `${draining.length} creneaux se vident`;
+  // Des dates entieres, pas des creneaux : « creneau » designe une fenetre
+  // suivie, et le titre voisin dit deja « 2 dates rouvrent » des memes objets.
+  // L'application parlait deux langues sur le meme objet.
+  if (draining.length > 1) return `${draining.length} dates se vident`;
 
   if (opens > 0) {
     return `${opens} ${trainsWord(opens)} ouvert${opens > 1 ? 's' : ''}`;
