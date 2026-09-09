@@ -28,7 +28,32 @@ if (dates.length < 2) {
   process.exit(1);
 }
 
-const [previousDate, currentDate] = dates.slice(-2) as [string, string];
+/**
+ * La paire de snapshots a rejouer, `AAAA-MM-JJ..AAAA-MM-JJ`.
+ *
+ * Par defaut les deux derniers, qui sont ce que le collecteur vient de voir.
+ * Mais une journee ordinaire ne contient souvent que des ouvertures de train :
+ * mesure sur l'archive, quatre journees sur huit ne portent aucun signal, et
+ * les fermetures se font pousser hors du message par les ouvertures. Le test ne
+ * pouvait donc pas exercer les chemins qui comptent — un creneau suivi qui
+ * s'ouvre, une date qui se vide — alors que l'archive les contient.
+ *
+ * On rejoue une vraie paire, jamais des donnees fabriquees : ce qui part sur le
+ * telephone doit etre quelque chose qui a reellement eu lieu.
+ */
+function chosenPair(): [string, string] {
+  const raw = process.env['TGVMAX_TEST_PAIR']?.trim();
+  if (!raw) return dates.slice(-2) as [string, string];
+
+  const [from, to] = raw.split('..');
+  if (!from || !to || !dates.includes(from) || !dates.includes(to)) {
+    console.error(`[test] paire « ${raw} » introuvable dans l'archive`);
+    process.exit(1);
+  }
+  return [from, to];
+}
+
+const [previousDate, currentDate] = chosenPair();
 const previous = readSnapshot(previousDate).filter(isTracked);
 const current = readSnapshot(currentDate).filter(isTracked);
 

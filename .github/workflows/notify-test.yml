@@ -5,6 +5,15 @@ name: notify-test
 # decouvre qu'il est mort qu'en manquant l'evenement qu'il devait signaler.
 on:
   workflow_dispatch:
+    inputs:
+      pair:
+        description: >-
+          Paire de snapshots a rejouer, AAAA-MM-JJ..AAAA-MM-JJ. Vide = les deux
+          derniers. Une journee ordinaire ne porte souvent que des ouvertures :
+          choisir une paire permet d'exercer les signaux et les creneaux suivis,
+          qui sont dans l'archive mais rarement dans le dernier diff.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -26,3 +35,4 @@ jobs:
         run: node src/notify-test.ts
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          TGVMAX_TEST_PAIR: ${{ inputs.pair }}
