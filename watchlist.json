@@ -25,12 +25,5 @@
       "before": "07:11"
     }
   ],
-  "rules": [
-    {
-      "weekday": "mon",
-      "dir": "FRPMO>FRBOJ",
-      "after": "05:00",
-      "before": "12:00"
-    }
-  ]
+  "rules": []
 }
