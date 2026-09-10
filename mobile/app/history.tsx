@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Polygon, Polyline } from 'react-native-svg';
 import { DIRECTIONS, HORIZON_DAYS } from '../../src/config.ts';
+import { EROSION_MIN_SNAPSHOTS, erosionSnapshotsLeft } from '../../src/stats.ts';
 import { useStore } from '../src/data/store.ts';
 import { dirLabel } from '../src/format.ts';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
@@ -28,6 +29,7 @@ export default function HistoryScreen() {
   const [dirIndex, setDirIndex] = useState(0);
   const dir = DIRECTIONS[dirIndex]!;
   const chartWidth = width - space.lg * 4;
+  const left = erosionSnapshotsLeft(bundle.state.snapshotCount);
 
   const curves = useMemo(
     () => (bundle.stats?.erosion ?? []).filter((curve) => curve.dir === dir),
@@ -57,11 +59,13 @@ export default function HistoryScreen() {
         <Text style={[styles.dirText, { color: theme.text }]}>{dirLabel(dir)}</Text>
       </Pressable>
 
+      {/* Ce qui manque, dans l'unite ou ca se compte — et non « pas encore assez
+          de recul », qui ne dit ni combien ni jusqu'a quand. Le seuil vient de
+          `src/stats.ts` : la phrase annoncait huit semaines, une regle qui
+          n'existe plus depuis que chaque metrique porte sa propre garde. */}
       {!bundle.stats?.ready.erosion && (
         <Text style={[styles.muted, { color: theme.muted, marginTop: space.lg }]}>
-          Pas encore assez de recul. En dessous de huit semaines de collecte, aucune prévision n’est
-          publiée — des données brutes valent mieux qu’une estimation inventée sur trois
-          observations.
+          {`Une courbe couvre l’arche entière d’une date de voyage, de J+${HORIZON_DAYS} à son départ. Il faut donc ${EROSION_MIN_SNAPSHOTS} collectes ; l’archive en compte ${bundle.state.snapshotCount}, il en manque ${left} au plus tôt — une journée manquée repousse d’autant.\n\nRien n’est affiché en attendant : des données brutes valent mieux qu’une estimation inventée sur trois observations.`}
         </Text>
       )}
 

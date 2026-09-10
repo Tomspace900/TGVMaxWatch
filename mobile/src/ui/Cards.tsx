@@ -4,6 +4,7 @@ import {
   CONFIRM_URL,
   CONFIRM_WINDOW_HOURS,
 } from '../../../src/config.ts';
+import { EROSION_MIN_SNAPSHOTS, erosionSnapshotsLeft } from '../../../src/stats.ts';
 import {
   confirmDeadline,
   departureInstant,
@@ -127,7 +128,19 @@ export function ConfirmCard({
   );
 }
 
-/** Accès à l'érosion, publiée seulement quand l'archive couvre une arche entière. */
+/**
+ * Acces a l'erosion — y compris quand elle n'est pas encore publiable.
+ *
+ * La carte disparaissait tant que la courbe n'existait pas. Une section absente
+ * n'est pas une information : elle ne dit ni qu'il manque quelque chose, ni
+ * quoi, ni jusqu'a quand — et elle cachait au passage le seul ecran capable de
+ * l'expliquer. C'est la meme faute que la liste de suivi tronquee sous un
+ * compteur qui annoncait le total.
+ *
+ * En attente, la carte porte donc l'echeance dans l'unite ou elle se compte,
+ * la collecte : « 9 sur 25 ». Le compte de jours n'est plus une decoration a
+ * cote du titre, il devient la mesure de ce qui manque.
+ */
 export function StatsCard({
   snapshotCount,
   onPress,
@@ -136,6 +149,7 @@ export function StatsCard({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const left = erosionSnapshotsLeft(snapshotCount);
 
   return (
     <Pressable
@@ -144,10 +158,14 @@ export function StatsCard({
     >
       <View style={styles.head}>
         <Text style={[typo.section, { color: theme.text }]}>Érosion et prévisions</Text>
-        <Text style={[typo.digits, { color: theme.muted }]}>{snapshotCount} j</Text>
+        <Text style={[typo.digits, { color: theme.muted }]}>
+          {left > 0 ? `${snapshotCount} / ${EROSION_MIN_SNAPSHOTS}` : `${snapshotCount} j`}
+        </Text>
       </View>
       <Text style={[typo.small, { color: theme.muted }]}>
-        Ce que la source ne garde pas : la vitesse à laquelle une date se vide.
+        {left > 0
+          ? `Une courbe demande une arche complète, soit ${EROSION_MIN_SNAPSHOTS} collectes. Encore ${left} au plus tôt — une journée manquée repousse d’autant.`
+          : 'Ce que la source ne garde pas : la vitesse à laquelle une date se vide.'}
       </Text>
     </Pressable>
   );

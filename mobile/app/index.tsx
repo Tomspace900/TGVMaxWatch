@@ -10,12 +10,22 @@ import { toggleBooking } from '../src/data/booking.ts';
 import { cancelConfirmReminder } from '../src/data/reminders.ts';
 import { bookableTrainNo } from '../../src/departures.ts';
 import { buildCalendar, type Train } from '../src/model.ts';
-import { ageLabel, dirLabel, hoursSince, reverseDir, watchCutoff } from '../src/format.ts';
+import {
+  ageLabel,
+  dirLabel,
+  hoursSince,
+  longDate,
+  recurringLabel,
+  reverseDir,
+  watchCutoff,
+  windowLabel,
+} from '../src/format.ts';
 import { BookingList } from '../src/ui/BookingList.tsx';
 import { ConfirmCard, StatsCard } from '../src/ui/Cards.tsx';
 import { CalendarPager } from '../src/ui/CalendarPager.tsx';
 import { RailTrack } from '../src/ui/rail.tsx';
 import { Segmented } from '../src/ui/Segmented.tsx';
+import { UndoBar, useUndo } from '../src/ui/UndoBar.tsx';
 import { WatchList } from '../src/ui/WatchList.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
 import { pruneWatch, setRule, setWatch } from '../../src/watchlist.ts';
@@ -45,6 +55,7 @@ export default function CalendarScreen() {
   const [index, setIndex] = useState(0);
   const progress = useSharedValue(0);
   const [refreshing, setRefreshing] = useState(false);
+  const undo = useUndo();
 
   /*
    * Alternance de sens. Les trajets sont unitaires, pas des allers-retours,
@@ -98,11 +109,34 @@ export default function CalendarScreen() {
    * suppression partait en commit sans avoir rien supprime, et l'entree etait
    * toujours la au rechargement.
    */
+  /*
+   * Chaque retrait s'annonce et se defait.
+   *
+   * Le balayage retirait sans rien dire : la ligne disparaissait de la liste et
+   * il ne restait aucune trace de ce qui venait de partir — pas meme son nom.
+   * Un defaire, et non une confirmation : confirmer chaque balayage en ferait
+   * un formulaire, alors que le geste *est* l'interface ici. Le libelle nomme
+   * l'objet dans les mots ou il a ete pose, comme la liste elle-meme.
+   *
+   * Le retrait part immediatement, l'annulation le remet : `setWatch` et
+   * `setRule` retirent avant d'ajouter, donc remettre est idempotent, et
+   * l'ecriture reseau serialisee ecrase la precedente au lieu d'empiler deux
+   * commits contradictoires.
+   */
   const removeEntry = (target: WatchEntry) => {
     setWatchlist(
       (current) => pruneWatch(setWatch(current, target, false), watchCutoff()),
       `watchlist: retire ${target.date}${target.after ? ` ${target.after}` : ''}`,
     );
+    const when = windowLabel(target.after, target.before);
+    undo.offer({
+      label: `${longDate(target.date)}${when ? ` ${when}` : ''} n'est plus suivi`,
+      undo: () =>
+        setWatchlist(
+          (current) => pruneWatch(setWatch(current, target, true), watchCutoff()),
+          `watchlist: suit ${target.date}${target.after ? ` ${target.after}` : ''}`,
+        ),
+    });
   };
 
   const removeRule = (target: WatchRule) => {
@@ -110,22 +144,40 @@ export default function CalendarScreen() {
       (current) => pruneWatch(setRule(current, target, false), watchCutoff()),
       `watchlist: retire la regle ${target.weekday}`,
     );
+    undo.offer({
+      label: `${recurringLabel(target)} n'est plus suivi`,
+      undo: () =>
+        setWatchlist(
+          (current) => pruneWatch(setRule(current, target, true), watchCutoff()),
+          `watchlist: regle ${target.weekday}`,
+        ),
+    });
   };
 
   const book = (date: string, bookedDir: string, train: Train, booked: boolean) => {
-    toggleBooking(
-      setReservations,
-      {
-        date,
-        dir: bookedDir,
-        trainNo: bookableTrainNo(train),
-        depart: train.depart,
-        arrivee: train.arrivee,
-        bookedAt: today,
-        confirmed: false,
-      },
-      booked,
-    );
+    const slot: Reservation = {
+      date,
+      dir: bookedDir,
+      trainNo: bookableTrainNo(train),
+      depart: train.depart,
+      arrivee: train.arrivee,
+      bookedAt: today,
+      confirmed: false,
+    };
+    // Seul le retrait se defait : ajouter une reservation ne perd rien, et une
+    // barre a chaque geste redeviendrait un fond. Le retrait passe par `cancel`
+    // plutot que d'ecrire ici, sinon le meme geste ferait deux ecritures.
+    if (booked) cancel(slot);
+    else toggleBooking(setReservations, slot, false);
+  };
+
+  /** Retrait d'une reservation, d'ou qu'il vienne : une seule formulation. */
+  const cancel = (slot: Reservation) => {
+    toggleBooking(setReservations, slot, true);
+    undo.offer({
+      label: `${longDate(slot.date)} ${slot.depart} n'est plus réservé`,
+      undo: () => toggleBooking(setReservations, slot, false),
+    });
   };
 
   /** « C'est fait » : le creneau est confirme, et le rappel qui l'accompagnait se tait. */
@@ -267,7 +319,7 @@ export default function CalendarScreen() {
             onOpen={(date, selectedDir) =>
               router.push({ pathname: '/day/[date]', params: { date, dir: selectedDir } })
             }
-            onCancel={(slot) => toggleBooking(setReservations, slot, true)}
+            onCancel={cancel}
           />
         </View>
 
@@ -304,15 +356,19 @@ export default function CalendarScreen() {
           />
         </View>
 
-        {bundle.stats?.ready.erosion && (
-          <View style={{ paddingHorizontal: space.lg, marginTop: space.xl }}>
-            <StatsCard
-              snapshotCount={bundle.state.snapshotCount}
-              onPress={() => router.push('/history')}
-            />
-          </View>
-        )}
+        {/* La carte reste, prete ou non : c'est elle qui dit ce qui manque, et
+            elle est le seul chemin vers l'ecran qui l'explique. */}
+        <View style={{ paddingHorizontal: space.lg, marginTop: space.xl }}>
+          <StatsCard
+            snapshotCount={bundle.state.snapshotCount}
+            onPress={() => router.push('/history')}
+          />
+        </View>
       </Animated.ScrollView>
+
+      {/* Hors du defilement : un defaire qui part avec le doigt qui fait
+          defiler ne serait pas un defaire. */}
+      <UndoBar action={undo.action} onDismiss={undo.dismiss} />
     </View>
   );
 }

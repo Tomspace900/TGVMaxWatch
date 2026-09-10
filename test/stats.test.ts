@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { createStatsBuilder, median, slotOf } from '../src/stats.ts';
+import {
+  EROSION_MIN_SNAPSHOTS,
+  createStatsBuilder,
+  erosionSnapshotsLeft,
+  median,
+  slotOf,
+} from '../src/stats.ts';
+import { MIN_EROSION_SPAN } from '../src/config.ts';
 import { BP, PB, departures, t } from './helpers.ts';
 import type { Availability } from '../src/types.ts';
 
@@ -154,5 +161,25 @@ describe('statistiques derivees', () => {
     const stats = builder.finish('2026-11-01', 60);
     assert.equal(stats.reopen[`${PB}|16:12`]?.rate, 1);
     assert.equal(stats.reopen[`${BP}|16:12`]?.rate, 0);
+  });
+});
+
+/*
+ * L'ecran affiche cette echeance, il ne la recalcule pas : une seconde copie
+ * divergeant d'un jour annoncerait une date fausse sans que rien ne le
+ * signale.
+ */
+describe('maturite de l erosion', () => {
+  it('demande une collecte de plus que la portee exigee', () => {
+    // Sur N collectes consecutives, l'ecart maximal observable entre la
+    // premiere et la derniere observation d'une date est N-1.
+    assert.equal(EROSION_MIN_SNAPSHOTS, MIN_EROSION_SPAN + 1);
+  });
+
+  it('compte ce qui manque, et jamais en dessous de zero', () => {
+    assert.equal(erosionSnapshotsLeft(0), EROSION_MIN_SNAPSHOTS);
+    assert.equal(erosionSnapshotsLeft(9), EROSION_MIN_SNAPSHOTS - 9);
+    assert.equal(erosionSnapshotsLeft(EROSION_MIN_SNAPSHOTS), 0);
+    assert.equal(erosionSnapshotsLeft(EROSION_MIN_SNAPSHOTS + 40), 0);
   });
 });

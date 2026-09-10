@@ -177,6 +177,53 @@ describe('construction du message', () => {
     assert.equal(lines.at(-1), '+4 autres');
   });
 
+  /*
+   * Le budget se prend sur les signaux generaux, jamais sur ce qu'on suit.
+   *
+   * Un evenement de train n'arrive ici que s'il a survecu a `filterEvents`,
+   * c'est-a-dire qu'on a explicitement demande a suivre cette fenetre ; un
+   * signal de date part pour tout le monde sans que personne ne l'ait demande.
+   * Mesure sur l'archive : le 03/09, deux lignes coupees, les deux suivies,
+   * pendant que quatre signaux generaux occupaient la place.
+   */
+  it('coupe les signaux generaux avant les trains suivis', () => {
+    const watched = Array.from({ length: 4 }, (_, i) =>
+      event('OPEN', `2026-10-${String(10 + i)}`, String(8000 + i)),
+    );
+    const general = Array.from({ length: 4 }, (_, i) =>
+      signal('REOPENED', `2026-11-${String(10 + i)}`, 0, 9),
+    );
+
+    const notification = buildNotification(watched, general)!;
+    const lines = notification.body.split('\n');
+
+    // Les quatre trains suivis sont tous la.
+    for (const day of ['sam 10/10', 'dim 11/10', 'lun 12/10', 'mar 13/10']) {
+      assert.ok(
+        lines.some((line) => line.includes(day)),
+        `${day} manque : une ligne suivie a ete coupee`,
+      );
+    }
+    // Deux signaux seulement ont trouve de la place, et le compte le dit.
+    assert.equal(lines.filter((line) => line.includes('rouvre')).length, 2);
+    assert.equal(lines.at(-1), '+2 autres');
+  });
+
+  /*
+   * Un signal ecarte du corps ne peut pas etre la cible du tap : on ouvrirait
+   * une date dont le message ne parle pas.
+   */
+  it('n ouvre jamais une date que le message a ecartee', () => {
+    const watched = Array.from({ length: 6 }, (_, i) =>
+      event('OPEN', `2026-10-${String(10 + i)}`, String(8000 + i)),
+    );
+    const general = [signal('REOPENED', '2026-11-30', 0, 9)];
+
+    const notification = buildNotification(watched, general)!;
+    assert.ok(!notification.url.includes('2026-11-30'));
+    assert.ok(notification.url.includes('2026-10-10'));
+  });
+
   it('signale un train long dans le corps du message', () => {
     const long: TrainEvent = { ...event('OPEN', '2026-10-17', '8441'), durationMin: 210, tier: 'long' };
     const notification = buildNotification([long], [])!;

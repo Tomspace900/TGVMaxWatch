@@ -240,7 +240,12 @@ lendemain. L'alerte batie dessus exigeait `oui > 0` a l'entree : elle ne pouvait
 litteralement jamais partir. On regarde donc la **transition**, jamais l'entree.
 
 **Le message** (`src/notify.ts`) : un seul par execution, six lignes maximum puis
-« +N autres », plafonne a 3 500 octets. Chaque ligne porte le **sens** — la seule
+« +N autres », plafonne a 3 500 octets. **Le budget se prend sur les signaux
+generaux, jamais sur ce qui a ete suivi** : un evenement de train ne survit a
+`filterEvents` que parce qu'on a demande a suivre cette fenetre, et il passait
+pourtant apres des dates que personne n'a demandees. Mesure sur l'archive : le
+03/09, deux lignes coupees, les deux suivies, pendant que quatre signaux
+generaux occupaient la place. Chaque ligne porte le **sens** — la seule
 chose qu'on ne peut pas deviner — et l'**avant/apres** : « 9 trains hier, 2
 aujourd'hui » decide, « 7 trains partis » non. Les suppressions de train ne sont
 jamais poussees, trop de bruit pour leur interet.
@@ -258,7 +263,7 @@ murissent pas au meme rythme, et un seuil global retenait la plus rapide.
 | Metrique | Ce qu'elle dit | Garde |
 |---|---|---|
 | `reopen` | par `<sens>\|<heure de depart>`, frequence de reouverture apres fermeture | 5 fermetures observees (`MIN_REOPEN_SAMPLE`) |
-| `erosion` | trains ouverts en moyenne selon la distance au depart | courbe couvrant ≥ 24 jours (`MIN_EROSION_SPAN`) |
+| `erosion` | trains ouverts en moyenne selon la distance au depart | courbe couvrant ≥ 24 jours (`MIN_EROSION_SPAN`), soit 25 collectes (`EROSION_MIN_SNAPSHOTS`) |
 | `burnRate` | mediane du **nombre de jours avant le depart** ou le train passe a `NON` | 3 instances (`MIN_BURN_SAMPLE`) |
 
 `burnRate` mesure la **distance au depart**, pas le delai depuis la premiere
@@ -277,7 +282,15 @@ une date a venir n'a pas eu toute sa chance de se fermer, et ne compter que
 celles qui se sont fermees selectionnerait les plus rapides.
 
 **Regle de fond, non negociable : jamais d'estimation inventee, et toujours la
-taille d'echantillon a cote du chiffre.**
+taille d'echantillon a cote du chiffre.** Corollaire cote interface : une
+metrique absente doit dire **ce qui lui manque, dans son unite** — la carte
+d'erosion disparaissait purement et simplement, en cachant au passage le seul
+ecran capable de l'expliquer. `EROSION_MIN_SNAPSHOTS` vit dans `src/stats.ts`,
+avec la garde qu'elle interprete ; l'ecran l'affiche sans jamais la recalculer.
+
+`burnRate` et `reopen` n'ont encore **aucun ecran** : leur maturite n'a donc
+nulle part ou vivre, la regle etant qu'elle appartient a l'ecran qui montre la
+metrique.
 
 ---
 

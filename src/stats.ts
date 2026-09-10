@@ -12,6 +12,31 @@ import type {
 } from './types.ts';
 
 /** Nombre minimal d'observations avant de publier un chiffre par train. */
+/**
+ * Collectes necessaires avant qu'une courbe d'erosion puisse exister.
+ *
+ * Une courbe demande une arche de `MIN_EROSION_SPAN` jours entre la premiere et
+ * la derniere observation d'une meme date de voyage. Sur N collectes
+ * consecutives, l'ecart maximal observable est **N - 1** : il en faut donc une
+ * de plus que la portee exigee.
+ *
+ * Cette regle vit ici et non dans l'interface parce qu'elle interprete la
+ * garde, et qu'une seconde copie divergeant d'un jour annoncerait une echeance
+ * fausse sans que rien ne le signale. L'ecran l'affiche, il ne la recalcule
+ * pas.
+ */
+export const EROSION_MIN_SNAPSHOTS = MIN_EROSION_SPAN + 1;
+
+/**
+ * Collectes restantes avant qu'une erosion puisse apparaitre, **au plus tot**.
+ *
+ * Au plus tot, parce qu'une journee manquee repousse l'echeance d'autant : ce
+ * nombre est une borne basse honnete, jamais une promesse.
+ */
+export function erosionSnapshotsLeft(snapshotCount: number): number {
+  return Math.max(0, EROSION_MIN_SNAPSHOTS - snapshotCount);
+}
+
 const MIN_REOPEN_SAMPLE = 5;
 /** Nombre minimal d'instances avant de publier une mediane de fonte. */
 const MIN_BURN_SAMPLE = 3;

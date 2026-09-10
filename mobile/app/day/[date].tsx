@@ -14,8 +14,9 @@ import { hasWatch, matchesWatchlist, pruneWatch, setWatch } from '../../../src/w
 import { useStore } from '../../src/data/store.ts';
 import { toggleBooking } from '../../src/data/booking.ts';
 import { buildCalendar, emptyDay } from '../../src/model.ts';
-import { dirLabel, longDate, watchCutoff } from '../../src/format.ts';
+import { dirLabel, longDate, watchCutoff, windowLabel } from '../../src/format.ts';
 import { Sparkline } from '../../src/ui/Sparkline.tsx';
+import { UndoBar, useUndo } from '../../src/ui/UndoBar.tsx';
 import { BAR_HEIGHT, StickyBar } from '../../src/ui/StickyBar.tsx';
 import { TrainRow } from '../../src/ui/TrainRow.tsx';
 import { radius, space, typo, useTheme } from '../../src/theme.ts';
@@ -53,6 +54,7 @@ export default function DayScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { bundle, setWatchlist, setReservations } = useStore();
+  const undo = useUndo();
 
   const params = useLocalSearchParams<{ date: string; dir?: string }>();
   const dir = params.dir ?? DIRECTIONS[0]!;
@@ -161,10 +163,27 @@ export default function DayScreen() {
     const already = watchedWindow(after, before);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    setWatchlist(
-      (current) => pruneWatch(setWatch(current, entryFor(after, before), !already), watchCutoff()),
-      `watchlist: ${already ? 'retire' : 'suit'} ${date} ${label}`,
-    );
+    const write = (follow: boolean) =>
+      setWatchlist(
+        (current) => pruneWatch(setWatch(current, entryFor(after, before), follow), watchCutoff()),
+        `watchlist: ${follow ? 'suit' : 'retire'} ${date} ${label}`,
+      );
+
+    write(!already);
+
+    /*
+     * Le meme defaire que sur l'accueil, et pour la meme raison qu'il n'y a
+     * qu'un `SwipeRow` : un geste qui se rattrape a un endroit et pas a l'autre
+     * est un geste qu'on cesse d'essayer. Seul le retrait s'annonce — poser un
+     * suivi ne perd rien, et une barre a chaque geste redeviendrait un fond.
+     */
+    if (already) {
+      const when = windowLabel(after, before);
+      undo.offer({
+        label: `${longDate(date)}${when ? ` ${when}` : ''} n'est plus suivi`,
+        undo: () => write(true),
+      });
+    }
   };
 
   /**
@@ -180,19 +199,24 @@ export default function DayScreen() {
    * qui renvoyait en silence vers les reglages se lisait comme une panne.
    */
   const book = (train: Train) => {
-    toggleBooking(
-      setReservations,
-      {
-        date,
-        dir,
-        trainNo: bookableTrainNo(train),
-        depart: train.depart,
-        arrivee: train.arrivee,
-        bookedAt: today,
-        confirmed: false,
-      },
-      isBooked(train),
-    );
+    const slot = {
+      date,
+      dir,
+      trainNo: bookableTrainNo(train),
+      depart: train.depart,
+      arrivee: train.arrivee,
+      bookedAt: today,
+      confirmed: false,
+    };
+    const booked = isBooked(train);
+    toggleBooking(setReservations, slot, booked);
+
+    if (booked) {
+      undo.offer({
+        label: `${longDate(date)} ${train.depart} n'est plus réservé`,
+        undo: () => toggleBooking(setReservations, slot, false),
+      });
+    }
   };
 
   /*
@@ -301,6 +325,8 @@ export default function DayScreen() {
                   width={Math.min(120, width * 0.3)}
                   height={40}
                   color={theme.avail[3]!}
+                  line={theme.line}
+                  muted={theme.muted}
                 />
               )}
             </View>
@@ -404,6 +430,9 @@ export default function DayScreen() {
           </View>
         </View>
       </StickyBar>
+
+      {/* Le meme defaire qu'ailleurs, au meme endroit de l'ecran. */}
+      <UndoBar action={undo.action} onDismiss={undo.dismiss} />
     </View>
   );
 }

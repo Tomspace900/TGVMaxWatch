@@ -123,22 +123,43 @@ export function buildNotification(
    * suivi. Le second est toujours plus pertinent que le premier pour celui qui
    * lit le message.
    */
-  const lines = [
-    ...slots.map(slotLine),
-    ...signals.map(signalLine),
+  const slotLines = slots.map(slotLine);
+  const signalLines = signals.map(signalLine);
+  const trainLines = [
     ...group(opens, MARK.up),
     // Plus de « parti » en tete : le titre le dit deja, et la marque le
     // redisait une troisieme fois. Elle prend sa place au lieu de s'y ajouter.
     ...group(closes, MARK.gone),
   ];
 
+  /*
+   * Ce qui a ete explicitement suivi ne se fait jamais couper par ce qui ne
+   * l'a pas ete.
+   *
+   * Les creneaux suivis etaient bien en tete, mais les evenements de train —
+   * qui ne survivent a `filterEvents` que parce qu'on a demande a suivre cette
+   * fenetre — passaient **apres** les signaux generaux. Six dates que personne
+   * ne suit suffisaient donc a evincer le seul train qu'on attendait, et le
+   * « +N autres » ne disait pas lesquelles etaient parties. Mesure sur
+   * l'archive : le 03/09, deux lignes coupees, **les deux suivies**, pendant
+   * que quatre signaux generaux occupaient la place.
+   *
+   * Le budget se prend donc sur les generaux. L'ordre d'affichage, lui, ne
+   * bouge pas : ce qui decide reste en haut.
+   */
+  const followed = slotLines.length + trainLines.length;
+  const keptSignals = signalLines.slice(0, Math.max(0, MAX_LINES - followed));
+
+  const lines = [...slotLines, ...keptSignals, ...trainLines];
   const shown = lines.slice(0, MAX_LINES);
   const body = withDirections(shown);
-  if (lines.length > shown.length) {
-    body.push(`+${lines.length - shown.length} autres`);
-  }
 
-  const focus = slots[0] ?? signals[0] ?? opens[0] ?? closes[0];
+  const hidden = lines.length - shown.length + (signalLines.length - keptSignals.length);
+  if (hidden > 0) body.push(`+${hidden} autres`);
+
+  // Le tap ouvre une ligne qui est dans le message, jamais une qui vient d'en
+  // etre ecartee.
+  const focus = slots[0] ?? (keptSignals.length > 0 ? signals[0] : undefined) ?? opens[0] ?? closes[0];
   const url = focus
     ? `${APP_URL}?date=${focus.date}&dir=${encodeURIComponent(focus.dir)}`
     : APP_URL;

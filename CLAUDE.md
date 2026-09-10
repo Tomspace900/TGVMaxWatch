@@ -276,6 +276,57 @@ etaient plates et separees par un filet, la ou une ligne de train est une carte
 posee ; le meme balayage y revelait un degrade sur toute la largeur, sans coin
 ni marge. Le geste etait identique, la forme non, et ca se voyait.
 
+**Un retrait doit nommer ce qu'il retire, et se defaire.** Le balayage
+destructif faisait disparaitre la ligne sans laisser la moindre trace de ce qui
+venait de partir — pas meme son nom. Un **defaire**, jamais une confirmation :
+confirmer chaque balayage en ferait un formulaire, alors que le geste *est*
+l'interface ici, et le projet a deja tranche que ce qui est passe se masque
+plutot que de s'effacer. La barre nomme l'objet dans les mots ou il a ete pose
+— « jeu 18 sept matin n'est plus suivi » — parce que c'est cette information-la
+qui manquait, pas le bouton.
+
+Le retrait part immediatement et l'annulation le remet : `setWatch`, `setRule` et
+`toggleBooking` retirent avant d'ajouter, donc remettre est idempotent, et
+l'ecriture reseau serialisee ecrase la precedente au lieu d'empiler deux commits
+contradictoires. Une offre remplace la precedente au lieu de s'empiler, sans
+quoi deux balayages rapproches laisseraient a l'ecran un defaire perime qui
+remettrait la mauvaise ligne.
+
+`UndoBar` est le seul endroit ou c'est ecrit, et il est monte sur **les deux**
+ecrans qui portent ces gestes : meme raison que `SwipeRow`, un geste qui se
+rattrape a un endroit et pas a l'autre est un geste qu'on cesse d'essayer. La
+barre est neutre — le Carmillon designe ce qui t'engage, et retirer une ligne
+qu'on peut remettre n'en est pas.
+
+**Une absence doit dire ce qui manque, et dans quelle unite.** La carte
+d'erosion **disparaissait** tant que la courbe n'existait pas : ni « il manque
+quelque chose », ni quoi, ni jusqu'a quand — et elle cachait au passage le seul
+ecran capable de l'expliquer, dont elle etait le seul chemin. L'ecran, lui,
+annoncait « huit semaines de collecte », une regle qui n'existait plus depuis
+que chaque metrique porte sa propre garde : une explication fausse avait survecu
+au changement qu'elle decrivait.
+
+`EROSION_MIN_SNAPSHOTS` vit dans `src/stats.ts`, avec la garde qu'elle
+interprete — une arche de `MIN_EROSION_SPAN` jours demande une collecte de plus,
+l'ecart maximal observable sur N collectes etant N-1. L'ecran l'affiche, il ne
+la recalcule pas : une seconde copie divergeant d'un jour annoncerait une
+echeance fausse sans que rien ne le signale. Et le compte est un « au plus
+tot », parce qu'une journee manquee le repousse d'autant.
+
+Reste vrai que `burnRate` et `reopen` n'ont **aucun ecran** : leur maturite n'a
+donc nulle part ou vivre, la regle etant qu'elle appartient a l'ecran qui montre
+la metrique. `burnRate` est d'ailleurs repasse a vide avec le comptage en
+departs — son echantillon comptait des rames.
+
+**Une courbe sans echelle ne decide rien.** La sparkline d'une journee montait
+et descendait sans dire de combien : « ca baisse » de vingt a dix-huit ou de
+cinq a un, ce n'est pas la meme nouvelle — meme faute que les lignes de
+notification avant qu'elles ne portent l'avant/apres. Deux graduations
+suffisent, le maximum et le zero, et elles n'ajoutent pas un troisieme nombre a
+lire : la forme reste ce qu'on regarde. Le zero est **trace**, pas seulement
+ecrit — une courbe qui touche le trait du bas dit « aucun train » d'un coup
+d'oeil, la ou un axe implicite laissait croire a un minimum relatif.
+
 **Un geste qui ne sait pas se defaire la ou il se fait est un formulaire.** Le
 balayage « j'ai reserve » n'etait qu'un ajout : rebalayer le meme train
 l'enregistrait une seconde fois, et seul l'ecran de reglages savait defaire.
@@ -629,6 +680,24 @@ des lignes qui debordaient d'un ou deux, et ca se lit dans le sens du temps. La
 fleche y etait interdite parce que `dirLabel` en portait deja une sur la meme
 ligne — le sens ayant demenage, l'objection est tombee avec lui.
 
+**Le budget d'un message se prend sur ce que personne n'a demande.** Les
+creneaux suivis etaient bien en tete, mais les evenements de train — qui ne
+survivent a `filterEvents` que parce qu'on a demande a suivre cette fenetre —
+passaient **apres** les signaux generaux. Six dates que personne ne suit
+suffisaient donc a evincer le seul train qu'on attendait, et le « +N autres » ne
+disait pas lesquelles etaient parties. Mesure sur l'archive : le 03/09, deux
+lignes coupees, **les deux suivies**, pendant que quatre signaux generaux
+occupaient la place — un jour sur huit.
+
+La coupe porte desormais sur les generaux, l'ordre d'affichage ne bouge pas, et
+le tap n'ouvre jamais une date que le message vient d'ecarter. Corollaire de
+methode : les deux tests ont ete verifies en remettant l'ancien ordre.
+
+Ce qui deborde vraiment — des trains **non suivis** qui s'ouvrent en plus — n'a
+pas besoin d'ecran : c'est une information dont on se passe, et le
+« +N autres » suffit a dire qu'elle existe. La regle de troncature porte sur ce
+qu'on a demande, pas sur tout.
+
 **Attention a ce que le test montre.** `notify-test` contourne la watchlist,
 la production non (`filterEvents` dans `collect.ts`). Un message de test peut
 donc afficher trente-neuf lignes d'ouvertures la ou le vrai message en aurait
@@ -746,7 +815,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 145 tests sur fixtures, aucun acces reseau
+npm test              # 149 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 

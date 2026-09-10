@@ -55,6 +55,12 @@ gauche pour ne plus la suivre, vers la droite pour marquer ou démarquer une
 réservation — exactement les mêmes gestes, sur exactement le même objet, que
 dans la liste des trains d'un jour.
 
+**Tout retrait se défait.** Quand tu enlèves un suivi ou une réservation, une
+barre apparaît en bas et **nomme ce qui vient de partir** — « jeu 18 sept matin
+n'est plus suivi » — avec un bouton *annuler*. Elle reste six secondes. Pas de
+fenêtre de confirmation : le balayage doit rester un geste, pas un formulaire.
+Et c'est le même comportement sur l'écran d'un jour.
+
 **Le bouton « + créneau régulier »** ouvre la seule chose qui ne pouvait pas se
 faire depuis l'application : poser un suivi qui se répète. Tu choisis le
 jour de la semaine, le sens, et le créneau — matin, midi, soir, ou toute la
@@ -86,7 +92,10 @@ Il est là, et plus tout en haut de l'écran, parce qu'il ne gouverne que le
 calendrier. **Glisse horizontalement sur la grille pour changer de sens**, le
 sélecteur suit ton doigt.
 
-**6. Érosion et prévisions** — apparaît seulement quand il y a assez de recul.
+**6. Érosion et prévisions.** La carte est toujours là. Tant que l'archive est
+trop jeune, elle dit **ce qui manque et dans quelle unité** — « 9 collectes sur
+25 » — plutôt que de disparaître : une section absente ne t'apprend rien, et
+elle cachait au passage le seul écran capable de l'expliquer.
 
 ### L'écran d'un jour
 
@@ -105,6 +114,11 @@ Ensuite le total : combien de trains sont ouverts, sur combien qui circulent,
 une courbe de l'évolution, et — quand il y a assez d'historique — une phrase du
 genre « ce créneau part en général vers J-18 », toujours avec le nombre
 d'observations sur lequel elle repose.
+
+La courbe porte **deux graduations, le maximum et le zéro**, et le zéro est un
+trait. C'est ce qui la rend lisible : « ça baisse » ne décide rien tant qu'on ne
+sait pas si c'est de vingt à dix-huit ou de cinq à un, et une courbe qui touche
+le trait du bas dit « plus aucun train » d'un coup d'œil.
 
 Juste en dessous, une rangée **MASQUER** pour alléger la liste, construite
 comme la précédente. Trois filtres, chacun avec son compte :
@@ -153,8 +167,14 @@ Pour chaque départ :
 ### L'écran d'érosion
 
 Une courbe par jour de la semaine : combien de trains restent ouverts en
-moyenne selon la distance au départ. Elle n'apparaît qu'à partir du moment où l'archive couvre
-une fenêtre complète, soit environ un mois de collecte.
+moyenne selon la distance au départ.
+
+Une courbe demande l'**arche entière** d'une date de voyage, de J+30 à son
+départ — donc 25 collectes. Tant qu'elles ne sont pas là, l'écran dit combien il
+en manque plutôt que de rester vide, et rien n'est tracé en attendant : des
+données brutes valent mieux qu'une estimation inventée sur trois observations.
+Une journée de collecte manquée repousse l'échéance d'autant, c'est pourquoi le
+compte annoncé est un « au plus tôt ».
 
 ---
 
