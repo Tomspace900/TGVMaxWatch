@@ -388,6 +388,18 @@ reservations, et il est parti avec — c'est le seul endroit ou la donnee n'est
 pas reconstituable depuis l'archive, il ne peut pas rester muet. Il est
 desormais la ou l'ecriture se fait.
 
+**Un ecran de choix n'a pas besoin d'etre presente.** Le formulaire de creneau
+recurrent s'ouvrait sur un paragraphe : sa premiere moitie decrivait ce que le
+titre « Suivre » et le bouton « Suivre les vendredis matin » disent deja, la
+seconde expliquait le recouvrement d'une heure des periodes — que la ligne de
+bornes sous les pastilles **montre**, 05:00 – 12:00 puis 11:00 – 16:00. Une
+demonstration au moment du choix bat une explication avant lui. Meme regle que
+pour les reglages : une explication n'a de valeur qu'attachee a une decision, et
+celle-ci l'etait a un ecran entier.
+
+Ce qui disparait d'un ecran doit rester quelque part : la regle du recouvrement
+vit toujours dans `GUIDE.md`, et la table dans `src/periods.ts`.
+
 **Les reglages ne portent que ce qui a un interrupteur.** Ils avaient perdu la
 gestion — reservations et suivis sont partis sur l'accueil — pour gagner le
 defaut inverse : un paragraphe sous chaque bouton, l'etat interne de la

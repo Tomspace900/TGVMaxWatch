@@ -64,7 +64,10 @@ Et c'est le même comportement sur l'écran d'un jour.
 **Le bouton « + créneau régulier »** ouvre la seule chose qui ne pouvait pas se
 faire depuis l'application : poser un suivi qui se répète. Tu choisis le
 jour de la semaine, le sens, et le créneau — matin, midi, soir, ou toute la
-journée — et l'alerte partira chaque semaine, sans rien redemander.
+journée — et l'alerte partira chaque semaine, sans rien redemander. Sous les
+pastilles, les **bornes réelles** du créneau choisi : « 05:00 – 12:00 ». Le
+raccourci ne cache jamais ce qu'il fait, et c'est là qu'on voit le
+recouvrement d'une heure entre deux périodes voisines.
 
 **4. Tes réservations**, quand tu en as. Une ligne par voyage à venir, avec le
 sens et l'état de la confirmation. Balaie vers la droite pour retirer une

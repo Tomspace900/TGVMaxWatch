@@ -86,12 +86,12 @@ export default function WatchScreen() {
         </Pressable>
       </View>
 
-      <Text style={[typo.small, styles.intro, { color: theme.muted }]}>
-        Une alerte partira chaque fois qu'un train de ce créneau s'ouvre ou se ferme, semaine après
-        semaine. Rien à refaire. Les périodes se recouvrent d'une heure : un départ de fin de
-        matinée compte dans le matin comme dans le midi.
-      </Text>
-
+      {/* Plus de paragraphe d'introduction. Sa premiere moitie decrivait ce
+          que le titre « Suivre » et le bouton « Suivre les vendredis matin »
+          disent deja ; la seconde expliquait le recouvrement d'une heure des
+          periodes, que la ligne de bornes sous les pastilles **montre** — on y
+          lit 05:00 – 12:00 puis 11:00 – 16:00, ce qui est plus precis qu'une
+          phrase et ne se lit qu'au moment ou l'on choisit. */}
       <Field label="Jour">
         <View style={styles.chips}>
           {WEEKDAYS.map((day) => (
@@ -203,7 +203,6 @@ function Chip({
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  intro: { lineHeight: 18, marginTop: space.sm },
   field: {
     paddingTop: space.lg,
     marginTop: space.lg,
