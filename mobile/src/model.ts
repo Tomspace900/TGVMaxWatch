@@ -19,12 +19,19 @@ export interface Day {
   trains: Train[];
   /** Departs eligibles. C'est ce que compte le calendrier. */
   available: number;
-  /**
-   * Vrai quand toutes les places du jour sont sur des trains de plus de 3h.
-   * Sans ce marqueur, la couleur de la case mentirait.
-   */
-  onlyLong: boolean;
 }
+
+/*
+ * `onlyLong` a disparu avec la ligne qui le lisait.
+ *
+ * Il servait a ecrire « tous sur des trajets de plus de 3 h » dans l'encart
+ * d'une journee — une information que la pastille `LONG` de chaque ligne et le
+ * compteur du filtre `longs` portent deja, juste en dessous. Et le cas ou elle
+ * comptait vraiment, un filtre qui masque les longs alors qu'ils sont les seuls
+ * ouverts, est deja couvert : la liste vide dit qu'elle l'est a cause des
+ * filtres. Un champ calcule que personne ne lit finit par etre recopie ailleurs
+ * comme s'il faisait autorite.
+ */
 
 /*
  * La variation d'un jour a l'autre n'est plus calculee ici.
@@ -54,16 +61,14 @@ export function buildCalendar(records: TrainRecord[]): Calendar {
 
     const day =
       byDir.get(departure.dir) ??
-      ({ date: departure.date, dir: departure.dir, trains: [], available: 0, onlyLong: false } as Day);
+      ({ date: departure.date, dir: departure.dir, trains: [], available: 0 } as Day);
     byDir.set(departure.dir, day);
     day.trains.push(departure);
   }
 
   for (const byDir of calendar.values()) {
     for (const day of byDir.values()) {
-      const free = day.trains.filter((train) => train.available);
-      day.available = free.length;
-      day.onlyLong = free.length > 0 && free.every((train) => train.tier === 'long');
+      day.available = day.trains.filter((train) => train.available).length;
     }
   }
 
@@ -85,5 +90,5 @@ export function availabilityBucket(count: number): number {
 }
 
 export function emptyDay(date: string, dir: string): Day {
-  return { date, dir, trains: [], available: 0, onlyLong: false };
+  return { date, dir, trains: [], available: 0 };
 }

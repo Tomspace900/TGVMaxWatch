@@ -110,15 +110,21 @@ heure** — un départ à 11 h 30 compte dans le matin comme dans le midi : avec
 bornes jointives, on manquerait le train cherché pour trente minutes sans jamais
 comprendre pourquoi.
 
-Ensuite le total : combien de trains sont ouverts, sur combien qui circulent,
-une courbe de l'évolution, et — quand il y a assez d'historique — une phrase du
-genre « ce créneau part en général vers J-18 », toujours avec le nombre
-d'observations sur lequel elle repose.
+Ensuite l'encart du jour : **deux nombres et une forme**. À gauche « 1/29 » —
+combien de trains sont ouverts, sur combien qui circulent. À droite, la courbe,
+qui occupe tout le reste : c'est la seule chose de cette carte que la source ne
+sait pas produire.
 
 La courbe porte **deux graduations, le maximum et le zéro**, et le zéro est un
 trait. C'est ce qui la rend lisible : « ça baisse » ne décide rien tant qu'on ne
 sait pas si c'est de vingt à dix-huit ou de cinq à un, et une courbe qui touche
-le trait du bas dit « plus aucun train » d'un coup d'œil.
+le trait du bas dit « plus aucun train » d'un coup d'œil. Sur une date qui vient
+d'entrer dans la fenêtre, il n'y a qu'une observation : pas de courbe, et le
+compteur reste seul.
+
+En dessous, quand il y a assez d'historique, une phrase du genre « ce créneau
+part en général vers J-18 », toujours avec le nombre d'observations sur lequel
+elle repose.
 
 Juste en dessous, une rangée **MASQUER** pour alléger la liste, construite
 comme la précédente. Trois filtres, chacun avec son compte :

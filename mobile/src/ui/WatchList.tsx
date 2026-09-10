@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DIRECTIONS } from '../../../src/config.ts';
 import { daysBetween, weekdayKey } from '../../../src/dates.ts';
-import { trainsWord } from '../../../src/label.ts';
+import { openTrainsLabel } from '../../../src/label.ts';
 import { bookableTrainNo } from '../../../src/departures.ts';
 import { periodOf } from '../../../src/periods.ts';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
@@ -178,7 +178,7 @@ export function WatchList({
 }
 
 function countLabel(available: number): string {
-  return available === 0 ? 'aucun train ouvert' : `${available} ${trainsWord(available)} ouverts`;
+  return openTrainsLabel(available);
 }
 
 function EntryRow({

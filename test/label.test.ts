@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { trainsLabel, trainsWord, weekdayShort } from '../src/label.ts';
+import { openTrainsLabel, trainsLabel, trainsWord, weekdayShort } from '../src/label.ts';
 
 /*
  * Le vocabulaire est teste parce qu'il a deja ete faux partout.
@@ -38,5 +38,19 @@ describe('jour de la semaine', () => {
     // Une conversion de fuseau ferait basculer d'un jour les dates de voyage.
     assert.equal(weekdayShort('2026-01-01'), 'jeu');
     assert.equal(weekdayShort('2026-12-31'), 'jeu');
+  });
+});
+
+/*
+ * L'adjectif etait accorde a la main de chaque cote — deux ecrans ecrivaient
+ * `${trainsWord(n)} ouverts`, ce qui rendait « 1 train ouverts ». Une regle
+ * d'accord recopiee est une regle d'accord qui diverge.
+ */
+describe('trains ouverts', () => {
+  it('accorde le nom et l adjectif ensemble', () => {
+    assert.equal(openTrainsLabel(0), 'aucun train ouvert');
+    assert.equal(openTrainsLabel(1), '1 train ouvert');
+    assert.equal(openTrainsLabel(2), '2 trains ouverts');
+    assert.equal(openTrainsLabel(29), '29 trains ouverts');
   });
 });

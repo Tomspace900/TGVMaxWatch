@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -7,7 +7,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { DIRECTIONS, HORIZON_DAYS } from '../../../src/config.ts';
 import { addDays, todayInParis, weekday } from '../../../src/dates.ts';
 import { bookableTrainNo } from '../../../src/departures.ts';
-import { trainsWord } from '../../../src/label.ts';
 import { DAY_PERIODS } from '../../../src/periods.ts';
 import { slotOf } from '../../../src/stats.ts';
 import { hasWatch, matchesWatchlist, pruneWatch, setWatch } from '../../../src/watchlist.ts';
@@ -24,6 +23,9 @@ import type { Train } from '../../src/model.ts';
 import type { WatchEntry } from '../../../src/types.ts';
 
 const TrainList = Animated.FlatList<Train>;
+
+/** Hauteur de la courbe. Elle est desormais le sujet de la carte, plus sa marge. */
+const CHART_HEIGHT = 56;
 
 /**
  * Ce qu'on peut retirer de la liste d'une journee.
@@ -52,9 +54,9 @@ export default function DayScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const { bundle, setWatchlist, setReservations } = useStore();
   const undo = useUndo();
+  const [chartWidth, setChartWidth] = useState(0);
 
   const params = useLocalSearchParams<{ date: string; dir?: string }>();
   const dir = params.dir ?? DIRECTIONS[0]!;
@@ -303,31 +305,46 @@ export default function DayScreen() {
                 { backgroundColor: theme.sunken, borderRadius: radius.md, marginTop: space.sm },
               ]}
             >
-              <Text style={[typo.counter, { color: theme.text }]}>{day.available}</Text>
-              <View style={{ flex: 1, gap: 3 }}>
-                <Text style={[typo.body, { color: theme.text }]}>
-                  {day.available === 0
-                    ? 'aucun train ouvert'
-                    : `${trainsWord(day.available)} ouverts au TGVmax`}
-                </Text>
-                <Text style={[typo.small, { color: theme.muted }]}>
-                  sur {day.trains.length} qui circulent
-                </Text>
-                {day.onlyLong && (
-                  <Text style={[typo.strong, { color: theme.text }]}>
-                    tous sur des trajets de plus de 3 h
-                  </Text>
-                )}
-              </View>
+              {/* Deux nombres et une forme, rien d'autre.
+                  L'encart tenait trois lignes de prose pour dire ce que
+                  « 1/29 » dit en quatre caracteres : « train ouverts au
+                  TGVmax » nommait un produit dont c'est le seul sujet, « sur 29
+                  qui circulent » repetait un chiffre deja ecrit, et la mention
+                  des trajets longs redisait ce que la pastille `LONG` de la
+                  ligne et le filtre `longs · 6` portent deja — deux fois,
+                  au-dessus d'eux. La courbe, elle, etait la seule chose
+                  irremplacable de la carte et occupait le tiers de sa largeur.
+                  Elle prend la place que la prose libere. */}
+              <Text style={[typo.counter, { color: theme.text }]}>
+                {day.available}
+                <Text style={[styles.outOf, { color: theme.muted }]}>/{day.trains.length}</Text>
+              </Text>
+
+              {/* Pas de bloc vide quand il n'y a pas de courbe : une date qui
+                  vient d'entrer a J+30 n'a qu'une observation, et une moitie de
+                  carte laissee blanche se lit comme un rendu casse. Le compteur
+                  reste seul, la carte se resserre.
+
+                  La largeur est mesuree plutot que calculee : la deduire des
+                  marges et du compteur, c'est reecrire la mise en page une
+                  seconde fois, et la voir diverger au premier changement de
+                  gouttiere. */}
               {series.length >= 2 && (
-                <Sparkline
-                  series={series}
-                  width={Math.min(120, width * 0.3)}
-                  height={40}
-                  color={theme.avail[3]!}
-                  line={theme.line}
-                  muted={theme.muted}
-                />
+                <View
+                  style={styles.chart}
+                  onLayout={(event) => setChartWidth(event.nativeEvent.layout.width)}
+                >
+                  {chartWidth > 0 && (
+                    <Sparkline
+                      series={series}
+                      width={chartWidth}
+                      height={CHART_HEIGHT}
+                      color={theme.avail[3]!}
+                      line={theme.line}
+                      muted={theme.muted}
+                    />
+                  )}
+                </View>
               )}
             </View>
 
@@ -502,6 +519,10 @@ const styles = StyleSheet.create({
   steps: { flexDirection: 'row', gap: space.xs + 2 },
   step: { width: 34, height: 30, alignItems: 'center', justifyContent: 'center' },
   summary: { flexDirection: 'row', alignItems: 'center', gap: space.lg, padding: space.lg },
+  // Le denominateur est plus petit et sourd : c'est le contexte du chiffre, pas
+  // un second chiffre a lire. Il s'aligne sur la meme ligne de base.
+  outOf: { ...typo.counter, fontSize: 17 },
+  chart: { flex: 1, height: CHART_HEIGHT },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm },
   pill: { paddingHorizontal: 12, paddingVertical: 7 },
   forecast: { padding: space.md, marginTop: space.md, overflow: 'hidden', lineHeight: 18 },

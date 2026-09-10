@@ -44,3 +44,16 @@ export function trainsLabel(count: number): string {
 export function trainsWord(count: number): string {
   return count > 1 ? 'trains' : 'train';
 }
+
+/**
+ * `aucun train ouvert`, `1 train ouvert`, `5 trains ouverts`.
+ *
+ * L'adjectif etait accorde a la main de chaque cote — l'ecran d'un jour et la
+ * liste de suivi ecrivaient tous deux `${trainsWord(n)} ouverts`, ce qui rendait
+ * « 1 train **ouverts** ». Le nom vivait bien ici, l'adjectif non : une regle
+ * d'accord recopiee est une regle d'accord qui diverge.
+ */
+export function openTrainsLabel(count: number): string {
+  if (count === 0) return 'aucun train ouvert';
+  return `${count} ${trainsWord(count)} ouvert${count > 1 ? 's' : ''}`;
+}

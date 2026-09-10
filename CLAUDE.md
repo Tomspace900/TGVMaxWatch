@@ -318,6 +318,32 @@ donc nulle part ou vivre, la regle etant qu'elle appartient a l'ecran qui montre
 la metrique. `burnRate` est d'ailleurs repasse a vide avec le comptage en
 departs — son echantillon comptait des rames.
 
+**Deux nombres et une forme.** L'encart d'une journee tenait trois lignes de
+prose pour dire ce que « 1/29 » dit en quatre caracteres : « train ouverts au
+TGVmax » nommait un produit dont c'est le seul sujet, « sur 29 qui circulent »
+repetait un chiffre deja ecrit, et « tous sur des trajets de plus de 3 h »
+redisait ce que la pastille `LONG` de chaque ligne et le compteur du filtre
+`longs` portent deja — deux fois, juste en dessous. Pendant ce temps la courbe,
+seule chose de la carte que la source ne sait pas produire, occupait le tiers de
+la largeur. Elle prend la place que la prose libere.
+
+Le cas ou la mention des longs comptait vraiment — un filtre qui les masque
+alors qu'ils sont les seuls ouverts — etait deja couvert par la liste vide, qui
+dit qu'elle l'est a cause des filtres. `onlyLong` est parti avec la ligne qui le
+lisait : un champ calcule que personne ne lit finit par etre recopie ailleurs
+comme s'il faisait autorite.
+
+Corollaire de mise en page : la largeur de la courbe est **mesuree**
+(`onLayout`), jamais deduite des marges et du compteur. Recalculer une mise en
+page a cote d'elle-meme, c'est la voir diverger au premier changement de
+gouttiere.
+
+**Le nom vivait dans `src/label.ts`, l'adjectif non.** Deux ecrans ecrivaient
+`${trainsWord(n)} ouverts` et rendaient donc « 1 train **ouverts** ».
+`openTrainsLabel` accorde les deux ensemble : une regle d'accord recopiee est
+une regle d'accord qui diverge, exactement comme une table de jours ou une table
+de periodes.
+
 **Une courbe sans echelle ne decide rien.** La sparkline d'une journee montait
 et descendait sans dire de combien : « ca baisse » de vingt a dix-huit ou de
 cinq a un, ce n'est pas la meme nouvelle — meme faute que les lignes de
@@ -815,7 +841,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 149 tests sur fixtures, aucun acces reseau
+npm test              # 150 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
