@@ -708,6 +708,33 @@ l'API Expo accepte par defaut n'importe quel appel non authentifie : sans cette
 option, toute personne lisant le depot peut notifier l'appareil. Elle rend
 obligatoire la signature que le collecteur produit deja avec `EXPO_TOKEN`.
 
+**Une expression `${{ }}` dans un bloc `run:` est du texte colle avant que le
+shell ne lise la ligne.** `update.yml` passait le message de commit ainsi. Or ce
+depot parseme ses messages d'accents graves : chacun devenait une substitution
+de commande, et il a suffi qu'un `` ` `` ouvre sur un chevron pour produire une
+erreur de syntaxe, un code 2, et **une mise a jour jamais publiee**. Pendant ce
+temps `ci` restait vert — il ne publie rien — et le telephone gardait un code
+qui ne savait plus lire les donnees deja publiees : `trains.json` etait passe a
+la cle par heure de depart, l'application le lisait encore par numero de rame,
+et les frises etaient blanches. La panne dure jusqu'a ce qu'on regarde, comme
+toujours ici.
+
+Le texte libre passe par `env:`, ou le shell ne le relit pas — c'est aussi la
+parade a l'injection, un message de commit etant une entree qu'on n'ecrit pas
+toujours soi-meme. `test/workflows.test.ts` monte la garde, et il a ete verifie
+en remettant la faute : un garde qui n'a jamais echoue ne garde rien.
+
+Corollaire de forme : seule la **premiere ligne** du message part vers EAS. Le
+sujet identifie une mise a jour dans la liste ; un corps de quarante lignes n'y
+est que du bruit.
+
+**Un `git add -A` apres un conflit ne verifie rien.** La resolution du rebase de
+la phase 5 a laisse des marqueurs dans `CLAUDE.md` — le fichier meme que la
+session suivante lit comme consigne — parce que j'avais inspecte les conflits
+que le message de rebase montrait dans ses dernieres lignes, sans relire les
+autres. Avant `--continue`, un `grep -rn '<<<<<<<'` sur l'arbre entier ; la
+sortie de `git rebase` se lit en entier, pas en `tail`.
+
 **Supprimer un workflow, c'est verifier qui l'appelle.** GitHub resout les
 `uses: ./.github/workflows/*.yml` en parsant le fichier, pas en executant le
 job : une reference pendante invalide le workflow entier. La suppression de la
@@ -719,11 +746,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-<<<<<<< HEAD
-npm test              # 130 tests sur fixtures, aucun acces reseau
-=======
-npm test              # 126 tests sur fixtures, aucun acces reseau
->>>>>>> b3ab09e (Phase 5 : l'unite de compte passe de la rame au depart)
+npm test              # 145 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 

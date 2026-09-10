@@ -60,13 +60,28 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # Le message passe par l'environnement, jamais par `${{ }}` dans le `run`.
+      # Une expression y est substituee **textuellement avant que bash ne lise
+      # la ligne** : les accents graves dont ce depot parseme ses messages de
+      # commit deviennent des substitutions de commande — un accent grave ouvrant
+      # sur un chevron a suffi a produire une erreur de syntaxe, un code 2, et
+      # une mise a jour
+      # jamais publiee, pendant que `ci` restait vert. C'est aussi une porte
+      # d'injection : une variable d'environnement, elle, n'est pas relue par le
+      # shell.
+      #
+      # Seule la premiere ligne part : le sujet est ce qui identifie une mise a
+      # jour dans la liste EAS, un corps de quarante lignes n'y est que du bruit.
       - name: Publier la mise a jour
         working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
+          MESSAGE="$(printf '%s' "$COMMIT_MESSAGE" | head -n 1)"
+          [ -n "$MESSAGE" ] || MESSAGE='mise a jour manuelle'
           eas update \
             --channel preview \
             --environment preview \
-            --message "${{ github.event.head_commit.message || 'mise a jour manuelle' }}" \
+            --message "$MESSAGE" \
             --non-interactive
