@@ -193,9 +193,16 @@ compte annoncé est un « au plus tôt ».
 
 - **Glisse vers la gauche** → surveiller ce créneau. Tu seras prévenu quand il
   bouge. Refais le geste pour arrêter.
-- **Glisse vers la droite** → « j'ai réservé ». Le seul effet est d'armer le
-  rappel de confirmation — c'est à ça que sert ce geste, et à rien d'autre.
-  Refais-le sur un train déjà marqué pour le démarquer : le rappel s'éteint.
+- **Glisse vers la droite** → « réserver ». Le geste fait deux choses d'un seul
+  mouvement : il **ouvre SNCF Connect** pour que tu y fasses la réservation, et
+  il arme le **rappel de confirmation** ici. Refais-le sur un train déjà marqué
+  pour le démarquer : le rappel s'éteint, et rien ne s'ouvre — on ne te sort pas
+  de l'application pour t'annoncer que tu viens d'annuler.
+
+  Le train est marqué **avant** que SNCF Connect s'ouvre, et il le reste même si
+  tu ne réserves finalement pas. C'est volontaire : une réservation marquée pour
+  rien se voit sur l'accueil et s'enlève d'un balayage, alors qu'un rappel jamais
+  armé ne se voit nulle part — et c'est lui qui coûte de l'argent.
 
 Le téléphone vibre légèrement au franchissement du seuil : tant que tu ne l'as
 pas senti, rien n'est validé.
@@ -247,9 +254,16 @@ alertes.
 
 **Deux autres alertes, qui viennent du téléphone et pas d'internet :**
 
-- **Le rappel de confirmation**, à 10 h la veille d'un voyage enregistré. Une
-  réservation MAX JEUNE non confirmée avant 17 h la veille est perdue. Le
-  message ouvre directement la page de confirmation SNCF. **Dans les 48 h qui
+- **Le rappel de confirmation**, la veille d'un voyage enregistré. Une
+  réservation MAX JEUNE non confirmée avant 17 h la veille est perdue, et la
+  confirmation n'ouvre que 48 h avant le départ : tu as donc une journée pleine
+  pour le faire, et c'est cette journée-là que le rappel couvre. Il part **à
+  10 h**, puis **une seconde fois à 15 h** si tu n'as pas encore dit « c'est
+  fait » — un rappel ne part qu'une fois, et une notification lue à 10 h dans un
+  couloir n'existe plus à 16 h. Si tu enregistres une réservation la veille
+  après 15 h, un rappel unique part un quart d'heure avant l'échéance plutôt que
+  rien du tout. Le message ouvre directement la page de confirmation SNCF.
+  **Dans les 48 h qui
   précèdent le départ** — c'est-à-dire dès que la confirmation devient
   possible, et pas avant — l'application la met aussi **en haut de l'écran
   d'accueil**, avec le temps restant et les deux gestes qui vont avec :
@@ -293,8 +307,11 @@ Autant le dire franchement, ce sont des limites de la source, pas des oublis :
   plus à gagner : la disponibilité remonte franchement dans la dernière semaine
   avant le départ.
 - **Pas de vision au-delà de 30 jours.** La source ne publie pas plus loin.
-- **Pas de réservation depuis l'application.** Elle t'amène à la bonne date,
-  la réservation se fait chez SNCF.
+- **Pas de réservation depuis l'application.** Elle t'amène à la bonne date et
+  le balayage t'ouvre SNCF Connect, mais la réservation se fait là-bas. Le lien
+  ouvre l'accueil de SNCF Connect, sans y reporter la date ni le trajet : SNCF
+  ne publie aucun format de lien qui le permette, et en inventer un donnerait
+  une page d'erreur le jour où il changerait.
 - **Un seul trajet suivi**, Paris Montparnasse ↔ Bordeaux Saint-Jean.
 
 ---

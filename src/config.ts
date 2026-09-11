@@ -94,12 +94,56 @@ export const CONFIRM_DEADLINE_HOUR = 17;
 export const CONFIRM_REMINDER_HOUR = 10;
 
 /**
+ * Heure locale du dernier rappel de confirmation.
+ *
+ * Deux heures avant l'echeance. Le rappel de 10 h donne sept heures de marge,
+ * ce qui est exactement ce qu'on lui demande — mais il ne part qu'une fois, et
+ * une notification vue a 10 h dans un couloir n'existe plus a 16 h. Le cout
+ * d'un second message est qu'on le balaie ; le cout de son absence est une
+ * place perdue.
+ *
+ * Le libelle du second dit qu'il est le dernier : deux messages identiques se
+ * lisent comme un doublon, et on cesse de lire le second.
+ */
+export const CONFIRM_LAST_CALL_HOUR = 15;
+
+/**
+ * Filet des reservations tardives, en minutes avant l'echeance.
+ *
+ * Un creneau enregistre la veille apres 15 h ne recevait **aucun** rappel :
+ * les deux instants prevus etaient passes, et le code se retirait en silence
+ * alors qu'il restait des heures pour agir. C'est le mode de panne de ce
+ * projet, joue sur la seule chose qui coute de l'argent.
+ *
+ * Ce rappel-la ne s'ajoute pas aux deux autres, il les remplace quand il ne
+ * reste plus qu'eux — sinon une reservation posee trois jours a l'avance
+ * recevrait trois messages le meme jour.
+ */
+export const CONFIRM_LAST_MINUTES_BEFORE = 15;
+
+/**
  * Ou se confirme une reservation.
  *
  * L'espace MAX JEUNE, et non `sncf-connect.com/app/mes-voyages` vers lequel le
  * rappel pointait : c'est la page ou le geste demande se fait reellement.
  */
 export const CONFIRM_URL = 'https://www.maxjeune-tgvinoui.sncf/sncf-connect/mes-voyages';
+
+/**
+ * Ou se reserve un train.
+ *
+ * L'application n'a jamais su reserver et ne saura jamais : elle amene a la
+ * bonne date, la reservation se fait chez SNCF. Le balayage l'y emmene donc
+ * pour de bon, au lieu de le laisser rouvrir l'autre application a la main.
+ *
+ * L'accueil et rien de plus : aucun format de lien profond portant un trajet et
+ * une date n'est publie par SNCF Connect, et en inventer un donnerait une page
+ * d'erreur le jour ou il changerait — en silence, comme toujours ici. Sur
+ * Android, ce lien `https` est pris par l'application SNCF Connect si elle est
+ * installee, et par le navigateur sinon : c'est le meme lien qui sert les deux
+ * cas, sans schema maison a maintenir.
+ */
+export const BOOKING_URL = 'https://www.sncf-connect.com';
 
 /**
  * Fenetre pendant laquelle une reservation peut etre confirmee.

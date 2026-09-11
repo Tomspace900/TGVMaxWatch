@@ -1,5 +1,27 @@
+import { Linking } from 'react-native';
+import { BOOKING_URL } from '../../../src/config.ts';
 import { cancelConfirmReminder, scheduleConfirmReminder } from './reminders.ts';
 import type { Reservation, Reservations } from '../../../src/types.ts';
+
+/**
+ * Emmene reserver, la ou la reservation se fait reellement.
+ *
+ * Cette application ne reserve pas et ne reservera pas : elle amene a la bonne
+ * date, SNCF fait le reste. Le balayage s'arretait pourtant a la porte — il
+ * marquait le creneau, et il fallait sortir, retrouver l'autre application et
+ * ressaisir le trajet a la main. Le geste va desormais jusqu'au bout.
+ *
+ * Volontairement separee de `toggleBooking` : le defaire de la barre d'annulation
+ * repasse par lui pour remettre une reservation retiree, et rouvrir SNCF Connect
+ * sur un defaire serait exactement le genre de geste qui part quand on ne le
+ * demande pas.
+ */
+export function openBooking(): void {
+  void Linking.openURL(BOOKING_URL).catch(() => {
+    // Aucun navigateur ni application pour ce lien : le creneau est marque, le
+    // rappel est pose, et c'est tout ce que cette application doit garantir.
+  });
+}
 
 /**
  * Marquer ou demarquer une reservation, d'un seul geste.

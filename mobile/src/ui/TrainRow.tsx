@@ -48,7 +48,7 @@ export function TrainRow({ train, watched, booked, trace, onWatch, onBook }: Pro
       <View style={{ marginLeft: SPINE_WIDTH }}>
         <SwipeRow
           left={{ label: watched ? 'NE PLUS SUIVRE' : 'SUIVRE', onAction: onWatch }}
-          right={{ label: booked ? 'PLUS RÉSERVÉ' : "J'AI RÉSERVÉ", onAction: onBook }}
+          right={{ label: booked ? 'PLUS RÉSERVÉ' : 'RÉSERVER', onAction: onBook }}
         >
           <View
             style={[

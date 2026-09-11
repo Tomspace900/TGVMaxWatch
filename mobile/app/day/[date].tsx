@@ -11,7 +11,7 @@ import { DAY_PERIODS } from '../../../src/periods.ts';
 import { slotOf } from '../../../src/stats.ts';
 import { hasWatch, matchesWatchlist, pruneWatch, setWatch } from '../../../src/watchlist.ts';
 import { useStore } from '../../src/data/store.ts';
-import { toggleBooking } from '../../src/data/booking.ts';
+import { openBooking, toggleBooking } from '../../src/data/booking.ts';
 import { buildCalendar, emptyDay } from '../../src/model.ts';
 import { dirLabel, longDate, watchCutoff, windowLabel } from '../../src/format.ts';
 import { Sparkline } from '../../src/ui/Sparkline.tsx';
@@ -191,11 +191,18 @@ export default function DayScreen() {
   /**
    * Marquer ou demarquer une reservation.
    *
-   * Le geste ne sert qu'a une chose : poser le rappel de confirmation. C'est la
-   * seule information de reservation qu'on ne peut pas tenir de tete, et la
-   * seule qui coute de l'argent quand elle manque — le rappel part du
-   * telephone, pas d'une Action, et ne peut donc ni arriver en retard ni se
-   * retirer en silence.
+   * Le geste fait deux choses, et c'est le meme mouvement : il arme le rappel de
+   * confirmation, et il ouvre SNCF Connect. Le rappel est la seule information
+   * de reservation qu'on ne peut pas tenir de tete et la seule qui coute de
+   * l'argent quand elle manque — il part du telephone, pas d'une Action, et ne
+   * peut donc ni arriver en retard ni se retirer en silence.
+   *
+   * Le creneau est marque **avant** la sortie vers l'autre application, jamais
+   * au retour : rien ne garantit un retour, et c'est l'invariant du projet
+   * applique a l'echelle du geste — on ecrit d'abord, on notifie ensuite. Le
+   * prix de ce choix est une reservation marquee qui n'a pas eu lieu ; elle se
+   * voit sur l'accueil et un balayage la retire, alors qu'un rappel jamais arme
+   * ne se voit nulle part.
    *
    * Plus de blocage au sixieme creneau : le quota se suit de tete, et un geste
    * qui renvoyait en silence vers les reglages se lisait comme une panne.
@@ -212,6 +219,11 @@ export default function DayScreen() {
     };
     const booked = isBooked(train);
     toggleBooking(setReservations, slot, booked);
+
+    // Marquer, puis emmener reserver : le marquage arme le rappel, SNCF Connect
+    // fait la reservation. Rien a l'aller inverse — on ne sort pas quelqu'un de
+    // l'application pour lui dire qu'il vient d'annuler.
+    if (!booked) openBooking();
 
     if (booked) {
       undo.offer({

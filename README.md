@@ -326,9 +326,15 @@ s'ouvre pleine dans un train sans reseau.
 
 ### Ce qu'elle fait toute seule
 
-- **Rappel de confirmation** : notification locale a 10 h la veille d'un voyage
-  enregistre (`CONFIRM_DAYS_BEFORE = 1`, echeance 17 h). Annulee par le geste
-  « c'est confirme » ou la liberation du creneau. Reconciliee au demarrage.
+- **Rappel de confirmation** : deux notifications locales la veille d'un voyage
+  enregistre, a 10 h (`CONFIRM_REMINDER_HOUR`) et a 15 h
+  (`CONFIRM_LAST_CALL_HOUR`), pour une echeance a 17 h. Un creneau enregistre
+  apres 15 h n'a plus aucun de ces deux instants devant lui : il recoit alors un
+  rappel unique un quart d'heure avant l'echeance (`CONFIRM_LAST_MINUTES_BEFORE`)
+  — le filet **remplace** les deux prevus, il ne s'y ajoute pas. Annulees par le
+  geste « c'est confirme » ou la liberation du creneau. Reconciliees au
+  demarrage, **rappel par rappel** : un creneau dont celui de 10 h est deja
+  parti garde celui de 15 h sans que le premier ne se rejoue.
 - **Alarme de fraicheur** : reposee a chaque rafraichissement reussi a
   `collectedAt + 40 h` (`STALE_ALARM_HOURS`). Tant que la donnee arrive,
   l'echeance recule. **C'est le seul dispositif capable de signaler une collecte
