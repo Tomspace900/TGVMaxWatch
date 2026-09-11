@@ -263,6 +263,36 @@ sur la majorite des lignes est un fond.
 confirmation n'ouvre que 48 h avant le depart : la carte se borne donc sur le
 **depart**, pas sur l'echeance, et se referme quand le train est parti.
 
+**Un rappel qui ne part qu'une fois n'est pas un filet, et un rappel qui se
+retire est un silence.** L'alarme de confirmation etait posee a 10 h la veille
+et nulle part ailleurs : une notification lue a 10 h dans un couloir n'existe
+plus a 16 h, et surtout un creneau enregistre la veille **apres** 10 h ne
+recevait rien du tout — `when <= now`, retour silencieux, alors qu'il restait
+sept heures pour agir. C'est le mode de panne du projet, joue sur la seule
+chose qui coute de l'argent reel. Deux instants prevus, 10 h et 15 h, et un
+filet un quart d'heure avant l'echeance quand les deux sont passes ; le filet
+**remplace** les deux au lieu de s'y ajouter, sinon une reservation posee trois
+jours a l'avance produirait trois messages le meme jour. Corollaire de
+reconciliation : `syncConfirmReminders` compare desormais rappel par rappel et
+non creneau par creneau — reposer le bloc rejouerait un message deja lu — et
+elle emporte les identifiants de l'ancienne forme, qu'aucun code ne saurait
+plus annuler.
+
+**Un geste qui s'arrete a la porte demande de refaire le trajet a la main.** Le
+balayage disait « j'ai reserve » : il armait le rappel, puis il fallait sortir,
+retrouver SNCF Connect et ressaisir le trajet. Il ouvre desormais
+`BOOKING_URL` — l'accueil, et rien de plus : aucun lien profond portant un
+trajet et une date n'est publie, et en inventer un donnerait une page d'erreur
+le jour ou il changerait, en silence. Deux consequences. L'ouverture vit dans
+`openBooking` et **pas** dans `toggleBooking` : le defaire de la barre
+d'annulation repasse par ce dernier pour remettre une reservation retiree, et
+rouvrir une application tierce sur un defaire est exactement le geste qui part
+quand on ne le demande pas. Et le creneau est marque **avant** la sortie,
+jamais au retour — rien ne garantit un retour. Le prix est une reservation
+marquee qui n'a pas eu lieu ; elle se voit sur l'accueil et un balayage la
+retire, la ou un rappel jamais arme ne se voit nulle part. C'est l'invariant du
+projet a l'echelle du geste : on ecrit d'abord, on notifie ensuite.
+
 **Un geste qui marche a un endroit et pas a l'autre est un geste qu'on cesse
 d'essayer.** Le balayage vivait dans la ligne de train ; la surveillance le
 voulait aussi, avec les memes seuils et les memes retours haptiques. Deux

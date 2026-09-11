@@ -2,13 +2,15 @@ import * as Notifications from 'expo-notifications';
 import {
   APP_URL,
   CONFIRM_DEADLINE_HOUR,
+  CONFIRM_LAST_CALL_HOUR,
+  CONFIRM_LAST_MINUTES_BEFORE,
   CONFIRM_REMINDER_HOUR,
   CONFIRM_URL,
   STALE_ALARM_HOURS,
 } from '../../../src/config.ts';
 import type { Reservation } from '../../../src/types.ts';
 import { CHANNELS } from './notifications.ts';
-import { dirLabel, eveOf, longDate } from '../format.ts';
+import { confirmDeadline, dirLabel, eveOf, longDate } from '../format.ts';
 
 /**
  * Rappels poses par l'appareil.
@@ -23,38 +25,82 @@ import { dirLabel, eveOf, longDate } from '../format.ts';
  * son absence se verrait dans les notifications programmees du systeme.
  */
 
-/** Un rappel par creneau : reposer le meme identifiant remplace, sans doublon. */
-function confirmId(slot: Pick<Reservation, 'date' | 'dir' | 'trainNo'>): string {
-  return `confirm:${slot.date}|${slot.dir}|${slot.trainNo}`;
+/** Ce qui distingue deux creneaux, et rien d'autre : la cle des identifiants. */
+function slotKey(slot: Pick<Reservation, 'date' | 'dir' | 'trainNo'>): string {
+  return `${slot.date}|${slot.dir}|${slot.trainNo}`;
 }
 
-/** Instant du rappel : la veille du voyage, sept heures avant l'echeance. */
-function confirmInstant(travelDate: string): Date {
-  return eveOf(travelDate, CONFIRM_REMINDER_HOUR);
+/** Un rappel par creneau et par echeance : reposer le meme identifiant remplace. */
+function confirmId(slot: Pick<Reservation, 'date' | 'dir' | 'trainNo'>, tag: string): string {
+  return `confirm:${slotKey(slot)}#${tag}`;
+}
+
+/** Un rappel a poser : quand il part, et le mot qu'il porte. */
+interface Alarm {
+  tag: string;
+  when: Date;
+  title: string;
 }
 
 /**
- * Pose le rappel de confirmation d'un creneau.
+ * Les rappels d'un creneau, dans l'ordre.
  *
- * Ne pose rien si l'instant est deja passe — reserver la veille au soir pour le
- * lendemain est un cas normal, et une alarme dans le passe ne partirait jamais.
+ * Deux instants prevus — 10 h puis 15 h la veille — parce qu'un rappel ne part
+ * qu'une fois : celui de 10 h donne la marge qu'on lui demande, celui de 15 h
+ * rattrape la matinee ou le telephone etait dans une poche. Le second dit qu'il
+ * est le dernier, sans quoi il se lit comme un doublon du premier.
+ *
+ * Et un filet, qui **remplace** les deux au lieu de s'y ajouter : un creneau
+ * enregistre la veille apres 15 h n'avait aucun rappel du tout, le code se
+ * retirant en silence alors qu'il restait des heures pour agir. C'est la faute
+ * de fond de ce projet, jouee sur la seule chose qui coute de l'argent.
+ *
+ * Rien apres l'echeance, jamais : la place est perdue, et un message qui arrive
+ * trop tard n'apprend qu'une mauvaise nouvelle.
  */
-export async function scheduleConfirmReminder(slot: Reservation): Promise<void> {
-  const when = confirmInstant(slot.date);
-  if (when.getTime() <= Date.now()) return;
+function confirmAlarms(slot: Pick<Reservation, 'date'>, now: number): Alarm[] {
+  const deadline = confirmDeadline(slot.date).getTime();
+  if (deadline <= now) return [];
 
+  const usable = (when: Date) => when.getTime() > now && when.getTime() < deadline;
+
+  const planned: Alarm[] = [
+    {
+      tag: 'first',
+      when: eveOf(slot.date, CONFIRM_REMINDER_HOUR),
+      title: `Confirme ta resa avant ${CONFIRM_DEADLINE_HOUR}h`,
+    },
+    {
+      tag: 'last',
+      when: eveOf(slot.date, CONFIRM_LAST_CALL_HOUR),
+      title: `Dernier rappel : confirme avant ${CONFIRM_DEADLINE_HOUR}h`,
+    },
+  ].filter((alarm) => usable(alarm.when));
+
+  if (planned.length > 0) return planned;
+
+  const late = {
+    tag: 'late',
+    when: new Date(deadline - CONFIRM_LAST_MINUTES_BEFORE * 60_000),
+    title: `Confirme maintenant, echeance a ${CONFIRM_DEADLINE_HOUR}h`,
+  };
+  return usable(late.when) ? [late] : [];
+}
+
+/** Pose un rappel. Une permission refusee ne fait pas echouer l'enregistrement. */
+async function post(slot: Reservation, alarm: Alarm): Promise<void> {
   try {
     await Notifications.scheduleNotificationAsync({
-      identifier: confirmId(slot),
+      identifier: confirmId(slot, alarm.tag),
       content: {
-        title: `Confirme ta resa avant ${CONFIRM_DEADLINE_HOUR}h`,
+        title: alarm.title,
         // Le sens est la seule chose qu'on ne peut pas deviner d'un coup d'oeil.
         body: `${longDate(slot.date)} · ${slot.depart} · ${dirLabel(slot.dir)}`,
         data: { url: CONFIRM_URL },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: when,
+        date: alarm.when,
         channelId: CHANNELS.confirm,
       },
     });
@@ -64,12 +110,23 @@ export async function scheduleConfirmReminder(slot: Reservation): Promise<void> 
   }
 }
 
-/** Retire le rappel d'un creneau : confirmation faite, ou creneau libere. */
+/** Pose les rappels de confirmation d'un creneau. */
+export async function scheduleConfirmReminder(slot: Reservation): Promise<void> {
+  for (const alarm of confirmAlarms(slot, Date.now())) await post(slot, alarm);
+}
+
+/** Retire les rappels d'un creneau : confirmation faite, ou creneau libere. */
 export async function cancelConfirmReminder(
   slot: Pick<Reservation, 'date' | 'dir' | 'trainNo'>,
 ): Promise<void> {
+  const prefix = `confirm:${slotKey(slot)}#`;
   try {
-    await Notifications.cancelScheduledNotificationAsync(confirmId(slot));
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notification of scheduled) {
+      if (notification.identifier.startsWith(prefix)) {
+        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+      }
+    }
   } catch {
     // Annuler un rappel qui n'existe pas n'est pas une erreur.
   }
@@ -123,13 +180,28 @@ export async function scheduleStaleAlarm(collectedAt: string | null): Promise<vo
  * Appelee au demarrage : un import de sauvegarde, une reinstallation ou une
  * confirmation faite sur un autre appareil laissent sinon des alarmes orphelines
  * ou, pire, des creneaux sans alarme.
+ *
+ * La reconciliation porte sur chaque rappel et non sur le creneau entier : un
+ * creneau dont le rappel de 10 h est deja parti doit garder celui de 15 h, et
+ * reposer les deux en bloc rejouerait un message deja lu.
+ *
+ * Elle emporte au passage les identifiants de l'ancienne forme — un seul rappel
+ * par creneau, sans suffixe — qui ne correspondent plus a rien de voulu : sans
+ * cela une installation existante garderait pour toujours une alarme que plus
+ * aucun code ne sait annuler.
  */
 export async function syncConfirmReminders(slots: Reservation[]): Promise<void> {
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    const wanted = new Map(
-      slots.filter((slot) => !slot.confirmed).map((slot) => [confirmId(slot), slot]),
-    );
+    const now = Date.now();
+
+    const wanted = new Map<string, { slot: Reservation; alarm: Alarm }>();
+    for (const slot of slots) {
+      if (slot.confirmed) continue;
+      for (const alarm of confirmAlarms(slot, now)) {
+        wanted.set(confirmId(slot, alarm.tag), { slot, alarm });
+      }
+    }
 
     for (const notification of scheduled) {
       const id = notification.identifier;
@@ -138,7 +210,7 @@ export async function syncConfirmReminders(slots: Reservation[]): Promise<void> 
       else await Notifications.cancelScheduledNotificationAsync(id);
     }
 
-    for (const slot of wanted.values()) await scheduleConfirmReminder(slot);
+    for (const { slot, alarm } of wanted.values()) await post(slot, alarm);
   } catch {
     // Sans acces aux notifications programmees, on laisse l'etat en place.
   }

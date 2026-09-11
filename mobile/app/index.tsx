@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { DIRECTIONS, STALE_ALARM_HOURS, STALE_DATA_HOURS } from '../../src/config.ts';
 import { todayInParis } from '../../src/dates.ts';
 import { useStore } from '../src/data/store.ts';
-import { toggleBooking } from '../src/data/booking.ts';
+import { openBooking, toggleBooking } from '../src/data/booking.ts';
 import { cancelConfirmReminder } from '../src/data/reminders.ts';
 import { bookableTrainNo } from '../../src/departures.ts';
 import { buildCalendar, type Train } from '../src/model.ts';
@@ -168,7 +168,12 @@ export default function CalendarScreen() {
     // barre a chaque geste redeviendrait un fond. Le retrait passe par `cancel`
     // plutot que d'ecrire ici, sinon le meme geste ferait deux ecritures.
     if (booked) cancel(slot);
-    else toggleBooking(setReservations, slot, false);
+    else {
+      toggleBooking(setReservations, slot, false);
+      // Le meme geste doit faire la meme chose sur les deux ecrans qui le
+      // portent, sans quoi on cesse de l'essayer sur celui qui hesite.
+      openBooking();
+    }
   };
 
   /** Retrait d'une reservation, d'ou qu'il vienne : une seule formulation. */
