@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-10T11:21:14.921Z",
-  "snapshotCount": 10,
+  "generatedAt": "2026-09-11T11:23:06.312Z",
+  "snapshotCount": 11,
   "ready": {
     "burnRate": false,
     "reopen": true,
@@ -9,15 +9,15 @@
   "burnRate": [],
   "reopen": {
     "FRPMO>FRBOJ|16:09": {
-      "closed": 5,
-      "reopened": 0,
-      "rate": 0,
-      "sample": 5
+      "closed": 6,
+      "reopened": 1,
+      "rate": 0.16666666666666666,
+      "sample": 6
     },
     "FRBOJ>FRPMO|12:12": {
       "closed": 5,
-      "reopened": 2,
-      "rate": 0.4,
+      "reopened": 3,
+      "rate": 0.6,
       "sample": 5
     },
     "FRBOJ>FRPMO|18:46": {
@@ -34,11 +34,17 @@
     },
     "FRPMO>FRBOJ|07:11": {
       "closed": 6,
-      "reopened": 2,
-      "rate": 0.3333333333333333,
+      "reopened": 3,
+      "rate": 0.5,
       "sample": 6
     },
     "FRBOJ>FRPMO|07:45": {
+      "closed": 6,
+      "reopened": 5,
+      "rate": 0.8333333333333334,
+      "sample": 6
+    },
+    "FRBOJ>FRPMO|10:47": {
       "closed": 5,
       "reopened": 4,
       "rate": 0.8,
@@ -46,8 +52,8 @@
     },
     "FRBOJ>FRPMO|19:46": {
       "closed": 9,
-      "reopened": 3,
-      "rate": 0.3333333333333333,
+      "reopened": 4,
+      "rate": 0.4444444444444444,
       "sample": 9
     },
     "FRBOJ>FRPMO|06:46": {
@@ -69,10 +75,10 @@
       "sample": 5
     },
     "FRPMO>FRBOJ|06:52": {
-      "closed": 5,
+      "closed": 6,
       "reopened": 4,
-      "rate": 0.8,
-      "sample": 5
+      "rate": 0.6666666666666666,
+      "sample": 6
     },
     "FRPMO>FRBOJ|05:59": {
       "closed": 5,
