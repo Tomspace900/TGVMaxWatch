@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-11T11:23:06.312Z",
-  "snapshotCount": 11,
+  "generatedAt": "2026-09-12T10:48:40.636Z",
+  "snapshotCount": 12,
   "ready": {
     "burnRate": false,
     "reopen": true,
@@ -34,9 +34,15 @@
     },
     "FRPMO>FRBOJ|07:11": {
       "closed": 6,
-      "reopened": 3,
-      "rate": 0.5,
+      "reopened": 4,
+      "rate": 0.6666666666666666,
       "sample": 6
+    },
+    "FRPMO>FRBOJ|18:11": {
+      "closed": 5,
+      "reopened": 1,
+      "rate": 0.2,
+      "sample": 5
     },
     "FRBOJ>FRPMO|07:45": {
       "closed": 6,
@@ -58,8 +64,8 @@
     },
     "FRBOJ>FRPMO|06:46": {
       "closed": 9,
-      "reopened": 3,
-      "rate": 0.3333333333333333,
+      "reopened": 4,
+      "rate": 0.4444444444444444,
       "sample": 9
     },
     "FRBOJ>FRPMO|07:12": {
@@ -69,10 +75,10 @@
       "sample": 8
     },
     "FRBOJ>FRPMO|17:08": {
-      "closed": 5,
+      "closed": 6,
       "reopened": 3,
-      "rate": 0.6,
-      "sample": 5
+      "rate": 0.5,
+      "sample": 6
     },
     "FRPMO>FRBOJ|06:52": {
       "closed": 6,
