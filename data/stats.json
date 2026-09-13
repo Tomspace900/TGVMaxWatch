@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-12T10:48:40.636Z",
-  "snapshotCount": 12,
+  "generatedAt": "2026-09-13T11:54:13.110Z",
+  "snapshotCount": 13,
   "ready": {
     "burnRate": false,
     "reopen": true,
@@ -10,14 +10,20 @@
   "reopen": {
     "FRPMO>FRBOJ|16:09": {
       "closed": 6,
-      "reopened": 1,
-      "rate": 0.16666666666666666,
+      "reopened": 2,
+      "rate": 0.3333333333333333,
       "sample": 6
     },
     "FRBOJ>FRPMO|12:12": {
       "closed": 5,
       "reopened": 3,
       "rate": 0.6,
+      "sample": 5
+    },
+    "FRBOJ>FRPMO|16:20": {
+      "closed": 5,
+      "reopened": 1,
+      "rate": 0.2,
       "sample": 5
     },
     "FRBOJ>FRPMO|18:46": {
@@ -44,6 +50,12 @@
       "rate": 0.2,
       "sample": 5
     },
+    "FRBOJ>FRPMO|06:58": {
+      "closed": 5,
+      "reopened": 2,
+      "rate": 0.4,
+      "sample": 5
+    },
     "FRBOJ>FRPMO|07:45": {
       "closed": 6,
       "reopened": 5,
@@ -51,10 +63,10 @@
       "sample": 6
     },
     "FRBOJ>FRPMO|10:47": {
-      "closed": 5,
+      "closed": 6,
       "reopened": 4,
-      "rate": 0.8,
-      "sample": 5
+      "rate": 0.6666666666666666,
+      "sample": 6
     },
     "FRBOJ>FRPMO|19:46": {
       "closed": 9,
@@ -64,8 +76,8 @@
     },
     "FRBOJ>FRPMO|06:46": {
       "closed": 9,
-      "reopened": 4,
-      "rate": 0.4444444444444444,
+      "reopened": 5,
+      "rate": 0.5555555555555556,
       "sample": 9
     },
     "FRBOJ>FRPMO|07:12": {
@@ -73,6 +85,12 @@
       "reopened": 3,
       "rate": 0.375,
       "sample": 8
+    },
+    "FRBOJ>FRPMO|09:46": {
+      "closed": 5,
+      "reopened": 2,
+      "rate": 0.4,
+      "sample": 5
     },
     "FRBOJ>FRPMO|17:08": {
       "closed": 6,
@@ -84,6 +102,12 @@
       "closed": 6,
       "reopened": 4,
       "rate": 0.6666666666666666,
+      "sample": 6
+    },
+    "FRPMO>FRBOJ|14:05": {
+      "closed": 6,
+      "reopened": 3,
+      "rate": 0.5,
       "sample": 6
     },
     "FRPMO>FRBOJ|05:59": {
