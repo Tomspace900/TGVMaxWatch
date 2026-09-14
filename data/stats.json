@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-13T11:54:13.110Z",
-  "snapshotCount": 13,
+  "generatedAt": "2026-09-14T12:49:47.362Z",
+  "snapshotCount": 14,
   "ready": {
     "burnRate": false,
     "reopen": true,
@@ -10,8 +10,8 @@
   "reopen": {
     "FRPMO>FRBOJ|16:09": {
       "closed": 6,
-      "reopened": 2,
-      "rate": 0.3333333333333333,
+      "reopened": 3,
+      "rate": 0.5,
       "sample": 6
     },
     "FRBOJ>FRPMO|12:12": {
@@ -22,14 +22,14 @@
     },
     "FRBOJ>FRPMO|16:20": {
       "closed": 5,
-      "reopened": 1,
-      "rate": 0.2,
+      "reopened": 2,
+      "rate": 0.4,
       "sample": 5
     },
     "FRBOJ>FRPMO|18:46": {
       "closed": 9,
-      "reopened": 3,
-      "rate": 0.3333333333333333,
+      "reopened": 4,
+      "rate": 0.4444444444444444,
       "sample": 9
     },
     "FRBOJ>FRPMO|14:46": {
@@ -64,8 +64,8 @@
     },
     "FRBOJ>FRPMO|10:47": {
       "closed": 6,
-      "reopened": 4,
-      "rate": 0.6666666666666666,
+      "reopened": 5,
+      "rate": 0.8333333333333334,
       "sample": 6
     },
     "FRBOJ>FRPMO|19:46": {
@@ -75,15 +75,15 @@
       "sample": 9
     },
     "FRBOJ>FRPMO|06:46": {
-      "closed": 9,
+      "closed": 10,
       "reopened": 5,
-      "rate": 0.5555555555555556,
-      "sample": 9
+      "rate": 0.5,
+      "sample": 10
     },
     "FRBOJ>FRPMO|07:12": {
       "closed": 8,
-      "reopened": 3,
-      "rate": 0.375,
+      "reopened": 4,
+      "rate": 0.5,
       "sample": 8
     },
     "FRBOJ>FRPMO|09:46": {
@@ -100,20 +100,20 @@
     },
     "FRPMO>FRBOJ|06:52": {
       "closed": 6,
-      "reopened": 4,
-      "rate": 0.6666666666666666,
+      "reopened": 5,
+      "rate": 0.8333333333333334,
       "sample": 6
     },
     "FRPMO>FRBOJ|14:05": {
       "closed": 6,
-      "reopened": 3,
-      "rate": 0.5,
+      "reopened": 4,
+      "rate": 0.6666666666666666,
       "sample": 6
     },
     "FRPMO>FRBOJ|05:59": {
       "closed": 5,
-      "reopened": 2,
-      "rate": 0.4,
+      "reopened": 3,
+      "rate": 0.6,
       "sample": 5
     },
     "FRPMO>FRBOJ|06:04": {
