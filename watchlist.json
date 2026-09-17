@@ -1,12 +1,5 @@
 {
-  "watch": [
-    {
-      "date": "2026-09-21",
-      "dir": "FRPMO>FRBOJ",
-      "after": "19:11",
-      "before": "19:11"
-    }
-  ],
+  "watch": [],
   "rules": [
     {
       "weekday": "mon",
