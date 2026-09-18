@@ -16,12 +16,6 @@
   "rules": [
     {
       "weekday": "mon",
-      "dir": "FRPMO>FRBOJ",
-      "after": "05:00",
-      "before": "12:00"
-    },
-    {
-      "weekday": "mon",
       "dir": "FRBOJ>FRPMO",
       "after": "05:00",
       "before": "12:00"
