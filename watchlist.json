@@ -25,6 +25,12 @@
       "dir": "FRBOJ>FRPMO",
       "after": "05:00",
       "before": "12:00"
+    },
+    {
+      "weekday": "mon",
+      "dir": "FRPMO>FRBOJ",
+      "after": "19:00",
+      "before": "23:59"
     }
   ]
 }
