@@ -29,6 +29,12 @@
       "dir": "FRPMO>FRBOJ",
       "after": "19:11",
       "before": "19:11"
+    },
+    {
+      "date": "2026-09-24",
+      "dir": "FRPMO>FRBOJ",
+      "after": "20:39",
+      "before": "20:39"
     }
   ],
   "rules": [
