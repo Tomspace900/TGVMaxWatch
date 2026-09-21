@@ -10,7 +10,7 @@ import {
 } from '../../../src/config.ts';
 import type { Reservation } from '../../../src/types.ts';
 import { CHANNELS } from './notifications.ts';
-import { confirmDeadline, dirLabel, eveOf, longDate } from '../format.ts';
+import { confirmDeadline, confirmOpens, dirLabel, eveOf, longDate } from '../format.ts';
 
 /**
  * Rappels poses par l'appareil.
@@ -45,12 +45,16 @@ interface Alarm {
 /**
  * Les rappels d'un creneau, dans l'ordre.
  *
- * Deux instants prevus — 10 h puis 15 h la veille — parce qu'un rappel ne part
- * qu'une fois : celui de 10 h donne la marge qu'on lui demande, celui de 15 h
- * rattrape la matinee ou le telephone etait dans une poche. Le second dit qu'il
- * est le dernier, sans quoi il se lit comme un doublon du premier.
+ * Trois instants prevus. Le premier a l'ouverture de la fenetre de
+ * confirmation, l'avant-veille : c'est le seul qui puisse **retirer le sujet de
+ * la tete**, puisque confirmer annule tous les suivants. Les deux rappels
+ * n'existaient que la veille, 10 h puis 15 h, et la fenetre restait donc
+ * ouverte une journee entiere sans que rien ne le dise ; celui de 10 h donne la
+ * marge qu'on lui demande, celui de 15 h rattrape la matinee ou le telephone
+ * etait dans une poche. Le dernier dit qu'il est le dernier, sans quoi il se
+ * lit comme un doublon du precedent.
  *
- * Et un filet, qui **remplace** les deux au lieu de s'y ajouter : un creneau
+ * Et un filet, qui **remplace** les trois au lieu de s'y ajouter : un creneau
  * enregistre la veille apres 15 h n'avait aucun rappel du tout, le code se
  * retirant en silence alors qu'il restait des heures pour agir. C'est la faute
  * de fond de ce projet, jouee sur la seule chose qui coute de l'argent.
@@ -58,13 +62,18 @@ interface Alarm {
  * Rien apres l'echeance, jamais : la place est perdue, et un message qui arrive
  * trop tard n'apprend qu'une mauvaise nouvelle.
  */
-function confirmAlarms(slot: Pick<Reservation, 'date'>, now: number): Alarm[] {
+function confirmAlarms(slot: Pick<Reservation, 'date' | 'depart'>, now: number): Alarm[] {
   const deadline = confirmDeadline(slot.date).getTime();
   if (deadline <= now) return [];
 
   const usable = (when: Date) => when.getTime() > now && when.getTime() < deadline;
 
   const planned: Alarm[] = [
+    {
+      tag: 'open',
+      when: confirmOpens(slot.date, slot.depart),
+      title: `Tu peux confirmer ta resa, jusqu'a ${CONFIRM_DEADLINE_HOUR}h demain`,
+    },
     {
       tag: 'first',
       when: eveOf(slot.date, CONFIRM_REMINDER_HOUR),

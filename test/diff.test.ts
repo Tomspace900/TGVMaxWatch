@@ -1,13 +1,19 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { DECISION_HORIZON_DAYS } from '../src/config.ts';
+import { addDays } from '../src/dates.ts';
 import { diffSnapshots } from '../src/diff.ts';
 import { BP, PB, departures, t } from './helpers.ts';
 import type { Availability, TrainRecord } from '../src/types.ts';
 
-/** Cadre du diff. Toutes les dates de voyage des tests lui sont posterieures. */
-const TODAY = '2026-10-01';
+/*
+ * Cadre du diff. Toutes les dates de voyage des tests lui sont posterieures, et
+ * a une ou deux semaines : les signaux generaux s'arretent desormais a
+ * `DECISION_HORIZON_DAYS`, et un fixture pose au-dela testerait la borne au
+ * lieu de la regle qu'il nomme.
+ */
+const TODAY = '2026-10-10';
 
-/** `n` trains d'une meme date et d'un meme sens, tous dans le meme etat. */
 /**
  * Une journee de trains, chacun a **sa** minute.
  *
@@ -158,10 +164,32 @@ describe('signaux de date', () => {
     // Les dates entrent a zero place — les quatre mesurees sont entrees a 0/35,
     // 0/39, 0/33 et 0/29. Il n'y a rien a annoncer avant le lendemain.
     const before = departures(t('2026-10-17', '8441', 'OUI'));
-    const after = departures(t('2026-10-17', '8441', 'OUI'), ...fleet('2026-11-16', 12, 'OUI'));
+    const after = departures(t('2026-10-17', '8441', 'OUI'), ...fleet('2026-10-18', 12, 'OUI'));
 
     const { signals } = diffSnapshots(before, after, TODAY);
     assert.deepEqual(signals, []);
+  });
+
+  /*
+   * Mesure sur les vingt diffs de l'archive : 8 des 11 `REOPENED` portent sur
+   * J+21 a J+30, aucun sur J+0 a J+2. C'est la mecanique de l'horizon — une
+   * date y entre a zero place et se remplit le lendemain, toutes les dates le
+   * font — donc un evenement previsible, donc un fond.
+   */
+  it('ne signale pas une date au-dela de l horizon de decision', () => {
+    const far = addDays(TODAY, DECISION_HORIZON_DAYS + 1);
+    const before = departures(...fleet(far, 8, 'NON'));
+    const after = departures(...fleet(far, 8, 'OUI'));
+
+    assert.deepEqual(diffSnapshots(before, after, TODAY).signals, []);
+  });
+
+  it('signale la meme date un jour plus tot, a la limite exacte', () => {
+    const edge = addDays(TODAY, DECISION_HORIZON_DAYS);
+    const before = departures(...fleet(edge, 8, 'NON'));
+    const after = departures(...fleet(edge, 8, 'OUI'));
+
+    assert.equal(diffSnapshots(before, after, TODAY).signals.length, 1);
   });
 
   it('ignore une date de voyage deja passee', () => {

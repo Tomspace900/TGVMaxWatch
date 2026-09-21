@@ -1,6 +1,6 @@
 import { APP_URL, STATION_LABELS } from './config.ts';
 import { formatDuration } from './duration.ts';
-import { trainsWord, weekdayShort } from './label.ts';
+import { openTrainsLabel, trainsWord, weekdayShort } from './label.ts';
 import { isCoveredBySlot } from './slots.ts';
 import type { DateSignal, SlotSignal, TrainEvent } from './types.ts';
 
@@ -23,10 +23,23 @@ const MAX_LINES = 6;
  * notification, donc chaque ligne se repliait — et une ligne repliee perd sa
  * pastille, part du bord gauche, et se lit comme un nouvel element. La colonne
  * de marques, qui est tout l'interet du balayage, s'effondrait.
+ *
+ * Chaque ligne porte aussi sa propre version **en titre**, et la date qu'elle
+ * designe. C'est ce qui permet au titre d'etre la premiere ligne du message
+ * plutot qu'un resume fabrique a cote : mesure sur les vingt diffs de
+ * l'archive, 25 mouvements de creneau suivi dans les quatorze jours etaient
+ * tous dans le corps, **2 seulement** dans le titre — et sur un ecran
+ * verrouille, le titre est tout ce qu'on lit. Un message intitule « 7 trains
+ * ouverts » portait, trois lignes plus bas, le jeudi matin qui venait de
+ * passer de 1 a 7 trains a trois jours du depart.
  */
 interface Line {
   dir: string;
   text: string;
+  /** Le meme fait, ecrit pour tenir seul en tete de notification. */
+  title: string;
+  /** La date de voyage designee : c'est elle qu'ouvre le tap. */
+  date: string;
 }
 
 /** Horaires listes par groupe avant de basculer sur un « +N ». */
@@ -100,76 +113,68 @@ export function buildNotification(
   const loose = events.filter((event) => !isCoveredBySlot(slots, event));
   const opens = loose.filter((event) => event.kind === 'OPEN');
   const closes = loose.filter((event) => event.kind === 'CLOSE');
-  const reopened = signals.filter((signal) => signal.kind === 'REOPENED');
-  const draining = signals.filter((signal) => signal.kind === 'DRAINING');
 
   if (opens.length === 0 && closes.length === 0 && signals.length === 0 && slots.length === 0) {
     return null;
   }
 
   /*
-   * Les signaux passent devant les evenements de train, et non l'inverse.
+   * L'ordre est celui de ce qui a ete demande, et le titre le suit.
    *
-   * Un signal porte sur une journee entiere — « le 30/09 vers Paris, il ne
-   * reste que deux trains » — la ou un evenement porte sur un train precis
-   * qu'on avait explicitement mis en suivi. Le premier decide d'un voyage, le
-   * second confirme une attente.
-   */
-  /*
-   * Les creneaux suivis passent devant tout le reste.
+   * Les creneaux suivis d'abord, puis les trains suivis, puis les alertes
+   * generales — qui portent sur des journees que personne n'a demandees. Les
+   * trains suivis passaient jusqu'ici **apres** les generales : ils ne
+   * prenaient donc jamais le titre, et le titre annoncait une date a trois
+   * semaines pendant que la ligne utile etait quatre lignes plus bas.
    *
-   * Une alerte generale porte sur une journee que personne n'a demandee ; un
-   * signal de creneau porte sur une fenetre qu'on a explicitement mise en
-   * suivi. Le second est toujours plus pertinent que le premier pour celui qui
-   * lit le message.
+   * Une alerte generale ne peut plus prendre le titre des qu'une ligne suivie
+   * existe. Elle le prend encore quand elle est seule — un message doit dire de
+   * quoi il parle, et « 2 dates rouvrent » ne le disait pas.
    */
   const slotLines = slots.map(slotLine);
-  const signalLines = signals.map(signalLine);
   const trainLines = [
     ...group(opens, MARK.up),
-    // Plus de « parti » en tete : le titre le dit deja, et la marque le
-    // redisait une troisieme fois. Elle prend sa place au lieu de s'y ajouter.
+    // Plus de « parti » en tete : la marque le dit deja, et le mot le redisait
+    // une seconde fois sur une ligne qui n'en a pas la place.
     ...group(closes, MARK.gone),
   ];
+  const signalLines = signals.map(signalLine);
 
   /*
    * Ce qui a ete explicitement suivi ne se fait jamais couper par ce qui ne
    * l'a pas ete.
    *
-   * Les creneaux suivis etaient bien en tete, mais les evenements de train —
-   * qui ne survivent a `filterEvents` que parce qu'on a demande a suivre cette
-   * fenetre — passaient **apres** les signaux generaux. Six dates que personne
-   * ne suit suffisaient donc a evincer le seul train qu'on attendait, et le
-   * « +N autres » ne disait pas lesquelles etaient parties. Mesure sur
-   * l'archive : le 03/09, deux lignes coupees, **les deux suivies**, pendant
-   * que quatre signaux generaux occupaient la place.
-   *
-   * Le budget se prend donc sur les generaux. L'ordre d'affichage, lui, ne
-   * bouge pas : ce qui decide reste en haut.
+   * Six dates que personne ne suit suffisaient a evincer le seul train qu'on
+   * attendait, et le « +N autres » ne disait pas lesquelles etaient parties.
+   * Mesure sur l'archive : le 03/09, deux lignes coupees, **les deux suivies**,
+   * pendant que quatre signaux generaux occupaient la place. Le budget se prend
+   * donc sur les generaux.
    */
   const followed = slotLines.length + trainLines.length;
   const keptSignals = signalLines.slice(0, Math.max(0, MAX_LINES - followed));
 
-  const lines = [...slotLines, ...keptSignals, ...trainLines];
+  const lines = [...slotLines, ...trainLines, ...keptSignals];
   const shown = lines.slice(0, MAX_LINES);
   const body = withDirections(shown);
 
   const hidden = lines.length - shown.length + (signalLines.length - keptSignals.length);
   if (hidden > 0) body.push(`+${hidden} autres`);
 
-  // Le tap ouvre une ligne qui est dans le message, jamais une qui vient d'en
-  // etre ecartee.
-  const focus = slots[0] ?? (keptSignals.length > 0 ? signals[0] : undefined) ?? opens[0] ?? closes[0];
-  const url = focus
-    ? `${APP_URL}?date=${focus.date}&dir=${encodeURIComponent(focus.dir)}`
-    : APP_URL;
+  /*
+   * Le titre **est** la premiere ligne, pas un resume fabrique a cote.
+   *
+   * Il annoncait un total — « 7 trains ouverts » — chaque fois que le message
+   * ne portait que des evenements de train : sur un ecran verrouille, c'est
+   * indiscernable du bruit, alors que la ligne en dessous disait « jeudi matin,
+   * 1 → 7 trains ». Deux facons de nommer le meme fait finissent toujours par
+   * en nommer deux differents ; ici la seconde etait vide.
+   *
+   * Et le tap ouvre exactement ce que le titre annonce.
+   */
+  const head = shown[0]!;
+  const url = `${APP_URL}?date=${head.date}&dir=${encodeURIComponent(head.dir)}`;
 
-  return truncate({
-    title: buildTitle(slots, reopened, draining, opens.length, closes.length),
-    body: body.join('\n'),
-    url,
-    tag: 'tgvmax',
-  });
+  return truncate({ title: head.title, body: body.join('\n'), url, tag: 'tgvmax' });
 }
 
 /**
@@ -208,16 +213,27 @@ function withDirections(lines: Line[]): string[] {
  * que c'est le mot avec lequel le suivi a ete pose. Et l'avant/apres, pour la
  * meme raison que partout ailleurs : « 2 trains » ne dit pas s'il en restait
  * cinq hier ou deux.
+ *
+ * Quatre verbes pour quatre etats, et trois marques pour un seul axe : un
+ * creneau qui se ferme n'est pas un creneau qui se vide, il n'y a plus rien a
+ * en attendre. C'est donc la marque d'un train parti qu'il porte.
  */
+const SLOT_VERBS: Record<SlotSignal['kind'], { word: string; mark: string }> = {
+  SLOT_OPENED: { word: 'ouvre', mark: MARK.up },
+  SLOT_FILLING: { word: 'se remplit', mark: MARK.up },
+  SLOT_DRAINING: { word: 'se vide', mark: MARK.down },
+  SLOT_CLOSED: { word: 'se ferme', mark: MARK.gone },
+};
+
 function slotLine(signal: SlotSignal): Line {
-  const opened = signal.kind === 'SLOT_OPENED';
+  const { word, mark } = SLOT_VERBS[signal.kind];
+  const move = `${signal.before_count} → ${signal.after_count} ${trainsWord(signal.after_count)}`;
+
   return {
     dir: signal.dir,
-    text: `${opened ? MARK.up : MARK.down} ${opened ? 'ouvre' : 'se vide'} ${dateLabel(
-      signal.date,
-    )} ${signal.label} : ${signal.before_count} → ${signal.after_count} ${trainsWord(
-      signal.after_count,
-    )}`,
+    date: signal.date,
+    text: `${mark} ${word} ${dateLabel(signal.date)} ${signal.label} : ${move}`,
+    title: `${dateLabel(signal.date)} ${dirLabel(signal.dir)} ${signal.label} : ${move}`,
   };
 }
 
@@ -238,11 +254,14 @@ function slotLine(signal: SlotSignal): Line {
  */
 function signalLine(signal: DateSignal): Line {
   const reopened = signal.kind === 'REOPENED';
+  const word = reopened ? 'rouvre' : 'se vide';
+  const move = `${signal.before} → ${signal.after} ${trainsWord(signal.after)}`;
+
   return {
     dir: signal.dir,
-    text: `${reopened ? MARK.up : MARK.down} ${reopened ? 'rouvre' : 'se vide'} ${dateLabel(
-      signal.date,
-    )} : ${signal.before} → ${signal.after} ${trainsWord(signal.after)}`,
+    date: signal.date,
+    text: `${reopened ? MARK.up : MARK.down} ${word} ${dateLabel(signal.date)} : ${move}`,
+    title: `${dateLabel(signal.date)} ${dirLabel(signal.dir)} ${word} : ${move}`,
   };
 }
 
@@ -256,6 +275,10 @@ function signalLine(signal: DateSignal): Line {
  * La duree ne sort que sur les trains longs, et en clair : ailleurs elle est
  * previsible et occupe la place des horaires, tandis qu'un « 3h30 » a cote d'un
  * trajet habituellement en 2h05 est l'avertissement, sans avoir a le nommer.
+ *
+ * Le titre d'un groupe compte, celui d'un train seul donne l'heure. C'est la
+ * regle du projet appliquee au titre : la maille du message suit la maille du
+ * suivi, et un suivi pose sur une minute designe ce depart-la.
  */
 function group(events: TrainEvent[], mark: string): Line[] {
   const groups = new Map<string, TrainEvent[]>();
@@ -269,6 +292,7 @@ function group(events: TrainEvent[], mark: string): Line[] {
 
   return [...groups.values()].map((bucket) => {
     const first = bucket[0]!;
+    const open = first.kind === 'OPEN';
 
     /*
      * Plus de doublon d'horaire a ecarter ici : deux rames a la meme minute
@@ -287,67 +311,22 @@ function group(events: TrainEvent[], mark: string): Line[] {
       );
     const rest = bucket.length - times.length;
 
+    const title =
+      bucket.length === 1
+        ? `${dateLabel(first.date)} ${first.depart} ${dirLabel(first.dir)} : ${
+            open ? 'ouvert' : 'parti'
+          }`
+        : `${dateLabel(first.date)} ${dirLabel(first.dir)} : ${
+            open ? openTrainsLabel(bucket.length) : `${bucket.length} trains partis`
+          }`;
+
     return {
       dir: first.dir,
+      date: first.date,
       text: `${mark} ${dateLabel(first.date)} ${times.join(' ')}${rest > 0 ? ` +${rest}` : ''}`,
+      title,
     };
   });
-}
-
-/**
- * Le titre nomme l'evenement le plus fort, jamais un total.
- *
- * « Nouvelle date a J+30 : 0 train » a existe ici, et masquait derriere ce zero
- * toutes les ouvertures reelles du meme run. Un titre qui agrege perd ce qui
- * fait decider ; un titre qui designe une date et un sens le garde.
- */
-function buildTitle(
-  slots: SlotSignal[],
-  reopened: DateSignal[],
-  draining: DateSignal[],
-  opens: number,
-  closes: number,
-): string {
-  /*
-   * Un creneau suivi prend le titre, toujours.
-   *
-   * C'est la seule ligne du message dont on sait qu'elle a ete demandee. Lui
-   * preferer une alerte generale reviendrait a annoncer la meteo a quelqu'un
-   * qui attend un coup de fil.
-   */
-  const slot = slots[0];
-  if (slot && slots.length === 1) {
-    return slot.kind === 'SLOT_OPENED'
-      ? `${dateLabel(slot.date)} ${dirLabel(slot.dir)} ${slot.label} : ${slot.after_count} ${trainsWord(
-          slot.after_count,
-        )}`
-      : `${dateLabel(slot.date)} ${dirLabel(slot.dir)} ${slot.label} : plus que ${
-          slot.after_count
-        } ${trainsWord(slot.after_count)}`;
-  }
-  if (slots.length > 1) return `${slots.length} créneaux suivis bougent`;
-
-  const only = reopened[0];
-  if (only && reopened.length === 1) {
-    return `${dateLabel(only.date)} ${dirLabel(only.dir)} rouvre : ${only.after} trains`;
-  }
-  if (reopened.length > 1) return `${reopened.length} dates rouvrent`;
-
-  const tight = draining[0];
-  if (tight && draining.length === 1) {
-    return `${dateLabel(tight.date)} ${dirLabel(tight.dir)} : plus que ${tight.after} train${
-      tight.after > 1 ? 's' : ''
-    }`;
-  }
-  // Des dates entieres, pas des creneaux : « creneau » designe une fenetre
-  // suivie, et le titre voisin dit deja « 2 dates rouvrent » des memes objets.
-  // L'application parlait deux langues sur le meme objet.
-  if (draining.length > 1) return `${draining.length} dates se vident`;
-
-  if (opens > 0) {
-    return `${opens} ${trainsWord(opens)} ouvert${opens > 1 ? 's' : ''}`;
-  }
-  return `${closes} train${closes > 1 ? 's' : ''} parti${closes > 1 ? 's' : ''}`;
 }
 
 /** Coupe le corps si le payload depasse la limite du service push. */

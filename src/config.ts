@@ -47,6 +47,26 @@ export const STATION_LABELS: Record<string, string> = {
 /** Horizon glissant de la source : aucune vision au-dela de J+30. */
 export const HORIZON_DAYS = 30;
 
+/**
+ * Distance au depart au-dela de laquelle un mouvement ne derange plus.
+ *
+ * Mesure sur les vingt diffs de l'archive : **8 des 11** signaux `REOPENED`
+ * portent sur J+21 a J+30, et **aucun** sur J+0 a J+2. C'est mecanique — une
+ * date entre dans l'horizon a zero place et se remplit le lendemain, toutes les
+ * dates le font, tous les jours. Un evenement qui se produit systematiquement
+ * n'est pas une nouvelle, c'est un fond.
+ *
+ * Ce n'est pas un filtre de preference, et les deux alertes universelles
+ * continuent donc de ne consulter aucune watchlist : c'est une propriete de
+ * l'evenement lui-meme. Quatorze jours parce que c'est la profondeur a laquelle
+ * un aller-retour se decide ici — « la semaine prochaine, jeudi soir ».
+ *
+ * Une entree de suivi **datee** y echappe : la poser est une intention, et
+ * personne ne suit un train precis a J+28 par accident. Une regle recurrente,
+ * elle, ratisse cinq jeudis d'un coup et n'en designe aucun.
+ */
+export const DECISION_HORIZON_DAYS = 14;
+
 /** Retention de `history.json`, en jours avant aujourd'hui (dates de voyage). */
 export const HISTORY_RETENTION_DAYS = 120;
 
@@ -120,6 +140,33 @@ export const CONFIRM_LAST_CALL_HOUR = 15;
  * recevrait trois messages le meme jour.
  */
 export const CONFIRM_LAST_MINUTES_BEFORE = 15;
+
+/**
+ * Jours avant le voyage ou le rappel d'ouverture de la confirmation est pose.
+ *
+ * La confirmation n'ouvre que `CONFIRM_WINDOW_HOURS` avant le depart, et les
+ * deux rappels prevus etaient tous deux la veille : la fenetre restait donc
+ * ouverte une journee entiere sans que rien ne le dise. Or confirmer tot est ce
+ * qui **retire** le sujet de la tete — une fois fait, les rappels suivants sont
+ * annules et il n'en reste qu'un seul message pour tout le voyage.
+ *
+ * Deux jours, parce que c'est la ou la fenetre ouvre. Pas trois : un rappel
+ * avant que l'action soit possible n'est pas un rappel.
+ */
+export const CONFIRM_OPEN_DAYS_BEFORE = 2;
+
+/**
+ * Heure locale du rappel d'ouverture.
+ *
+ * Le soir, parce que c'est un geste de deux minutes qu'on fait chez soi, et
+ * parce qu'il laisse toute la journee du lendemain aux deux rappels suivants.
+ *
+ * Elle ne suffit pas a elle seule : pour un train du soir, 19 h l'avant-veille
+ * est encore **avant** l'ouverture des 48 h. L'instant retenu est le plus tard
+ * des deux, sans quoi le rappel demanderait une action impossible — la faute
+ * que ce projet a deja payee avec la carte de confirmation.
+ */
+export const CONFIRM_OPEN_REMINDER_HOUR = 19;
 
 /**
  * Ou se confirme une reservation.
@@ -231,19 +278,25 @@ export const DRAIN_MAX_LEFT = 3;
  * jamais etre observee — c'est l'erreur exacte que `filterNewDates` avait deja
  * faite a l'echelle de la date.
  *
- * Cote fonte, les transitions mesurees sont surtout des pertes de 1 (108 fois
- * sur 1 440 observations) ; exiger 2 et n'en laisser que 2 ramene le signal a
- * ce qui decide vraiment.
+ * Les deux seuils de fonte ont ete refondus apres mesure : sur les vingt diffs
+ * de l'archive, **25 mouvements** de creneau suivi dans les quatorze jours,
+ * dont **5 seulement** passaient l'ancienne regle (baisse d'au moins deux **et**
+ * deux restants au plus). Elle ratait `2 -> 1` a deux jours du depart, qui est
+ * exactement la nouvelle qu'on attend. La rarete decide donc seule : une baisse
+ * se dit des qu'il en reste peu, quelle que soit son ampleur.
  *
- * Mesure refaite en departs : les taux de vide sont **identiques au point de
- * pourcentage pres**, et la distribution des baisses aussi. Le repli ne touche
- * presque pas le compte d'ouverts d'un creneau, parce que les deux rames d'un
- * meme depart divergent rarement en eligibilite. Les seuils tiennent donc sans
- * retouche. A revoir en octobre, avec un vrai recul.
+ * Et une hausse se dit quand elle **sort** de la rarete : `1 -> 7` est une
+ * nouvelle, `5 -> 9` n'en est pas une — on avait deja de quoi choisir. C'est la
+ * symetrie de la regle precedente, et elle evite la ligne `9 -> 8` qui ne
+ * demande rien a personne.
  */
 export const SLOT_OPEN_MIN_TRAINS = 1;
-export const SLOT_DRAIN_MIN_DROP = 2;
-export const SLOT_DRAIN_MAX_LEFT = 2;
+/** Au-dela, un creneau n'est plus rare : ni sa baisse ni sa hausse ne decident. */
+export const SLOT_SCARCE_MAX_LEFT = 2;
+/** Hausse minimale pour qu'un creneau soit dit « se remplit ». */
+export const SLOT_FILL_MIN_RISE = 2;
+/** ...et compte de depart au-dela duquel cette hausse n'apprend plus rien. */
+export const SLOT_FILL_MAX_BEFORE = 3;
 
 /**
  * Amplitude minimale d'une courbe d'erosion, en jours.

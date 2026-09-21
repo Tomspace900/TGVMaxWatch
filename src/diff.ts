@@ -1,4 +1,10 @@
-import { DRAIN_MAX_LEFT, DRAIN_MIN_DROP, REOPEN_MIN_TRAINS } from './config.ts';
+import {
+  DECISION_HORIZON_DAYS,
+  DRAIN_MAX_LEFT,
+  DRAIN_MIN_DROP,
+  REOPEN_MIN_TRAINS,
+} from './config.ts';
+import { daysBetween } from './dates.ts';
 import { departureKey, type Departure } from './departures.ts';
 import { countSnapshot } from './history.ts';
 import { slotSignals } from './slots.ts';
@@ -95,6 +101,18 @@ function findSignals(previous: Departure[], current: Departure[], today: string)
     const [date = '', dir = ''] = key.split('|');
     // Un train de ce matin n'interesse plus personne ce soir.
     if (date < today) continue;
+
+    /*
+     * Et une date a trois semaines n'interesse personne aujourd'hui.
+     *
+     * Mesure sur les vingt diffs de l'archive : 8 des 11 `REOPENED` portent sur
+     * J+21 a J+30, aucun sur J+0 a J+2. C'est la mecanique de l'horizon — une
+     * date y entre a zero place et se remplit le lendemain, toutes les dates le
+     * font — donc un evenement previsible, donc un fond. Ce n'est pas une
+     * preference : les deux alertes generales continuent de ne consulter aucune
+     * watchlist, elles regardent seulement a quelle distance elles parlent.
+     */
+    if (daysBetween(today, date) > DECISION_HORIZON_DAYS) continue;
 
     if (then === 0 && now >= REOPEN_MIN_TRAINS) {
       signals.push({ kind: 'REOPENED', date, dir, before: then, after: now });

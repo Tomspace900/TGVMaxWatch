@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { DECISION_HORIZON_DAYS } from '../src/config.ts';
+import { addDays, daysBetween } from '../src/dates.ts';
 import { DAY_PERIODS } from '../src/periods.ts';
 import { isCoveredBySlot, slotSignals, watchedSlots } from '../src/slots.ts';
 import type { Watchlist } from '../src/types.ts';
@@ -105,11 +107,134 @@ describe('slotSignals', () => {
     assert.equal(signals[0]!.after_count, 1);
   });
 
-  /* Tomber a zero, c'est ferme, pas « en train de se vider ». */
-  it('ne signale pas une fonte qui atteint zero', () => {
+  /*
+   * Tomber a zero, c'est ferme, pas « en train de se vider » — et ca se dit.
+   *
+   * Le creneau se taisait dans ce cas : « il ne reste plus rien jeudi matin »
+   * est pourtant la seule ligne qui fasse regarder un autre jour, et la seule
+   * qui dispense d'ouvrir l'application pour le verifier.
+   */
+  it('nomme une fonte qui atteint zero autrement qu une fonte', () => {
     const before = departures(t(THU, '8441', 'OUI', '07:12'), t(THU, '8443', 'OUI', '08:30'));
     const after = departures(t(THU, '8441', 'NON', '07:12'), t(THU, '8443', 'NON', '08:30'));
-    assert.deepEqual(slotSignals(RULE, before, after, TODAY), []);
+
+    const signals = slotSignals(RULE, before, after, TODAY);
+    assert.equal(signals.length, 1);
+    assert.equal(signals[0]!.kind, 'SLOT_CLOSED');
+    assert.equal(signals[0]!.after_count, 0);
+  });
+
+  /*
+   * L'ancienne regle exigeait une baisse d'au moins deux **et** deux restants
+   * au plus. `2 -> 1` a deux jours du depart ne passait pas — exactement la
+   * nouvelle qu'on attend. Mesure : 20 des 25 mouvements de creneau de
+   * l'archive, dans les quatorze jours, ne produisaient aucun signal.
+   */
+  it('signale une baisse d un seul train quand il n en reste presque plus', () => {
+    const before = departures(t(THU, '8441', 'OUI', '07:12'), t(THU, '8443', 'OUI', '08:30'));
+    const after = departures(t(THU, '8441', 'OUI', '07:12'), t(THU, '8443', 'NON', '08:30'));
+
+    const signals = slotSignals(RULE, before, after, TODAY);
+    assert.equal(signals[0]!.kind, 'SLOT_DRAINING');
+    assert.equal(signals[0]!.after_count, 1);
+  });
+
+  it('ignore une baisse qui laisse de quoi choisir', () => {
+    // 9 -> 8 ne demande rien a personne : la rarete decide, pas l'ampleur.
+    const open = (n: number) =>
+      departures(
+        ...Array.from({ length: 9 }, (_, i) =>
+          t(THU, String(8000 + i), i < n ? 'OUI' : 'NON', `0${5 + i}:00`),
+        ),
+      );
+    assert.deepEqual(slotSignals(RULE, open(9), open(8), TODAY), []);
+  });
+
+  /*
+   * Une hausse ne se dit que lorsqu'elle **sort** de la rarete. `1 -> 7` est
+   * une nouvelle, `5 -> 9` n'en est pas une : on avait deja de quoi choisir.
+   */
+  it('signale un creneau qui se remplit depuis la rarete', () => {
+    const open = (n: number) =>
+      departures(
+        ...Array.from({ length: 9 }, (_, i) =>
+          t(THU, String(8000 + i), i < n ? 'OUI' : 'NON', `0${5 + i}:00`),
+        ),
+      );
+
+    const signals = slotSignals(RULE, open(1), open(7), TODAY);
+    assert.equal(signals[0]!.kind, 'SLOT_FILLING');
+    assert.equal(signals[0]!.before_count, 1);
+    assert.equal(signals[0]!.after_count, 7);
+
+    assert.deepEqual(slotSignals(RULE, open(5), open(9), TODAY), []);
+  });
+
+  /*
+   * Une regle recurrente ratisse cinq jeudis d'un coup et n'en designe aucun :
+   * six des neuf ouvertures de creneau de l'archive portaient sur J+14 a J+30,
+   * c'est-a-dire sur le jeudi d'apres le jeudi d'apres.
+   */
+  it('arrete une regle recurrente a l horizon de decision', () => {
+    // Le jeudi d'apres le jeudi suivi : celui que la regle ratisse sans que
+    // personne ne l'ait designe. L'assertion de position le garde honnete — un
+    // fixture qui repasserait sous l'horizon testerait autre chose en silence.
+    const far = addDays(THU, 7);
+    assert.ok(daysBetween(TODAY, far) > DECISION_HORIZON_DAYS);
+    const rule: Watchlist = {
+      watch: [],
+      rules: [{ weekday: 'thu', dir: PB, after: MATIN.after, before: MATIN.before }],
+    };
+    const before = departures(t(far, '8441', 'NON', '07:12'), t(far, '8443', 'NON', '09:30'));
+    const after = departures(t(far, '8441', 'OUI', '07:12'), t(far, '8443', 'OUI', '09:30'));
+
+    assert.deepEqual(slotSignals(rule, before, after, TODAY), []);
+
+    // Mais poser la meme fenetre sur cette date-la est une intention, et elle
+    // passe : personne ne suit le 15/10 par accident.
+    const dated: Watchlist = {
+      watch: [{ date: far, dir: PB, after: MATIN.after, before: MATIN.before }],
+      rules: [],
+    };
+    assert.equal(slotSignals(dated, before, after, TODAY).length, 1);
+  });
+
+  /*
+   * Le tri repond a « faut-il ouvrir l'application maintenant ? », et il reste
+   * deux trains y repond mieux que il y en a huit. Le tri precedent mettait les
+   * ouvertures devant les fontes, ce qui revenait a dire qu'une bonne nouvelle
+   * decide plus qu'une mauvaise.
+   */
+  it('met ce qui devient rare en tete, quel que soit le sens du mouvement', () => {
+    const watchlist: Watchlist = {
+      watch: [
+        { date: THU, dir: PB, after: MATIN.after, before: MATIN.before },
+        { date: THU, dir: PB, after: '19:00', before: '23:59' },
+      ],
+      rules: [],
+    };
+    const before = departures(
+      t(THU, '8441', 'NON', '07:12'),
+      t(THU, '8443', 'NON', '08:30'),
+      t(THU, '8445', 'NON', '09:30'),
+      t(THU, '8901', 'OUI', '19:04'),
+      t(THU, '8903', 'OUI', '20:04'),
+      t(THU, '8905', 'OUI', '21:04'),
+    );
+    const after = departures(
+      t(THU, '8441', 'OUI', '07:12'),
+      t(THU, '8443', 'OUI', '08:30'),
+      t(THU, '8445', 'OUI', '09:30'),
+      t(THU, '8901', 'OUI', '19:04'),
+      t(THU, '8903', 'NON', '20:04'),
+      t(THU, '8905', 'NON', '21:04'),
+    );
+
+    const signals = slotSignals(watchlist, before, after, TODAY);
+    assert.equal(signals.length, 2);
+    assert.equal(signals[0]!.label, 'soir');
+    assert.equal(signals[0]!.after_count, 1);
+    assert.equal(signals[1]!.label, 'matin');
   });
 
   /*

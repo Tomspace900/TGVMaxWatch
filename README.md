@@ -184,7 +184,9 @@ Le diff (`src/diff.ts`) produit trois choses de **mailles differentes**. Toutes
 comptent des **departs**, jamais des rames.
 
 **Des evenements par depart** — `OPEN`, `CLOSE`, `REMOVED` — passes par la
-watchlist. Ce sont les trains explicitement mis en suivi.
+watchlist. Seuls survivent les suivis poses sur une **minute** : ils designent
+un depart, et c'est son horaire qu'on veut lire. Une periode ou une journee est
+un creneau, et un creneau parle par son compte, plus bas.
 
 **Des signaux par (date, sens)** — la maille a laquelle on decide de partir.
 Ils **contournent la watchlist** : ils ne dependent d'aucune preference.
@@ -203,13 +205,23 @@ deux alertes universelles.
 | Signal | Condition | Constantes |
 |---|---|---|
 | `SLOT_OPENED` | la veille 0 dans la fenetre, aujourd'hui ≥ 1 | `SLOT_OPEN_MIN_TRAINS = 1` |
-| `SLOT_DRAINING` | perte ≥ 2 **et** il en reste 1 ou 2 | `SLOT_DRAIN_MIN_DROP = 2`, `SLOT_DRAIN_MAX_LEFT = 2` |
+| `SLOT_FILLING` | hausse ≥ 2 **depuis** 3 trains ou moins | `SLOT_FILL_MIN_RISE = 2`, `SLOT_FILL_MAX_BEFORE = 3` |
+| `SLOT_DRAINING` | baisse, quelle qu'elle soit, et il en reste ≤ 2 | `SLOT_SCARCE_MAX_LEFT = 2` |
+| `SLOT_CLOSED` | il n'en reste plus aucun | — |
 
 Les seuils d'un creneau sont plus bas que ceux d'une journee, et c'est mesure :
 un creneau est **vide la plupart du temps** — 65 % a midi, 63 % le soir, 56 %
 l'apres-midi, 39 % le matin. « Il s'ouvre » est donc l'evenement frequent et
 actionnable, et un seul train suffit a le declencher : ce qu'on veut savoir est
 qu'il devient possible, pas qu'il devient confortable.
+
+C'est la **rarete** qui decide d'une baisse, pas son ampleur, et c'est la sortie
+de la rarete qui decide d'une hausse. L'ancienne regle exigeait une chute d'au
+moins deux **et** deux restants au plus : `2 → 1` a deux jours du depart ne
+passait pas, alors que c'est exactement la nouvelle qu'on attend. Mesure sur les
+vingt diffs de l'archive : **25 mouvements** de creneau suivi dans les quatorze
+jours, dont **5 seulement** passaient l'ancienne regle. Symetriquement `5 → 9`
+ne dit rien — on avait deja de quoi choisir.
 
 Le compte d'un creneau porte sur **tous** ses trains, ouverts ou non. Sinon un
 creneau a zero n'a pas de cle, et la transition « 0 vers quelque chose » ne peut
@@ -219,19 +231,38 @@ mesure faite pour calibrer ces seuils.
 
 Un signal de creneau **absorbe** les evenements de train qu'il contient
 (`isCoveredBySlot`) : sans quoi « le matin du 18 s'ouvre » serait suivi des trois
-horaires qui l'ont ouvert. La maille du message suit la maille du suivi.
+horaires qui l'ont ouvert. La maille du message suit la maille du suivi — et
+l'absorption se fait maintenant des `filterEvents`, donc **meme quand le creneau
+n'a produit aucun signal**. Sinon un mouvement sous le seuil laissait repasser
+les memes trains un cran plus bas : le 14/09, `5 → 9` etait volontairement tu et
+le message affichait quand meme les quatre horaires. Le seuil ne servait a rien,
+il deplacait la ligne.
+
+**L'horizon de decision** (`DECISION_HORIZON_DAYS = 14`) borne les signaux
+generaux et les creneaux venus d'une **regle recurrente**. Mesure sur les vingt
+diffs de l'archive : **8 des 11** `REOPENED` portent sur J+21 a J+30, et
+**aucun** sur J+0 a J+2 ; de meme **6 des 9** ouvertures de creneau. C'est la
+mecanique de l'horizon — une date y entre a zero place et se remplit le
+lendemain, toutes les dates le font, tous les jours — donc un evenement
+previsible, donc un fond. Ce n'est pas un filtre de preference : les deux
+alertes universelles continuent de ne consulter aucune watchlist, elles
+regardent seulement a quelle distance elles parlent.
+
+Un suivi **date** y echappe, une regle non. Poser un suivi sur une date precise
+est une intention, et personne ne suit le 15/10 par accident ; une regle ratisse
+cinq jeudis d'un coup et n'en designe aucun.
 
 Les seuils viennent de l'archive reelle, pas d'une intuition. Mesure sur le diff
 du 1er au 3 septembre : notifier chaque train qui s'ouvre donne **12 a 13 lignes
 par jour**, soit un message tronque quotidien et un canal mort en trois semaines.
-Ces deux regles en donnent **une a quatre**, toutes actionnables.
+Ces regles en donnent **une a trois**, toutes actionnables.
 
-Rejoues apres le passage de la rame au depart, les seuils tiennent tels quels :
-sur les six paires de snapshots disponibles, les deux unites tirent les memes
-signaux **a une exception pres**, un 6 → 3 rames qui est 5 → 3 departs et cesse
-donc de declencher `DRAINING`. C'est le bon comportement — une des trois rames
-perdues doublait un depart dont l'autre rame est restee ouverte, et le signal
-annoncait une perte plus grande que la realite.
+Rejoues apres le passage de la rame au depart, les seuils de journee tiennent
+tels quels : sur les six paires de snapshots disponibles, les deux unites tirent
+les memes signaux **a une exception pres**, un 6 → 3 rames qui est 5 → 3 departs
+et cesse donc de declencher `DRAINING`. C'est le bon comportement — une des
+trois rames perdues doublait un depart dont l'autre rame est restee ouverte, et
+le signal annoncait une perte plus grande que la realite.
 
 **Le pari initial du projet etait faux.** Le plan misait sur l'entree d'une date
 a J+30, supposee arriver avec dix a quinze trains. Les quatre dates mesurees sont
@@ -240,15 +271,26 @@ lendemain. L'alerte batie dessus exigeait `oui > 0` a l'entree : elle ne pouvait
 litteralement jamais partir. On regarde donc la **transition**, jamais l'entree.
 
 **Le message** (`src/notify.ts`) : un seul par execution, six lignes maximum puis
-« +N autres », plafonne a 3 500 octets. **Le budget se prend sur les signaux
-generaux, jamais sur ce qui a ete suivi** : un evenement de train ne survit a
-`filterEvents` que parce qu'on a demande a suivre cette fenetre, et il passait
-pourtant apres des dates que personne n'a demandees. Mesure sur l'archive : le
-03/09, deux lignes coupees, les deux suivies, pendant que quatre signaux
-generaux occupaient la place. Chaque ligne porte le **sens** — la seule
-chose qu'on ne peut pas deviner — et l'**avant/apres** : « 9 trains hier, 2
-aujourd'hui » decide, « 7 trains partis » non. Les suppressions de train ne sont
-jamais poussees, trop de bruit pour leur interet.
+« +N autres », plafonne a 3 500 octets. L'ordre est celui de ce qui a ete
+demande — creneaux suivis, puis trains suivis, puis alertes generales — et **le
+titre est la premiere ligne**, jamais un resume fabrique a cote. Il annoncait un
+total, « 7 trains ouverts », des que le message ne portait que des evenements de
+train : mesure sur les vingt diffs de l'archive, les **25** mouvements de creneau
+suivi dans les quatorze jours etaient tous dans le corps et **2 seulement** dans
+le titre — sur un ecran verrouille, c'est-a-dire nulle part.
+
+**Le budget se prend sur les signaux generaux, jamais sur ce qui a ete suivi** :
+un evenement de train ne survit a `filterEvents` que parce qu'on a demande a
+suivre ce depart, et il passait pourtant apres des dates que personne n'a
+demandees. Mesure sur l'archive : le 03/09, deux lignes coupees, les deux
+suivies, pendant que quatre signaux generaux occupaient la place. Chaque ligne
+porte le **sens** — la seule chose qu'on ne peut pas deviner — et
+l'**avant/apres** : « 1 → 7 trains » decide, « 7 trains ouverts » non. Les
+suppressions de train ne sont jamais poussees, trop de bruit pour leur interet.
+
+Rejoue sur les vingt diffs de l'archive avec la watchlist courante, l'ensemble
+donne **13 messages sur 20 jours** au lieu de 20, **2,6 lignes** par message au
+lieu de 4, et un titre qui nomme une date, un sens et un compte a chaque fois.
 
 **L'envoi** passe par le service Expo Push, signe avec `EXPO_TOKEN`. Le job cron
 *est* le backend d'envoi.
@@ -326,15 +368,22 @@ s'ouvre pleine dans un train sans reseau.
 
 ### Ce qu'elle fait toute seule
 
-- **Rappel de confirmation** : deux notifications locales la veille d'un voyage
-  enregistre, a 10 h (`CONFIRM_REMINDER_HOUR`) et a 15 h
-  (`CONFIRM_LAST_CALL_HOUR`), pour une echeance a 17 h. Un creneau enregistre
-  apres 15 h n'a plus aucun de ces deux instants devant lui : il recoit alors un
-  rappel unique un quart d'heure avant l'echeance (`CONFIRM_LAST_MINUTES_BEFORE`)
-  — le filet **remplace** les deux prevus, il ne s'y ajoute pas. Annulees par le
-  geste « c'est confirme » ou la liberation du creneau. Reconciliees au
-  demarrage, **rappel par rappel** : un creneau dont celui de 10 h est deja
-  parti garde celui de 15 h sans que le premier ne se rejoue.
+- **Rappel de confirmation** : trois notifications locales pour une echeance a
+  17 h. La premiere a l'**ouverture** de la fenetre de confirmation, l'avant-veille
+  (`CONFIRM_OPEN_DAYS_BEFORE`, `CONFIRM_OPEN_REMINDER_HOUR`), puis deux la veille,
+  a 10 h (`CONFIRM_REMINDER_HOUR`) et a 15 h (`CONFIRM_LAST_CALL_HOUR`). Celle de
+  l'ouverture est la seule qui puisse **retirer le sujet de la tete** : confirmer
+  annule tout le reste, et un voyage enregistre a l'avance ne coute alors qu'un
+  seul message. Son instant est le **plus tard** de 19 h l'avant-veille et de
+  l'ouverture des 48 h — pour un train du soir, le premier tombe encore avant le
+  second, et un rappel avant que l'action soit possible n'est pas un rappel.
+  Un creneau enregistre apres 15 h n'a plus aucun de ces instants devant lui : il
+  recoit alors un rappel unique un quart d'heure avant l'echeance
+  (`CONFIRM_LAST_MINUTES_BEFORE`) — le filet **remplace** les trois prevus, il ne
+  s'y ajoute pas. Annulees par le geste « c'est confirme » ou la liberation du
+  creneau. Reconciliees au demarrage, **rappel par rappel** : un creneau dont
+  celui de 10 h est deja parti garde celui de 15 h sans que le premier ne se
+  rejoue.
 - **Alarme de fraicheur** : reposee a chaque rafraichissement reussi a
   `collectedAt + 40 h` (`STALE_ALARM_HOURS`). Tant que la donnee arrive,
   l'echeance recule. **C'est le seul dispositif capable de signaler une collecte

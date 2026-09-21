@@ -69,6 +69,12 @@ pastilles, les **bornes réelles** du créneau choisi : « 05:00 – 12:00 ». L
 raccourci ne cache jamais ce qu'il fait, et c'est là qu'on voit le
 recouvrement d'une heure entre deux périodes voisines.
 
+Une règle régulière ne te prévient que pour les **deux semaines qui viennent** :
+elle couvre cinq jeudis d'un coup, et le jeudi d'après le jeudi d'après n'est
+pas encore une décision. Quand tu sais déjà que c'est *ce* jeudi-là qui compte,
+pose le créneau depuis l'écran de ce jour — pastille « matin », « soir »… : ce
+suivi-là est daté, donc voulu, et il te prévient à n'importe quelle distance.
+
 **4. Tes réservations**, quand tu en as. Une ligne par voyage à venir, avec le
 sens et l'état de la confirmation. Balaie vers la droite pour retirer une
 réservation annulée. Les voyages passés n'y sont plus affichés : ils ne
@@ -224,28 +230,59 @@ sur l'accueil, là où tu es quand ils comptent.
 ## Quand tu es prévenu
 
 Tu reçois **au plus une notification par collecte**, soit une par jour. Elle
-regroupe tout ce qui s'est passé.
+regroupe tout ce qui s'est passé, et le plus souvent elle n'a qu'une ou deux
+lignes.
 
-**En tête, ce que tu suis.** Si un créneau que tu suis — « les jeudis matin » —
-passe de rien à quelque chose, ou se vide alors qu'il n'en restait presque plus,
-c'est la première ligne du message et c'est elle qui donne le titre :
-« 17/09 Paris → Bordeaux matin : 3 trains ». Les horaires qui ont ouvert le
-créneau ne sont pas répétés en dessous : tu as demandé à suivre un créneau, on
-te prévient pour un créneau. Touche la notification pour voir lesquels.
+**Le titre nomme ce que tu suis, toujours.** C'est la seule chose que tu lis sur
+un écran verrouillé, et elle porte désormais une date, un sens et un compte :
+« jeu 24/09 Bordeaux → Paris matin : 1 → 7 trains ». Avant, ce même message
+s'appelait « 7 trains ouverts » et le jeudi matin était trois lignes plus bas.
+
+**En tête, ce que tu suis.** Un créneau que tu suis — « les jeudis matin » —
+donne une ligne dès qu'il bouge pour de bon, avec quatre mots selon ce qui
+arrive :
+
+- **il s'ouvre** — il n'y avait rien, il y a au moins un train ;
+- **il se remplit** — il en restait deux ou trois, il en arrive au moins deux de
+  plus ;
+- **il se vide** — il en reste deux ou moins ;
+- **il se ferme** — il n'en reste plus aucun, va voir un autre jour.
+
+Les horaires ne sont pas répétés en dessous : tu as demandé à suivre un créneau,
+on te prévient pour un créneau. Touche la notification pour voir lesquels. Un
+suivi posé sur **un train précis**, lui, te donne son heure — c'est ce train-là
+que tu as demandé.
 
 Un créneau est vide la plupart du temps — 65 % à midi, 63 % le soir — donc
 « il s'ouvre » se déclenche dès **un** train : ce qu'on veut savoir, c'est qu'il
-devient possible.
+devient possible. Et une baisse se dit dès qu'il n'en reste presque plus, même
+si elle n'est que d'un train : `2 → 1` à deux jours du départ est exactement ce
+qu'on attend d'être prévenu.
 
-Ensuite, trois raisons de te déranger même sans rien suivre :
+**Rien au-delà de deux semaines**, sauf pour les dates que tu as suivies une par
+une. Une journée qui entre dans la fenêtre des trente jours arrive toujours vide
+et se remplit le lendemain : trois quarts des « telle date rouvre » portaient sur
+des voyages à trois semaines, c'est-à-dire sur une mécanique et pas sur une
+nouvelle. Une règle du type « tous les jeudis » ratisse cinq jeudis d'un coup ;
+suivre une date précise, au contraire, est une intention, et celle-là n'est
+jamais masquée.
+
+Ensuite, deux raisons de te déranger même sans rien suivre — et elles ne passent
+jamais devant ce que tu suis :
 
 1. **Une date rouvre.** Une journée qui n'avait plus un seul train en a de
    nouveau au moins cinq. C'est le moment où le choix est le plus large.
-2. **Un créneau se vide.** Une journée a perdu au moins trois trains et il en
+2. **Une date se vide.** Une journée a perdu au moins trois trains et il en
    reste trois ou moins. Autrement dit : ça part, et il faut décider maintenant.
-3. **Un créneau que tu suis a bougé.**
 
-Les deux premières partent toujours, même si tu ne suis rien.
+Les deux partent toujours, même si tu ne suis rien — mais seulement pour des
+voyages dans les deux semaines.
+
+**Ce que l'application ne te dira pas.** Un créneau qui ne bouge pas ne produit
+rien. Si ton lundi soir a deux trains ouverts et les garde pendant trois
+semaines, tu ne recevras aucun message à son sujet : l'application signale ce qui
+**change**, pas ce qui est. Pour l'état d'un créneau, l'écran d'accueil le montre
+en permanence.
 
 **Trois canaux Android séparés** : les disponibilités, le rappel de
 confirmation, et la panne de collecte. Tu peux en couper un dans les réglages
@@ -254,15 +291,19 @@ alertes.
 
 **Deux autres alertes, qui viennent du téléphone et pas d'internet :**
 
-- **Le rappel de confirmation**, la veille d'un voyage enregistré. Une
-  réservation MAX JEUNE non confirmée avant 17 h la veille est perdue, et la
-  confirmation n'ouvre que 48 h avant le départ : tu as donc une journée pleine
-  pour le faire, et c'est cette journée-là que le rappel couvre. Il part **à
-  10 h**, puis **une seconde fois à 15 h** si tu n'as pas encore dit « c'est
-  fait » — un rappel ne part qu'une fois, et une notification lue à 10 h dans un
-  couloir n'existe plus à 16 h. Si tu enregistres une réservation la veille
-  après 15 h, un rappel unique part un quart d'heure avant l'échéance plutôt que
-  rien du tout. Le message ouvre directement la page de confirmation SNCF.
+- **Le rappel de confirmation.** Une réservation MAX JEUNE non confirmée avant
+  17 h la veille est perdue, et la confirmation n'ouvre que 48 h avant le départ :
+  tu as donc deux soirées et une journée pour le faire, et ce sont elles que les
+  rappels couvrent. **Le premier part dès que la fenêtre ouvre**, l'avant-veille
+  au soir : c'est celui qui te débarrasse du sujet, puisque dire « c'est fait »
+  éteint tous les suivants — un voyage enregistré à l'avance ne te coûte alors
+  qu'un seul message. Pour un train du soir, il attend l'ouverture réelle des
+  48 h plutôt que de te demander un geste encore impossible. Puis il y en a un
+  **à 10 h** la veille, et **un dernier à 15 h** si tu n'as toujours rien dit —
+  une notification lue à 10 h dans un couloir n'existe plus à 16 h. Si tu
+  enregistres une réservation la veille après 15 h, un rappel unique part un
+  quart d'heure avant l'échéance plutôt que rien du tout. Le message ouvre
+  directement la page de confirmation SNCF.
   **Dans les 48 h qui
   précèdent le départ** — c'est-à-dire dès que la confirmation devient
   possible, et pas avant — l'application la met aussi **en haut de l'écran

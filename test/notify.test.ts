@@ -44,37 +44,52 @@ describe('construction du message', () => {
    * 0/33, 0/29 — et se sont remplies le lendemain : la condition n'etait jamais
    * vraie. C'est donc la transition qu'on regarde.
    */
-  it('met le signal de date devant les evenements de train', () => {
+  it('met les trains suivis devant les alertes generales', () => {
     const notification = buildNotification(
       [event('OPEN', '2026-10-17', '8441')],
       [signal('REOPENED', '2026-11-16', 0, 10)],
     )!;
 
-    assert.match(notification.title, /lun 16\/11 Paris → Bordeaux rouvre : 10 trains/);
-    const [heading, first] = notification.body.split('\n');
-    assert.equal(heading, 'Paris → Bordeaux');
-    assert.equal(first, '🟢 rouvre lun 16/11 : 0 → 10 trains');
-    assert.match(notification.url, /date=2026-11-16/);
+    // Un evenement de train n'arrive ici que parce qu'on a demande a suivre ce
+    // depart ; une alerte generale part pour tout le monde. Elle passait
+    // pourtant devant, et prenait donc le titre : mesure sur l'archive, 23 des
+    // 25 mouvements de creneau suivi etaient dans le corps et pas dans le
+    // titre, sous une alerte portant une date a trois semaines.
+    assert.equal(notification.title, 'sam 17/10 16:12 Paris → Bordeaux : ouvert');
+    assert.deepEqual(notification.body.split('\n'), [
+      'Paris → Bordeaux',
+      '🟢 sam 17/10 16:12',
+      '🟢 rouvre lun 16/11 : 0 → 10 trains',
+    ]);
+    assert.match(notification.url, /date=2026-10-17/);
   });
 
   it('nomme la date et le sens plutot qu un total', () => {
     const notification = buildNotification([], [signal('DRAINING', '2026-09-30', 9, 2, BP)])!;
-    assert.match(notification.title, /mer 30\/09 Bordeaux → Paris : plus que 2 trains/);
+    assert.equal(notification.title, 'mer 30/09 Bordeaux → Paris se vide : 9 → 2 trains');
   });
 
   it('accorde le singulier quand il ne reste qu un train', () => {
     const notification = buildNotification([], [signal('DRAINING', '2026-09-30', 5, 1)])!;
-    assert.match(notification.title, /plus que 1 train$/);
+    assert.match(notification.title, /5 → 1 train$/);
     assert.match(notification.body, /5 → 1 train/);
   });
 
-  it('agrege le titre au-dela d un signal, sans perdre les lignes', () => {
+  /*
+   * Le titre **est** la premiere ligne, jamais un compte fabrique a cote.
+   *
+   * « 2 dates rouvrent » ne disait ni laquelle, ni dans quel sens, ni combien :
+   * c'est-a-dire rien de ce qui decide, sur la seule chose qu'on lit d'un ecran
+   * verrouille. Deux facons de nommer le meme fait finissent toujours par en
+   * nommer deux differents ; ici la seconde etait vide.
+   */
+  it('ne resume jamais plusieurs signaux en un compte', () => {
     const notification = buildNotification(
       [],
       [signal('REOPENED', '2026-11-16', 0, 10), signal('REOPENED', '2026-11-17', 0, 7)],
     )!;
 
-    assert.match(notification.title, /2 dates rouvrent/);
+    assert.equal(notification.title, 'lun 16/11 Paris → Bordeaux rouvre : 0 → 10 trains');
     // Deux lignes de detail, et un seul en-tete : les deux partagent le sens.
     assert.deepEqual(notification.body.split('\n'), [
       'Paris → Bordeaux',
@@ -127,13 +142,13 @@ describe('construction du message', () => {
       [signal('DRAINING', '2026-09-30', 9, 2, BP)],
     )!;
 
-    // Le signal passe devant l'evenement de train, donc le sens change en
+    // Le train suivi passe devant l'alerte generale, donc le sens change en
     // cours de route : l'en-tete se reecrit plutot que de regrouper.
     assert.deepEqual(notification.body.split('\n'), [
-      'Bordeaux → Paris',
-      '🟠 se vide mer 30/09 : 9 → 2 trains',
       'Paris → Bordeaux',
       '🟢 sam 17/10 16:12',
+      'Bordeaux → Paris',
+      '🟠 se vide mer 30/09 : 9 → 2 trains',
     ]);
   });
 
@@ -272,7 +287,7 @@ describe('buildNotification, creneaux suivis', () => {
       after: 12,
     };
     const notification = buildNotification([], [general], [slot])!;
-    assert.equal(notification.title, 'jeu 17/09 Paris → Bordeaux matin : 3 trains');
+    assert.equal(notification.title, 'jeu 17/09 Paris → Bordeaux matin : 0 → 3 trains');
     assert.match(notification.body.split('\n')[1]!, /^🟢 ouvre jeu 17\/09/);
   });
 
@@ -302,7 +317,25 @@ describe('lisibilite du message', () => {
     const notification = buildNotification([event('OPEN', '2026-09-14', '8401')], [])!;
     // « le 14 » ne decide rien : c'est « lundi » qui dit si le voyage est possible.
     assert.match(notification.body, /lun 14\/09/);
-    assert.match(notification.title, /1 train ouvert/);
+    assert.match(notification.title, /lun 14\/09/);
+  });
+
+  /*
+   * « 7 trains ouverts » etait le titre du 21/09 : indiscernable du bruit sur
+   * un ecran verrouille, alors que la ligne juste en dessous disait que le
+   * jeudi matin venait de passer de 1 a 7 trains a trois jours du depart.
+   */
+  it('nomme le depart plutot qu un total, sur un train seul', () => {
+    const notification = buildNotification([event('OPEN', '2026-09-14', '8401', '07:12')], [])!;
+    assert.equal(notification.title, 'lun 14/09 07:12 Paris → Bordeaux : ouvert');
+  });
+
+  it('nomme la date et le sens plutot qu un total, sur plusieurs trains', () => {
+    const notification = buildNotification(
+      ['07:12', '08:11', '10:11'].map((depart) => event('OPEN', '2026-09-14', '8401', depart)),
+      [],
+    )!;
+    assert.equal(notification.title, 'lun 14/09 Paris → Bordeaux : 3 trains ouverts');
   });
 
   it('remplace « parti » par une marque, au lieu de repeter le titre', () => {
@@ -310,7 +343,7 @@ describe('lisibilite du message', () => {
 
     // Le titre disait deja « parti », la ligne le redisait : la marque prend sa
     // place plutot que de s'y ajouter.
-    assert.match(notification.title, /1 train parti/);
+    assert.match(notification.title, /: parti$/);
     assert.equal(notification.body.includes('parti'), false);
     assert.match(notification.body, /^Paris → Bordeaux\n⚫ lun 14\/09/);
   });

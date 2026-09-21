@@ -124,7 +124,7 @@ async function notify(
     `[collect] ${events.length} evenements, ${signals.length} signaux, ${slots.length} creneaux suivis`,
   );
 
-  const watched = filterEvents(watchlist, events);
+  const watched = filterEvents(watchlist, events, today);
 
   const notification = buildNotification(watched, signals, slots);
   if (!notification) {
