@@ -594,6 +594,77 @@ quelque chose » ne peut litteralement jamais etre observee — c'est exactement
 l'erreur que `filterNewDates` avait deja faite a l'echelle de la date, et elle
 s'est reproduite dans la premiere mesure faite pour calibrer ces seuils.
 
+**Un signal qu'on detecte mais qu'on ne met pas en titre n'existe pas.** Mesure
+sur les vingt diffs de l'archive, avec la watchlist reelle : les creneaux suivis
+ont bouge **25 fois** dans les quatorze jours, les 25 mouvements etaient dans le
+corps du message, et **2 seulement** dans le titre. Le 21/09, le jeudi matin
+passait de 1 a 7 trains a trois jours du depart ; le titre disait « 7 trains
+ouverts ». Sur un ecran verrouille on ne lit que le titre, donc le message etait
+indiscernable du bruit et se balayait. La detection n'etait pas en cause, et
+c'est le piege : ajouter des signaux aurait aggrave un probleme de hierarchie.
+Le titre **est** desormais la premiere ligne du message, jamais un resume
+fabrique a cote — deux facons de nommer le meme fait finissent toujours par en
+nommer deux differents, et ici la seconde etait vide.
+
+**Un evenement qui se produit systematiquement est un fond, pas une nouvelle.**
+`DECISION_HORIZON_DAYS` borne a quatorze jours les signaux generaux et les
+creneaux venus d'une regle. Mesure : **8 des 11** `REOPENED` de l'archive
+portent sur J+21 a J+30 et **aucun** sur J+0 a J+2 ; **6 des 9** ouvertures de
+creneau sont au-dela de deux semaines. C'est la mecanique de l'horizon glissant
+— une date y entre a zero place et se remplit le lendemain, toutes les dates le
+font, tous les jours. Ce n'est pas un filtre de preference, et la regle
+au-dessus tient toujours : les deux alertes universelles ne consultent aucune
+watchlist, elles regardent seulement a quelle distance elles parlent.
+
+Corollaire : **une entree datee est une intention, une regle recurrente n'en est
+pas une.** Personne ne suit le 07:12 du 15/10 par accident ; une regle « tous les
+jeudis » ratisse cinq jeudis et n'en designe aucun. La borne s'applique donc a
+la seconde et jamais a la premiere. Et le besoin reel — « la semaine prochaine
+je rentre jeudi soir » — se pose en suivi **date**, pas en regle : les regles
+sont pour ce qui est vraiment hebdomadaire.
+
+**Un seuil qui ne fait que deplacer la ligne ne filtre rien.** `isCoveredBySlot`
+n'absorbait les trains d'un creneau suivi **que lorsque ce creneau produisait un
+signal**. Un mouvement sous le seuil laissait donc repasser exactement les memes
+trains un cran plus bas, a la maille de l'horaire, ou ils sont moins lisibles :
+le 14/09, « jeu 17/09 matin 5 → 9 » etait volontairement tu — on avait deja de
+quoi choisir — et le message affichait `05:18 06:58 09:46 10:17`. La separation
+se fait desormais dans `filterEvents`, la ou l'on sait de quelle maille est le
+suivi : une minute designe un depart et donne son horaire, tout le reste est un
+creneau et donne son compte.
+
+**La rarete decide d'une baisse, la sortie de la rarete decide d'une hausse.**
+L'ancienne regle de creneau exigeait une chute d'au moins deux **et** deux
+restants au plus : `2 → 1` a deux jours du depart ne passait pas, alors que
+c'est exactement la nouvelle qu'on attend. Sur les 25 mouvements mesures, **5**
+passaient. Symetriquement, `5 → 9` ne dit rien et `1 → 7` tout : une hausse
+n'apprend quelque chose que si elle part de la rarete. Quatre verbes pour quatre
+etats — ouvre, se remplit, se vide, se ferme — parce qu'un creneau qui tombe a
+zero n'est pas un creneau qui se vide : il n'y a plus rien a en attendre, et
+c'est ce qui fait regarder un autre jour.
+
+**Ce qu'on ne repare pas, et c'est un choix.** Un creneau suivi dont le compte
+ne bouge jamais reste muet : le `lun 19:00-23:59` de la watchlist a **2 trains
+ouverts tous les jours, sur les quatre lundis, pendant vingt et un jours**, donc
+zero notification depuis toujours. Le filet manquant serait un rappel
+d'echeance — « J-2, ton lundi soir a 2 trains, decide » — et non un rappel de
+changement. Il a ete propose et **ecarte** le 2026-09-21 : cote collecteur il
+relancerait sur un creneau deja reserve, puisque les reservations ne quittent
+pas l'appareil, et cote appareil il afficherait un compte vieux du dernier
+rafraichissement. A rouvrir si le besoin revient — l'appareil est le bon endroit,
+comme pour le rappel de confirmation.
+
+**Un rappel qui ne peut pas retirer le sujet de la tete en produira d'autres.**
+Les deux rappels de confirmation etaient tous deux la veille, 10 h et 15 h,
+alors que la fenetre ouvre 48 h avant le depart : une journee entiere pendant
+laquelle le geste etait possible et rien ne le disait. Un troisieme rappel a
+l'ouverture change le compte dans l'autre sens — confirmer annule tous les
+suivants, donc un voyage enregistre a l'avance ne coute qu'**un seul** message
+au lieu de deux ou trois. Son instant est le plus tard de 19 h l'avant-veille et
+de l'ouverture reelle des 48 h : pour un train du soir, le premier tombe encore
+avant le second, et la regle « un rappel avant que l'action soit possible n'est
+pas un rappel » ne souffre pas d'exception.
+
 **La maille du message suit la maille du suivi.** Un suivi pose sur une minute
 designe un train : c'est l'evenement de train qui le porte. Un suivi pose sur
 une fenetre designe un creneau : c'est le signal de creneau, et `isCoveredBySlot`
@@ -883,7 +954,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 150 tests sur fixtures, aucun acces reseau
+npm test              # 160 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 

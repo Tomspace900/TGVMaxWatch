@@ -1,6 +1,9 @@
 import {
   CONFIRM_DAYS_BEFORE,
   CONFIRM_DEADLINE_HOUR,
+  CONFIRM_OPEN_DAYS_BEFORE,
+  CONFIRM_OPEN_REMINDER_HOUR,
+  CONFIRM_WINDOW_HOURS,
   STATION_LABELS,
   WATCH_GRACE_HOURS,
 } from '../../src/config.ts';
@@ -144,6 +147,39 @@ export function eveOf(travelDate: string, hour: number): Date {
 /** Echeance de confirmation d'un voyage : passe cette heure, la place est perdue. */
 export function confirmDeadline(travelDate: string): Date {
   return eveOf(travelDate, CONFIRM_DEADLINE_HOUR);
+}
+
+/**
+ * Instant ou la confirmation devient possible, et ou l'on veut l'entendre.
+ *
+ * Deux bornes, et c'est la plus tardive qui gagne. La fenetre de confirmation
+ * n'ouvre que `CONFIRM_WINDOW_HOURS` avant le depart : pour un train du soir,
+ * 19 h l'avant-veille tombe **avant** cette ouverture, et un rappel qui demande
+ * une action encore impossible n'est pas un rappel — c'est la regle que la
+ * carte de confirmation applique deja, et elle vaut a plus forte raison pour un
+ * message qu'on lit sur un ecran verrouille.
+ *
+ * Construit avec le constructeur local, comme `eveOf` et pour la meme raison :
+ * l'heure qui compte ici est celle de la montre.
+ */
+export function confirmOpens(travelDate: string, depart: string): Date {
+  const [year = '0', month = '0', day = '0'] = addDays(
+    travelDate,
+    -CONFIRM_OPEN_DAYS_BEFORE,
+  ).split('-');
+  const evening = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    CONFIRM_OPEN_REMINDER_HOUR,
+    0,
+    0,
+    0,
+  );
+  const opens = new Date(
+    departureInstant(travelDate, depart).getTime() - CONFIRM_WINDOW_HOURS * 3_600_000,
+  );
+  return evening.getTime() >= opens.getTime() ? evening : opens;
 }
 
 /**

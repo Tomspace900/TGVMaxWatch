@@ -1,4 +1,5 @@
-import { timeToMinutes, weekdayKey } from './dates.ts';
+import { DECISION_HORIZON_DAYS } from './config.ts';
+import { daysBetween, timeToMinutes, weekdayKey } from './dates.ts';
 import type { TrainEvent, WatchEntry, Watchlist, WatchRule } from './types.ts';
 
 interface Candidate {
@@ -53,19 +54,54 @@ export function withinWindow(
 }
 
 /**
+ * Vrai pour une fenetre posee sur une minute : elle ne designe qu'un train.
+ *
+ * C'est la frontiere entre les deux mailles du message. Une minute designe un
+ * depart, et c'est son horaire qu'on veut lire. Tout le reste — une periode,
+ * une journee — designe un creneau, et c'est son **compte** qu'on veut lire.
+ */
+function isMinute(window: { after?: string; before?: string }): boolean {
+  return window.after !== undefined && window.after === window.before;
+}
+
+/**
  * Evenements de train retenus par la watchlist.
  *
- * C'est desormais le **seul** usage de la watchlist dans les notifications :
- * les creneaux qu'on a explicitement mis en suivi. Les deux autres alertes —
- * une date qui rouvre, un creneau qui se vide — ne dependent d'aucune
- * preference et ne passent pas par ici. Les melanger etait le defaut d'origine :
- * une regle taillee pour amortir le bruit des ouvertures de train reduisait au
- * silence, six jours sur sept, un signal qui n'en produisait aucun.
+ * Seuls les suivis poses sur une minute survivent ici. Les autres — une
+ * periode, une journee — sont des creneaux, et un creneau parle par son compte
+ * dans `slotSignals`, jamais par la liste de ses horaires.
+ *
+ * `isCoveredBySlot` faisait deja cette absorption, mais **seulement quand le
+ * creneau produisait un signal**. Un mouvement sous le seuil laissait donc
+ * repasser les memes trains un cran plus bas : le 14/09, « jeu 17/09 matin
+ * 5 → 9 » etait volontairement tu — on avait deja de quoi choisir — et le
+ * message affichait quand meme `05:18 06:58 09:46 10:17`. Le seuil ne servait a
+ * rien, il deplacait la ligne. C'est ici que la separation se fait, parce que
+ * c'est ici que l'on sait de quelle maille est le suivi.
+ *
+ * C'est aussi le **seul** usage de la watchlist dans les notifications : les
+ * deux alertes generales ne passent pas par ici et ne dependent d'aucune
+ * preference. Les melanger etait le defaut d'origine — une regle taillee pour
+ * amortir le bruit des ouvertures de train reduisait au silence, six jours sur
+ * sept, un signal qui n'en produisait aucun.
+ *
+ * Une entree datee ignore l'horizon de decision : la poser est une intention,
+ * et personne ne suit le 07:12 du 15/10 par accident. Une regle, elle, ratisse
+ * cinq jeudis d'un coup et n'en designe aucun.
  */
-export function filterEvents(watchlist: Watchlist, events: TrainEvent[]): TrainEvent[] {
-  return events.filter((event) =>
-    matchesWatchlist(watchlist, { date: event.date, dir: event.dir, depart: event.depart }),
-  );
+export function filterEvents(
+  watchlist: Watchlist,
+  events: TrainEvent[],
+  today: string,
+): TrainEvent[] {
+  return events.filter((event) => {
+    const candidate = { date: event.date, dir: event.dir, depart: event.depart };
+    if (watchlist.watch.some((entry) => isMinute(entry) && matchesEntry(entry, candidate))) {
+      return true;
+    }
+    if (daysBetween(today, event.date) > DECISION_HORIZON_DAYS) return false;
+    return watchlist.rules.some((rule) => isMinute(rule) && matchesRule(rule, candidate));
+  });
 }
 
 /**

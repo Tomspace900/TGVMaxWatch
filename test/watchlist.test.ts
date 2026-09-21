@@ -9,11 +9,16 @@ import {
   setRule,
   setWatch,
 } from '../src/watchlist.ts';
+import { DECISION_HORIZON_DAYS } from '../src/config.ts';
+import { addDays, weekdayKey } from '../src/dates.ts';
 import { diffSnapshots } from '../src/diff.ts';
 import { BP, PB, departures, t } from './helpers.ts';
 import type { Watchlist } from '../src/types.ts';
 
 const EMPTY: Watchlist = { watch: [], rules: [] };
+
+/** Cadre du diff : les dates de voyage des tests lui sont posterieures. */
+const TODAY = '2026-10-10';
 
 describe('filtrage par la watchlist', () => {
   it('ne laisse rien passer quand la watchlist est vide', () => {
@@ -67,23 +72,64 @@ describe('filtrage par la watchlist', () => {
     );
   });
 
-  it('ne retient que les evenements surveilles', () => {
+  /*
+   * Seule une fenetre posee sur une minute survit ici : elle designe un depart,
+   * et c'est son horaire qu'on veut lire. Une periode ou une journee est un
+   * creneau, et un creneau parle par son compte dans `slotSignals`.
+   *
+   * `isCoveredBySlot` faisait deja cette absorption, mais **seulement quand le
+   * creneau produisait un signal**. Un mouvement sous le seuil laissait donc
+   * repasser les memes trains un cran plus bas : le 14/09, « jeu 17/09 matin
+   * 5 -> 9 » etait volontairement tu et le message affichait quand meme les
+   * quatre horaires. Le seuil ne servait a rien, il deplacait la ligne.
+   */
+  it('ne retient que les suivis poses sur une minute', () => {
     const before = departures(
       t('2026-10-16', '8441', 'NON', '18:00', PB),
-      t('2026-10-17', '8443', 'NON', '18:00', PB),
+      t('2026-10-16', '8443', 'NON', '19:00', PB),
     );
     const after = departures(
       t('2026-10-16', '8441', 'OUI', '18:00', PB),
-      t('2026-10-17', '8443', 'OUI', '18:00', PB),
+      t('2026-10-16', '8443', 'OUI', '19:00', PB),
     );
 
-    const { events } = diffSnapshots(before, after, '2026-10-01');
+    const { events } = diffSnapshots(before, after, TODAY);
     assert.equal(events.length, 2);
 
-    const watchlist: Watchlist = { watch: [], rules: [{ weekday: 'fri', dir: PB }] };
-    const kept = filterEvents(watchlist, events);
+    const minute: Watchlist = {
+      watch: [{ date: '2026-10-16', dir: PB, after: '18:00', before: '18:00' }],
+      rules: [],
+    };
+    const kept = filterEvents(minute, events, TODAY);
     assert.equal(kept.length, 1);
-    assert.equal(kept[0]?.date, '2026-10-16');
+    assert.equal(kept[0]?.depart, '18:00');
+
+    const window: Watchlist = { watch: [], rules: [{ weekday: 'fri', dir: PB }] };
+    assert.deepEqual(filterEvents(window, events, TODAY), []);
+  });
+
+  /*
+   * Une entree datee ignore l'horizon : la poser est une intention, et personne
+   * ne suit le 07:12 du 15/10 par accident. Une regle, elle, ratisse cinq
+   * vendredis d'un coup et n'en designe aucun.
+   */
+  it('borne une regle a la minute, jamais une entree datee', () => {
+    const far = addDays(TODAY, DECISION_HORIZON_DAYS + 1);
+    const before = departures(t(far, '8441', 'NON', '18:00', PB));
+    const after = departures(t(far, '8441', 'OUI', '18:00', PB));
+    const { events } = diffSnapshots(before, after, TODAY);
+
+    const dated: Watchlist = {
+      watch: [{ date: far, dir: PB, after: '18:00', before: '18:00' }],
+      rules: [],
+    };
+    assert.equal(filterEvents(dated, events, TODAY).length, 1);
+
+    const recurring: Watchlist = {
+      watch: [],
+      rules: [{ weekday: weekdayKey(far), dir: PB, after: '18:00', before: '18:00' }],
+    };
+    assert.deepEqual(filterEvents(recurring, events, TODAY), []);
   });
 
 });

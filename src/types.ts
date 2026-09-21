@@ -97,8 +97,18 @@ export interface DateSignal {
  * demande a suivre : « les jeudis matin ». Les deux mecanismes ont ete separes
  * volontairement ; celui-ci est le pont, et il ne s'applique qu'a ce qui est
  * suivi.
+ *
+ * Quatre mots parce qu'un creneau suivi a quatre etats qui decident : il
+ * s'ouvre, il se remplit, il se vide, il se ferme. Il n'y en avait que deux, et
+ * les deux manquants sont ceux qu'on attendait — mesure sur l'archive, **20 des
+ * 25** mouvements de creneau dans les quatorze jours ne produisaient aucun
+ * signal, dont un `1 -> 7` a trois jours du depart.
  */
-export type SlotSignalKind = 'SLOT_OPENED' | 'SLOT_DRAINING';
+export type SlotSignalKind =
+  | 'SLOT_OPENED'
+  | 'SLOT_FILLING'
+  | 'SLOT_DRAINING'
+  | 'SLOT_CLOSED';
 
 export interface SlotSignal {
   kind: SlotSignalKind;
