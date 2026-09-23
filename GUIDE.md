@@ -62,11 +62,14 @@ fenêtre de confirmation : le balayage doit rester un geste, pas un formulaire.
 Et c'est le même comportement sur l'écran d'un jour.
 
 **Le bouton « + créneau »** pose ce que tu cherches vraiment : « je rentre entre
-jeudi 18h et vendredi 11h ». Tu choisis le sens, puis **de** tel jour à telle
-heure, **à** tel jour à telle heure — la fenêtre peut passer la nuit. Les trajets
-de plus de 3 h comptent par défaut, parce que ce sont des solutions ; un choix
-les écarte. Le même bouton existe sur l'écran de chaque jour, et part de ce jour
-et de ce sens.
+jeudi 18h et vendredi 11h ». Tu choisis le sens, puis **les jours sur un
+calendrier** — le même que celui de l'accueil, avec ses comptes : touche jeudi,
+puis vendredi pour prolonger la fenêtre jusqu'à lui. En dessous, l'heure de
+début et l'heure de fin ; chacune dit à quel jour elle s'applique. Le bouton du
+bas écrit le créneau en entier avant que tu le valides. Les trajets de plus de
+3 h comptent par défaut, parce que ce sont des solutions ; un choix les écarte.
+Le même bouton existe sur l'écran de chaque jour, et part de ce jour et de ce
+sens — toucher le lendemain prolonge alors directement.
 
 Un créneau s'efface tout seul une heure après sa fin. Il n'y a plus de créneau
 qui se répète chaque semaine : il en couvrait cinq pour t'en désigner un.
@@ -84,6 +87,10 @@ indéfiniment. Le fichier, lui, se nettoie à la prochaine modification.
 colorée, plus il y a de trains ouverts.** Une case grise veut dire aucun train
 ce jour-là, dans le sens affiché. Deux nombres par case et pas un de plus : le
 quantième, et le compte.
+
+Un **anneau** autour d'une case marque ce que tu y as posé : **plein** pour un
+train réservé, **en pointillés** pour un créneau suivi. Une fenêtre qui passe
+la nuit marque ses deux jours. Chaque sens a ses propres marques.
 
 Ce compte est un nombre de **trains**, jamais de places : la SNCF ne publie pas
 ses sièges, seulement si un train est ouvert au TGVmax. Et c'est un nombre de

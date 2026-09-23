@@ -13,14 +13,14 @@ import { buildCalendar, type Train } from '../src/model.ts';
 import { ageLabel, dirLabel, hoursSince, longDate, reverseDir, watchCutoff } from '../src/format.ts';
 import { BookingList } from '../src/ui/BookingList.tsx';
 import { ConfirmCard, StatsCard } from '../src/ui/Cards.tsx';
-import { CalendarPager } from '../src/ui/CalendarPager.tsx';
+import { CalendarPager, type Ring } from '../src/ui/CalendarPager.tsx';
 import { RailTrack } from '../src/ui/rail.tsx';
 import { Segmented } from '../src/ui/Segmented.tsx';
 import { UndoBar, useUndo } from '../src/ui/UndoBar.tsx';
 import { WatchList } from '../src/ui/WatchList.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
 import { watchLabel } from '../../src/label.ts';
-import { pruneWatch, setWatch } from '../../src/watchlist.ts';
+import { pruneWatch, setWatch, watchDays } from '../../src/watchlist.ts';
 import type { Reservation, Watch } from '../../src/types.ts';
 
 export default function CalendarScreen() {
@@ -33,15 +33,21 @@ export default function CalendarScreen() {
   const calendar = useMemo(() => buildCalendar(bundle.latest), [bundle.latest]);
 
   /*
-   * Les jours deja reserves, pour que le calendrier les marque.
+   * Ce que le calendrier marque : les jours reserves, et ceux qu'un creneau
+   * suivi touche.
    *
    * La cle porte le sens : un aller reserve le 12 ne doit pas faire croire a un
-   * retour reserve le meme jour dans l'autre panneau.
+   * retour reserve le meme jour dans l'autre panneau. La reservation passe
+   * devant le suivi, qui est d'ordinaire ce qui l'a precedee.
    */
-  const bookedDays = useMemo(
-    () => new Set(bundle.reservations.slots.map((slot) => `${slot.date}|${slot.dir}`)),
-    [bundle.reservations.slots],
-  );
+  const marks = useMemo(() => {
+    const map = new Map<string, Ring>();
+    for (const watch of bundle.watchlist) {
+      for (const date of watchDays(watch)) map.set(`${date}|${watch.dir}`, 'watched');
+    }
+    for (const slot of bundle.reservations.slots) map.set(`${slot.date}|${slot.dir}`, 'booked');
+    return map;
+  }, [bundle.watchlist, bundle.reservations.slots]);
 
   const [index, setIndex] = useState(0);
   const progress = useSharedValue(0);
@@ -275,7 +281,7 @@ export default function CalendarScreen() {
             today={today}
             directions={DIRECTIONS}
             index={index}
-            booked={bookedDays}
+            marks={marks}
             progress={progress}
             onIndexChange={setIndex}
             onSelect={(date, selectedDir) =>

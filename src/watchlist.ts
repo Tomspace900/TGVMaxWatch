@@ -1,3 +1,4 @@
+import { addDays } from './dates.ts';
 import type { Departure } from './departures.ts';
 import type { Watch, Watchlist } from './types.ts';
 
@@ -24,6 +25,13 @@ export function covers(watch: Watch, departure: Pick<Departure, 'date' | 'dir' |
   if (watch.skipLong && departure.tier === 'long') return false;
   const at = stamp(departure.date, departure.depart);
   return watch.from <= at && at <= watch.to;
+}
+
+/** Les jours que la fenetre touche, du premier au dernier : ce que le calendrier marque. */
+export function watchDays(watch: Watch): string[] {
+  const days: string[] = [];
+  for (let day = watch.from.slice(0, 10); day <= watch.to.slice(0, 10); day = addDays(day, 1)) days.push(day);
+  return days;
 }
 
 /**

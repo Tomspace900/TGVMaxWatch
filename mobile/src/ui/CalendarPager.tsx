@@ -23,12 +23,12 @@ interface Props {
   directions: readonly string[];
   index: number;
   /**
-   * Les jours ou un train est reserve, par `date|sens`.
+   * Les marques des jours, par `date|sens`.
    *
    * Un sens et pas seulement une date : marquer le 12 dans les deux panneaux
    * ferait croire a un retour reserve qui n'existe pas.
    */
-  booked: Set<string>;
+  marks: Map<string, Ring>;
   /** Position continue partagee avec le selecteur, en fraction de panneau. */
   progress: SharedValue<number>;
   onIndexChange: (index: number) => void;
@@ -40,7 +40,7 @@ export function CalendarPager({
   today,
   directions,
   index,
-  booked,
+  marks,
   progress,
   onIndexChange,
   onSelect,
@@ -93,15 +93,16 @@ export function CalendarPager({
       <View style={styles.viewport}>
         <Animated.View style={[styles.track, { width: width * directions.length }, track]}>
           {directions.map((dir) => (
-            <Grid
-              key={dir}
-              width={width}
-              dates={dates}
-              dir={dir}
-              calendar={calendar}
-              booked={booked}
-              onSelect={onSelect}
-            />
+            <View key={dir} style={{ width, paddingHorizontal: space.lg }}>
+              <CalendarGrid
+                width={width - space.lg * 2}
+                dates={dates}
+                dir={dir}
+                calendar={calendar}
+                ring={(date) => marks.get(`${date}|${dir}`)}
+                onSelect={(date) => onSelect(date, dir)}
+              />
+            </View>
           ))}
         </Animated.View>
       </View>
@@ -109,24 +110,35 @@ export function CalendarPager({
   );
 }
 
+/**
+ * Un train reserve ce jour-la, ou un creneau suivi qui le touche.
+ *
+ * Le meme anneau, plein ou en pointilles : les deux sont des marques que tu as
+ * posees, et c'est la forme qui les distingue, pas la couleur — la regle qui
+ * rend sure chaque couleur porteuse de sens ici.
+ */
+export type Ring = 'booked' | 'watched';
+
 interface GridProps {
+  /** Largeur utile, gouttieres deja retirees. */
   width: number;
   dates: string[];
   dir: string;
   calendar: Calendar;
-  booked: Set<string>;
-  onSelect: (date: string, dir: string) => void;
+  ring: (date: string) => Ring | undefined;
+  onSelect: (date: string) => void;
 }
 
-function Grid({ width, dates, dir, calendar, booked, onSelect }: GridProps) {
+/** La grille seule : l'accueil la pagine par sens, l'editeur de creneau y choisit ses jours. */
+export function CalendarGrid({ width, dates, dir, calendar, ring, onSelect }: GridProps) {
   const theme = useTheme();
   // Aligne la grille sur les jours de la semaine : « les vendredis soir » est
   // le raisonnement reel devant cette donnee, il doit se lire en colonne.
   const lead = (weekday(dates[0]!) + 6) % 7;
-  const cell = (width - space.lg * 2 - space.sm * 6) / 7;
+  const cell = (width - space.sm * 6) / 7;
 
   return (
-    <View style={[styles.panel, { width, paddingHorizontal: space.lg }]}>
+    <View>
       <View style={styles.weekdays}>
         {WEEKDAY_LABELS.map((label, i) => (
           <Text key={i} style={[styles.weekday, { width: cell, color: theme.muted }]}>
@@ -143,14 +155,14 @@ function Grid({ width, dates, dir, calendar, booked, onSelect }: GridProps) {
         {dates.map((date) => {
           const day = calendar.get(date)?.get(dir) ?? emptyDay(date, dir);
           const bucket = availabilityBucket(day.available);
-          const isBooked = booked.has(`${date}|${dir}`);
+          const mark = ring(date);
 
           return (
             <Pressable
               key={date}
               onPress={() => {
                 void Haptics.selectionAsync();
-                onSelect(date, dir);
+                onSelect(date);
               }}
               /*
                * Un anneau Carmillon, et non une teinte.
@@ -173,13 +185,14 @@ function Grid({ width, dates, dir, calendar, booked, onSelect }: GridProps) {
                   width: cell,
                   height: cell / 0.74,
                   backgroundColor: theme.avail[bucket],
-                  borderColor: isBooked ? theme.accent : 'transparent',
+                  borderColor: mark ? theme.accent : 'transparent',
+                  borderStyle: mark === 'watched' ? 'dashed' : 'solid',
                   borderRadius: radius.sm,
                   transform: [{ scale: pressed ? 0.93 : 1 }],
                 },
               ]}
               accessibilityLabel={`${date}, ${day.available} trains ouverts${
-                isBooked ? ', train réservé' : ''
+                mark === 'booked' ? ', train réservé' : mark === 'watched' ? ', créneau suivi' : ''
               }`}
             >
               {/* Une case porte deux nombres au maximum : le quantieme et le
@@ -205,7 +218,6 @@ function Grid({ width, dates, dir, calendar, booked, onSelect }: GridProps) {
 const styles = StyleSheet.create({
   viewport: { overflow: 'hidden' },
   track: { flexDirection: 'row' },
-  panel: {},
   weekdays: { flexDirection: 'row', gap: space.sm, marginBottom: space.sm },
   weekday: { ...typo.chip, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

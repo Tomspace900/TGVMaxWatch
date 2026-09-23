@@ -1,14 +1,16 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { DIRECTIONS, HORIZON_DAYS } from '../../src/config.ts';
-import { addDays, todayInParis } from '../../src/dates.ts';
+import { DIRECTIONS } from '../../src/config.ts';
+import { todayInParis } from '../../src/dates.ts';
 import { dateLabel, watchLabel } from '../../src/label.ts';
 import { hasWatch, pruneWatch, setWatch, stamp } from '../../src/watchlist.ts';
 import { useStore } from '../src/data/store.ts';
+import { buildCalendar, horizonDates } from '../src/model.ts';
 import { dirLabel, watchCutoff } from '../src/format.ts';
+import { CalendarGrid } from '../src/ui/CalendarPager.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
 import type { Watch } from '../../src/types.ts';
 
@@ -32,11 +34,13 @@ export default function WatchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ date?: string; dir?: string }>();
+  const { width } = useWindowDimensions();
   const { bundle, setWatchlist } = useStore();
 
   const today = todayInParis();
-  const last = addDays(today, HORIZON_DAYS);
-  const start = params.date && params.date >= today ? params.date : today;
+  const dates = useMemo(() => horizonDates(today), [today]);
+  const calendar = useMemo(() => buildCalendar(bundle.latest), [bundle.latest]);
+  const start = params.date && dates.includes(params.date) ? params.date : today;
 
   const [dir, setDir] = useState(params.dir ?? DIRECTIONS[0]!);
   const [fromDate, setFromDate] = useState(start);
@@ -44,6 +48,25 @@ export default function WatchScreen() {
   const [toDate, setToDate] = useState(start);
   const [toTime, setToTime] = useState('23:30');
   const [skipLong, setSkipLong] = useState(false);
+  /*
+   * Le toucher suivant etend-il la fenetre, ou la remplace-t-il ?
+   *
+   * Un jour venu de l'ecran d'une journee a ete choisi : toucher le lendemain
+   * dit « jusqu'a demain ». Aujourd'hui, pose faute de mieux, n'est qu'une
+   * supposition — le premier jour touche le remplace au lieu de s'y accrocher.
+   */
+  const [extending, setExtending] = useState(start === params.date);
+
+  const pick = (date: string) => {
+    if (extending && date > fromDate) {
+      setToDate(date);
+      setExtending(false);
+    } else {
+      setFromDate(date);
+      setToDate(date);
+      setExtending(true);
+    }
+  };
 
   const watch: Watch = {
     dir,
@@ -84,21 +107,26 @@ export default function WatchScreen() {
         </View>
       </Field>
 
-      <Bound
-        label="De"
-        date={fromDate}
-        time={fromTime}
-        min={today}
-        max={last}
-        onDate={(date) => {
-          setFromDate(date);
-          // La fin suit le debut quand il la depasse : on ne pose jamais une
-          // fenetre a l'envers sans l'avoir voulu.
-          if (date > toDate) setToDate(date);
-        }}
-        onTime={setFromTime}
-      />
-      <Bound label="À" date={toDate} time={toTime} min={fromDate} max={last} onDate={setToDate} onTime={setToTime} />
+      {/* Les jours se choisissent sur la grille de l'accueil, avec ses
+          comptes : on pose un creneau la ou il reste quelque chose a
+          attendre. La selection y porte l'anneau en pointilles qu'elle aura
+          une fois suivie. */}
+      <Field label="Jours">
+        <CalendarGrid
+          width={width - space.lg * 2}
+          dates={dates}
+          dir={dir}
+          calendar={calendar}
+          ring={(date) => (date >= fromDate && date <= toDate ? 'watched' : undefined)}
+          onSelect={pick}
+        />
+        <Text style={[typo.small, { color: theme.muted, marginTop: space.sm }]}>
+          un second jour prolonge la fenêtre jusqu'à lui
+        </Text>
+      </Field>
+
+      <Hours label={`De · ${dateLabel(fromDate)}`} time={fromTime} onTime={setFromTime} />
+      <Hours label={`À · ${dateLabel(toDate)}`} time={toTime} onTime={setToTime} />
 
       <Field label="Trajets de plus de 3 h">
         <View style={styles.chips}>
@@ -126,43 +154,10 @@ export default function WatchScreen() {
   );
 }
 
-/** Une borne : un jour qu'on fait defiler, une heure qu'on touche. */
-function Bound({
-  label,
-  date,
-  time,
-  min,
-  max,
-  onDate,
-  onTime,
-}: {
-  label: string;
-  date: string;
-  time: string;
-  min: string;
-  max: string;
-  onDate: (date: string) => void;
-  onTime: (time: string) => void;
-}) {
-  const theme = useTheme();
-  const step = (days: number) => {
-    const next = addDays(date, days);
-    if (next < min || next > max) return;
-    void Haptics.selectionAsync();
-    onDate(next);
-  };
-
+/** Une heure qu'on touche, pour la borne dont le jour est nomme. */
+function Hours({ label, time, onTime }: { label: string; time: string; onTime: (time: string) => void }) {
   return (
     <Field label={label}>
-      <View style={styles.day}>
-        <Pressable onPress={() => step(-1)} hitSlop={12}>
-          <Text style={[typo.title, { color: date > min ? theme.text : theme.line }]}>‹</Text>
-        </Pressable>
-        <Text style={[typo.section, { color: theme.text }]}>{dateLabel(date)}</Text>
-        <Pressable onPress={() => step(1)} hitSlop={12}>
-          <Text style={[typo.title, { color: date < max ? theme.text : theme.line }]}>›</Text>
-        </Pressable>
-      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.times}>
         {TIMES.map((value) => (
           <Chip
@@ -214,13 +209,6 @@ const styles = StyleSheet.create({
   field: { paddingTop: space.lg, marginTop: space.lg, borderTopWidth: StyleSheet.hairlineWidth },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   times: { flexDirection: 'row', gap: space.sm },
-  day: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: space.sm,
-    paddingHorizontal: space.sm,
-  },
   chip: { paddingHorizontal: 14, paddingVertical: 9 },
   save: { marginTop: space.xl, paddingVertical: 15, alignItems: 'center' },
 });

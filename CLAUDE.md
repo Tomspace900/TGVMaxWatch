@@ -506,6 +506,17 @@ interieure plus petite, et leurs chiffres sauteraient de deux pixels au milieu
 de la grille. Le marqueur du jour est parti dans le meme mouvement : la grille
 commence a aujourd'hui, il n'y a aucun jour d'avant dont le distinguer.
 
+Un creneau suivi porte le meme anneau, **en pointilles** : les deux sont des
+marques qu'on a posees, et c'est la forme qui les separe, pas une seconde
+couleur. Une fenetre marque chaque jour qu'elle touche, dans son seul sens, et
+la reservation passe devant le suivi le jour ou les deux tombent ensemble.
+L'editeur choisit ses jours sur la **meme grille** (`CalendarGrid`), avec ses
+comptes et avec l'anneau en pointilles que la selection aura une fois suivie :
+une seconde grille pour choisir une date serait un second calendrier a tenir.
+Un jour venu de l'ecran d'une journee s'etend au toucher suivant ; aujourd'hui,
+pose faute de mieux, est remplace — sinon toucher jeudi suivrait
+« de maintenant a jeudi ».
+
 **Le verdict ne remplace pas entierement la frise.** Retirer les trente cellules
 etait juste ; ne plus rien montrer sur les lignes « stables » l'etait moins,
 puisque la ligne cessait de dire quoi que ce soit de son passe. Sept jours
@@ -896,7 +907,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 111 tests sur fixtures, aucun acces reseau
+npm test              # 114 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 

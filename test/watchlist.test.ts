@@ -7,6 +7,7 @@ import {
   pruneWatch,
   setWatch,
   stamp,
+  watchDays,
 } from '../src/watchlist.ts';
 import type { Watch } from '../src/types.ts';
 import { BP, PB } from './helpers.ts';
@@ -36,6 +37,24 @@ describe('covers', () => {
   it('ecarte un trajet long seulement quand on l a demande', () => {
     assert.equal(covers(RETOUR, depart('2026-09-24', '19:00', 'long')), true);
     assert.equal(covers({ ...RETOUR, skipLong: true }, depart('2026-09-24', '19:00', 'long')), false);
+  });
+});
+
+describe('watchDays', () => {
+  it('marque les deux jours d une fenetre qui passe la nuit', () => {
+    assert.deepEqual(watchDays(RETOUR), ['2026-09-24', '2026-09-25']);
+  });
+
+  it('un train seul ne marque que son jour', () => {
+    assert.deepEqual(watchDays({ dir: BP, from: '2026-09-24 18:11', to: '2026-09-24 18:11' }), ['2026-09-24']);
+  });
+
+  it('traverse une fin de mois', () => {
+    assert.deepEqual(watchDays({ dir: BP, from: '2026-09-30 18:00', to: '2026-10-02 11:00' }), [
+      '2026-09-30',
+      '2026-10-01',
+      '2026-10-02',
+    ]);
   });
 });
 
