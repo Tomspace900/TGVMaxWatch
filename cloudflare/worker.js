@@ -29,6 +29,9 @@ async function run(env) {
   // Par l'API, pas par raw.githubusercontent.com : le CDN resert l'ancien etat
   // pendant cinq minutes, et relancerait la collecte pour rien.
   const state = await github('contents/data/state.json', {}, 'application/vnd.github.raw+json');
+  // Sans ce test, un jeton refuse se lisait « pas encore collecte » et l'erreur
+  // ne sortait qu'au lancement, en accusant la mauvaise etape.
+  if (!state.ok) throw new Error(`lecture du depot refusee : ${state.status} ${await state.text()}`);
   const collected = (await state.json()).dataProcessed;
 
   // Une publication par jour : une fois celle du jour prise, on ne derange plus
