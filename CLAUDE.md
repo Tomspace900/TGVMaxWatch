@@ -30,7 +30,7 @@ data/         archive et agregats, commites par le bot
 
 | | |
 |---|---|
-| Collecte | GitHub Actions, `15 6` et `15 8` UTC, idempotente sur `data_processed` |
+| Collecte | `collect.yml`, lance par `cloudflare/worker.js` des que la SNCF publie, idempotente sur `data_processed` |
 | Stockage | fichiers versionnes dans le depot |
 | Application | Expo SDK 57, expo-router, Reanimated 4, EAS Build + EAS Update |
 | Donnees cote app | lues sur `raw.githubusercontent.com`, cache fichier pour le hors ligne |
@@ -39,6 +39,17 @@ data/         archive et agregats, commites par le bot
 `data/snapshots/` est la source de verite. `history.json`, `stats.json` et
 `trains.json` en sont des vues **entierement recalculees a chaque execution** :
 un bug d'agregation se repare en relancant le job.
+
+**La collecte ne tient qu'a Cloudflare, et c'est un choix.** La SNCF publie
+chaque jour vers 04:24 UTC, a la minute pres ; le cron GitHub partait 2 a 7 h
+plus tard (0 execution sur 42 a moins de 2 h). Un Worker interroge la source
+toutes les 5 minutes et lance `collect.yml` par l'API, qui part dans la
+seconde. Il n'y a volontairement **aucun filet** : une panne Cloudflare ou un
+jeton expire, c'est une journee perdue, risque accepte pour un projet perso.
+Seule l'alarme de fraicheur de l'appareil (40 h) le fera savoir. Le Worker est
+colle a la main dans la console : `cloudflare/worker.js` est la reference a
+recoller, et ouvrir son adresse fait la meme chose que le cron en disant ce
+qui s'est passe.
 
 ## Regles a ne pas casser
 

@@ -86,7 +86,7 @@ Quatre workflows, dont **un seul se declenche tout seul**.
 
 | Workflow | Declenchement | Role |
 |---|---|---|
-| `collect` | cron `15 6` et `15 8` UTC, ou manuel | Collecte, archive, recalcule, notifie, commite |
+| `collect` | lance par le Worker Cloudflare (`cloudflare/worker.js`) des que la SNCF publie, ou manuel | Collecte, archive, recalcule, notifie, commite |
 | `ci` | push sur `main`, pull request | Typecheck et tests, cote collecteur *et* cote application |
 | `update` | push sur `main` touchant `mobile/**` ou `src/**` | Publie la mise a jour OTA, apres ses propres tests |
 | `notify-test` | manuel | Rejoue le dernier diff et envoie le message, sans rien ecrire |
