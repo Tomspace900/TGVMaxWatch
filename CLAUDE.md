@@ -47,9 +47,9 @@ toutes les 5 minutes et lance `collect.yml` par l'API, qui part dans la
 seconde. Il n'y a volontairement **aucun filet** : une panne Cloudflare ou un
 jeton expire, c'est une journee perdue, risque accepte pour un projet perso.
 Seule l'alarme de fraicheur de l'appareil (40 h) le fera savoir. Le Worker est
-colle a la main dans la console : `cloudflare/worker.js` est la reference a
-recoller, et ouvrir son adresse fait la meme chose que le cron en disant ce
-qui s'est passe.
+deploye par Cloudflare depuis `cloudflare/` a chaque push (Workers Builds) ; le
+cron vit dans `wrangler.toml`, le secret `GITHUB_TOKEN` dans la console. Ouvrir
+son adresse fait la meme chose que le cron, en disant ce qui s'est passe.
 
 ## Regles a ne pas casser
 

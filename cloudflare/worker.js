@@ -7,9 +7,9 @@
  * lance `collect.yml` si elles different : un lancement par l'API part dans la
  * seconde.
  *
- * Colle a la main dans la console Cloudflare, pas deploye depuis le depot : ce
- * fichier est la reference a recoller apres toute modification.
- * Secret attendu : GITHUB_TOKEN (Actions : ecriture, Contents : lecture).
+ * Deploye par Cloudflare depuis ce dossier a chaque push (voir wrangler.toml).
+ * Secret attendu, pose dans la console : GITHUB_TOKEN (Actions : ecriture,
+ * Contents : lecture).
  */
 const REPO = 'Tomspace900/TGVMaxWatch';
 const SNCF = 'https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax';

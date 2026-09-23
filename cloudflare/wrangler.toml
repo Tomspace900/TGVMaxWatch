@@ -1,0 +1,11 @@
+# Deploye par Cloudflare (Workers Builds) a chaque push sur main qui touche
+# cloudflare/. Le nom doit rester celui du Worker dans la console, sinon le
+# build echoue. Le cron vit ici : un cron ajoute a la main dans la console
+# serait ecrase au deploiement suivant. Le secret GITHUB_TOKEN, lui, vit dans
+# la console et n'est jamais touche par un deploiement.
+name = "tgvmaxwatch"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[triggers]
+crons = ["*/5 * * * *"]
