@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { CONFIRM_DEADLINE_HOUR, CONFIRM_WINDOW_HOURS } from '../../../src/config.ts';
 import { daysBetween } from '../../../src/dates.ts';
-import { isExpired } from '../../../src/watchlist.ts';
+import { stamp } from '../../../src/watchlist.ts';
 import { departureInstant, dirLabel, longDate, watchCutoff } from '../format.ts';
 import { SwipeRow } from './SwipeRow.tsx';
 import { radius, space, typo, useTheme } from '../theme.ts';
@@ -33,7 +33,7 @@ export function BookingList({ reservations, today, onOpen, onCancel }: Props) {
   const upcoming = useMemo(() => {
     const cutoff = watchCutoff();
     return reservations.slots
-      .filter((slot) => !isExpired({ date: slot.date, after: slot.depart }, cutoff))
+      .filter((slot) => stamp(slot.date, slot.depart) >= cutoff)
       .sort((a, b) => a.date.localeCompare(b.date) || a.depart.localeCompare(b.depart));
   }, [reservations.slots]);
 

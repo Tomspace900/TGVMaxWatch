@@ -82,44 +82,47 @@ d'alerte et l'application — compte des departs.
 
 ## 3. Ce qui tourne
 
-Quatre workflows, dont **un seul se declenche tout seul**.
+Trois workflows. `collect` est lance par le Worker Cloudflare, les deux autres par un push.
 
 | Workflow | Declenchement | Role |
 |---|---|---|
-| `collect` | lance par le Worker Cloudflare (`cloudflare/worker.js`) des que la SNCF publie, ou manuel | Collecte, archive, recalcule, notifie, commite |
+| `collect` | lance par le Worker Cloudflare (`cloudflare/worker.js`) des que la SNCF publie, ou manuel | Collecte, archive, recalcule, commite, reveille le telephone |
 | `ci` | push sur `main`, pull request | Typecheck et tests, cote collecteur *et* cote application |
 | `update` | push sur `main` touchant `mobile/**` ou `src/**` | Publie la mise a jour OTA, apres ses propres tests |
-| `notify-test` | manuel | Rejoue le dernier diff et envoie le message, sans rien ecrire |
 
-### Le cron part avec trois a cinq heures de retard
+### Le declenchement
 
-Mesure sur ce depot, pas supposee. `collect` vise 06:15 UTC et part a 11:20 ;
-08:15 part a 12:46. **Aucun traitement ne doit dependre de l'heure a laquelle il
-croit tourner.** C'est pour cette raison qu'il n'y a plus de workflow de rappel :
-un traitement a echeance horaire appartient a l'appareil, dont l'heure locale est
-celle de l'utilisateur. Seul `collect` reste, et son idempotence rend le retard
-sans consequence.
+La SNCF publie chaque jour vers 04:24 UTC, a la minute pres. Le cron GitHub
+partait 2 a 7 h plus tard (0 execution sur 42 a moins de 2 h). Toutes les 5
+minutes, le Worker `cloudflare/worker.js` compare la publication de la source a
+`data/state.json` (par l'API, pas par le CDN) et lance `collect.yml` s'il y a du
+neuf ; une fois la donnee du jour prise, il ne derange plus la SNCF. Pas de
+filet : une panne Cloudflare est une journee perdue, risque accepte.
+
+Il est deploye par Cloudflare depuis `cloudflare/` a chaque push (Workers
+Builds). Le cron vit dans `wrangler.toml`, le secret `GITHUB_TOKEN` (Actions :
+ecriture, Contents : lecture) dans la console. Ouvrir son adresse fait la meme
+chose que le cron et dit ce qui s'est passe.
 
 ### Le collecteur, etape par etape
 
 `src/collect.ts` :
 
 1. Lit `data/state.json`. Si `data_processed` distant est **inchange**, sortie 0
-   sans rien ecrire — c'est ce qui rend les deux passages quotidiens gratuits.
+   sans rien ecrire — un lancement en trop ne coute rien.
 2. Recupere l'export, normalise, filtre les gares hors perimetre.
-3. Lit le **snapshot precedent** (le plus recent qui ne soit pas celui du jour)
-   avant d'ecrire, sans quoi le diff comparerait le nouveau fichier a lui-meme.
-4. Ecrit `data/snapshots/<jour>.json.gz` et `data/latest.json`.
-5. **Recalcule integralement** `history.json`, `stats.json` et `trains.json`
+3. Ecrit `data/snapshots/<jour>.json.gz` et `data/latest.json`.
+4. **Recalcule integralement** `history.json`, `stats.json` et `trains.json`
    depuis toute l'archive, en repliant chaque snapshot en departs une seule
    fois — toutes les vues derivees comptent ainsi la meme chose.
-6. Ecrit `data/state.json` — **avant** la notification.
-7. Diffe, filtre, envoie au plus un message.
+5. Ecrit `data/state.json`.
 
-L'etape de commit est en `always()` : une panne du canal d'alerte fait echouer le
-job **apres** avoir mis les donnees a l'abri.
+Il ne compose plus aucun message. L'etape de commit de `collect.yml`, en
+`always()`, pousse les donnees **puis** reveille le telephone (`src/wake.ts`) :
+une panne du canal d'alerte fait echouer le job apres avoir mis la journee a
+l'abri.
 
-L'etape 5 vit dans `src/derive.ts` et non plus dans `collect.ts`, et
+L'etape 4 vit dans `src/derive.ts` et non plus dans `collect.ts`, et
 `npm run rebuild` la lance seule. C'est ce qui rend vraie la phrase « un bug
 d'agregation se repare en relancant le job » : sans point d'entree separe, un
 changement de regle d'agregation laissait les vues derivees dans l'ancienne
@@ -133,14 +136,13 @@ silence.
 
 ```
 data/
-  state.json          fraicheur, dernier envoi push, compteurs      ~220 o
+  state.json          fraicheur et compteurs                        ~200 o
   latest.json         dernier snapshot brut, non compresse          ~400 ko
   history.json        OUI/NON par date de voyage et par sens        ~9 ko
   stats.json          statistiques derivees                         ~1 ko
   trains.json         disponibilite jour par jour, train par train  ~30-85 ko
   push-token.json     jeton Expo de l'appareil                      ~110 o
   snapshots/          archive quotidienne gzippee                   ~12 ko/jour
-watchlist.json        dates et regles surveillees
 ```
 
 `data/snapshots/` est **la source de verite**. Les quatre autres en sont des
@@ -149,9 +151,8 @@ repare en relancant le job, sans jamais corrompre l'archive.
 
 **Les reservations ne sont pas ici.** Elles vivent dans le stockage local de
 l'application, avec un export manuel comme seule sortie. Le depot est public et
-elles diraient quand son proprietaire n'est pas chez lui. La watchlist, elle,
-reste versionnee : le collecteur ne peut pas filtrer sur un fichier qu'il ne lit
-pas.
+elles diraient quand son proprietaire n'est pas chez lui. Le suivi non plus, pour
+la meme raison : il vit sur l'appareil, et c'est le telephone qui compare.
 
 ### Formats
 
@@ -180,120 +181,63 @@ seul train n'auraient jamais ete lues.
 
 ## 5. Les alertes
 
-Le diff (`src/diff.ts`) produit trois choses de **mailles differentes**. Toutes
-comptent des **departs**, jamais des rames.
+Le collecteur ne sait rien de ce qui est suivi. Apres le commit, il envoie un
+**reveil silencieux** : un push sans titre ni corps ni canal, qu'Android livre a
+la tache de fond de l'application (`mobile/src/data/wake.ts`, via
+`expo-task-manager`), meme application fermee. Le telephone relit `state.json` et
+`latest.json` par l'API GitHub — pas par le CDN, qui resert l'ancien fichier
+pendant cinq minutes — les compare a **la derniere donnee qu'il a vue**, pose au
+plus une notification locale, puis marque le releve comme vu. Un reveil perdu
+fait un message plus riche le lendemain, pas un message en moins. Seul « Forcer
+l'arret » dans les reglages Android coupe ce chemin.
 
-**Des evenements par depart** — `OPEN`, `CLOSE`, `REMOVED` — passes par la
-watchlist. Seuls survivent les suivis poses sur une **minute** : ils designent
-un depart, et c'est son horaire qu'on veut lire. Une periode ou une journee est
-un creneau, et un creneau parle par son compte, plus bas.
+Tout ce qui compte est dans des modules purs de `src/`, testes sans appareil.
 
-**Des signaux par (date, sens)** — la maille a laquelle on decide de partir.
-Ils **contournent la watchlist** : ils ne dependent d'aucune preference.
+**Les suivis** (`src/slots.ts`). Un suivi est une fenetre datee — un sens, un
+debut, une fin, qui peut passer la nuit (`jeu 24/09 18h → ven 25/09 11h`) — ou
+un train seul, fenetre fermee sur son heure. Les trajets de plus de 3 h comptent
+par defaut et peuvent s'ecarter. Il n'y a plus ni regle recurrente ni periode
+nommee : une regle ratissait cinq jeudis pour en designer un.
+
+| Signal | Condition | Constantes |
+|---|---|---|
+| `OPENED` | 0 ouvert dans la fenetre, puis ≥ 1 | `SLOT_OPEN_MIN_TRAINS = 1` |
+| `FILLING` | hausse ≥ 2 **depuis** 3 trains ou moins | `SLOT_FILL_MIN_RISE = 2`, `SLOT_FILL_MAX_BEFORE = 3` |
+| `DRAINING` | baisse, quelle qu'elle soit, et il en reste ≤ 2 | `SLOT_SCARCE_MAX_LEFT = 2` |
+| `CLOSED` | il n'en reste plus aucun | — |
+
+Sur un train seul, le compte vaut 0 ou 1 : seuls « ouvert » et « complet »
+sortent. C'est la **rarete** qui decide d'une baisse, et la sortie de la rarete
+qui decide d'une hausse : l'ancienne regle (chute ≥ 2 **et** ≤ 2 restants) ne
+laissait passer que 5 des 25 mouvements mesures dans les quatorze jours, et
+ratait `2 → 1` a deux jours du depart. `5 → 9` ne dit rien, `1 → 7` tout. Le
+compte porte sur **tous** les trains de la fenetre, ouverts ou non — sinon une
+fenetre vide n'aurait pas de compte, et « elle s'ouvre » ne pourrait jamais
+etre observe. Un creneau est vide la plupart du temps (65 % a midi, 63 % le
+soir, 39 % le matin) : c'est ce qui rend « il s'ouvre » utile.
+
+**Les deux alertes generales** (`src/diff.ts`), sur le compte d'une (date,
+sens), sans consulter aucun suivi.
 
 | Signal | Condition | Constantes |
 |---|---|---|
 | `REOPENED` | la veille 0 train ouvert, aujourd'hui ≥ 5 | `REOPEN_MIN_TRAINS = 5` |
 | `DRAINING` | perte ≥ 3 trains **et** il en reste ≤ 3 | `DRAIN_MIN_DROP = 3`, `DRAIN_MAX_LEFT = 3` |
 
-**Des signaux par creneau suivi** (`src/slots.ts`) — une fenetre horaire qu'on a
-explicitement demande a suivre, « les jeudis matin ». C'est le pont entre les
-deux precedents, et il ne franchit la separation que dans un sens : il applique
-la dynamique d'une date aux seules fenetres suivies, sans jamais toucher aux
-deux alertes universelles.
+Elles s'arretent a **quatorze jours** (`DECISION_HORIZON_DAYS`) : 8 des 11
+`REOPENED` de l'archive portaient sur J+21 a J+30 et aucun sur J+0 a J+2 —
+une date entre dans l'horizon a zero et se remplit le lendemain, toutes le font.
+On regarde la **transition**, jamais l'entree : les quatre premieres dates
+mesurees sont entrees a zero train ouvert.
 
-| Signal | Condition | Constantes |
-|---|---|---|
-| `SLOT_OPENED` | la veille 0 dans la fenetre, aujourd'hui ≥ 1 | `SLOT_OPEN_MIN_TRAINS = 1` |
-| `SLOT_FILLING` | hausse ≥ 2 **depuis** 3 trains ou moins | `SLOT_FILL_MIN_RISE = 2`, `SLOT_FILL_MAX_BEFORE = 3` |
-| `SLOT_DRAINING` | baisse, quelle qu'elle soit, et il en reste ≤ 2 | `SLOT_SCARCE_MAX_LEFT = 2` |
-| `SLOT_CLOSED` | il n'en reste plus aucun | — |
-
-Les seuils d'un creneau sont plus bas que ceux d'une journee, et c'est mesure :
-un creneau est **vide la plupart du temps** — 65 % a midi, 63 % le soir, 56 %
-l'apres-midi, 39 % le matin. « Il s'ouvre » est donc l'evenement frequent et
-actionnable, et un seul train suffit a le declencher : ce qu'on veut savoir est
-qu'il devient possible, pas qu'il devient confortable.
-
-C'est la **rarete** qui decide d'une baisse, pas son ampleur, et c'est la sortie
-de la rarete qui decide d'une hausse. L'ancienne regle exigeait une chute d'au
-moins deux **et** deux restants au plus : `2 → 1` a deux jours du depart ne
-passait pas, alors que c'est exactement la nouvelle qu'on attend. Mesure sur les
-vingt diffs de l'archive : **25 mouvements** de creneau suivi dans les quatorze
-jours, dont **5 seulement** passaient l'ancienne regle. Symetriquement `5 → 9`
-ne dit rien — on avait deja de quoi choisir.
-
-Le compte d'un creneau porte sur **tous** ses trains, ouverts ou non. Sinon un
-creneau a zero n'a pas de cle, et la transition « 0 vers quelque chose » ne peut
-litteralement jamais etre observee — l'erreur exacte que `filterNewDates` avait
-deja faite a l'echelle de la date, et qui s'est reproduite dans la premiere
-mesure faite pour calibrer ces seuils.
-
-Un signal de creneau **absorbe** les evenements de train qu'il contient
-(`isCoveredBySlot`) : sans quoi « le matin du 18 s'ouvre » serait suivi des trois
-horaires qui l'ont ouvert. La maille du message suit la maille du suivi — et
-l'absorption se fait maintenant des `filterEvents`, donc **meme quand le creneau
-n'a produit aucun signal**. Sinon un mouvement sous le seuil laissait repasser
-les memes trains un cran plus bas : le 14/09, `5 → 9` etait volontairement tu et
-le message affichait quand meme les quatre horaires. Le seuil ne servait a rien,
-il deplacait la ligne.
-
-**L'horizon de decision** (`DECISION_HORIZON_DAYS = 14`) borne les signaux
-generaux et les creneaux venus d'une **regle recurrente**. Mesure sur les vingt
-diffs de l'archive : **8 des 11** `REOPENED` portent sur J+21 a J+30, et
-**aucun** sur J+0 a J+2 ; de meme **6 des 9** ouvertures de creneau. C'est la
-mecanique de l'horizon — une date y entre a zero place et se remplit le
-lendemain, toutes les dates le font, tous les jours — donc un evenement
-previsible, donc un fond. Ce n'est pas un filtre de preference : les deux
-alertes universelles continuent de ne consulter aucune watchlist, elles
-regardent seulement a quelle distance elles parlent.
-
-Un suivi **date** y echappe, une regle non. Poser un suivi sur une date precise
-est une intention, et personne ne suit le 15/10 par accident ; une regle ratisse
-cinq jeudis d'un coup et n'en designe aucun.
-
-Les seuils viennent de l'archive reelle, pas d'une intuition. Mesure sur le diff
-du 1er au 3 septembre : notifier chaque train qui s'ouvre donne **12 a 13 lignes
-par jour**, soit un message tronque quotidien et un canal mort en trois semaines.
-Ces regles en donnent **une a trois**, toutes actionnables.
-
-Rejoues apres le passage de la rame au depart, les seuils de journee tiennent
-tels quels : sur les six paires de snapshots disponibles, les deux unites tirent
-les memes signaux **a une exception pres**, un 6 → 3 rames qui est 5 → 3 departs
-et cesse donc de declencher `DRAINING`. C'est le bon comportement — une des
-trois rames perdues doublait un depart dont l'autre rame est restee ouverte, et
-le signal annoncait une perte plus grande que la realite.
-
-**Le pari initial du projet etait faux.** Le plan misait sur l'entree d'une date
-a J+30, supposee arriver avec dix a quinze trains. Les quatre dates mesurees sont
-entrees a **zero train ouvert** (0/35, 0/39, 0/33, 0/29) et se sont remplies le
-lendemain. L'alerte batie dessus exigeait `oui > 0` a l'entree : elle ne pouvait
-litteralement jamais partir. On regarde donc la **transition**, jamais l'entree.
-
-**Le message** (`src/notify.ts`) : un seul par execution, six lignes maximum puis
-« +N autres », plafonne a 3 500 octets. L'ordre est celui de ce qui a ete
-demande — creneaux suivis, puis trains suivis, puis alertes generales — et **le
-titre est la premiere ligne**, jamais un resume fabrique a cote. Il annoncait un
-total, « 7 trains ouverts », des que le message ne portait que des evenements de
-train : mesure sur les vingt diffs de l'archive, les **25** mouvements de creneau
-suivi dans les quatorze jours etaient tous dans le corps et **2 seulement** dans
-le titre — sur un ecran verrouille, c'est-a-dire nulle part.
-
-**Le budget se prend sur les signaux generaux, jamais sur ce qui a ete suivi** :
-un evenement de train ne survit a `filterEvents` que parce qu'on a demande a
-suivre ce depart, et il passait pourtant apres des dates que personne n'a
-demandees. Mesure sur l'archive : le 03/09, deux lignes coupees, les deux
-suivies, pendant que quatre signaux generaux occupaient la place. Chaque ligne
-porte le **sens** — la seule chose qu'on ne peut pas deviner — et
-l'**avant/apres** : « 1 → 7 trains » decide, « 7 trains ouverts » non. Les
-suppressions de train ne sont jamais poussees, trop de bruit pour leur interet.
-
-Rejoue sur les vingt diffs de l'archive avec la watchlist courante, l'ensemble
-donne **13 messages sur 20 jours** au lieu de 20, **2,6 lignes** par message au
-lieu de 4, et un titre qui nomme une date, un sens et un compte a chaque fois.
-
-**L'envoi** passe par le service Expo Push, signe avec `EXPO_TOKEN`. Le job cron
-*est* le backend d'envoi.
+**Le message** (`src/notify.ts`) : un seul par releve, six lignes au plus puis
+« +N autres ». Ce qui est suivi d'abord, les alertes generales ensuite, et le
+budget se prend sur elles. **Le titre est la premiere ligne**, jamais un resume
+fabrique a cote — `jeu 24/09 18h → ven 25/09 11h : 1 → 7 trains` — et le corps ne
+la repete pas : il commence par le sens, qui s'ecrit une fois et seulement quand
+il change. Mesure sur l'archive : les titres d'avant annoncaient « 7 trains
+ouverts » pendant que le jeudi utile etait trois lignes plus bas ; 25 mouvements
+de creneau suivi etaient dans le corps, 2 dans le titre.
 
 ---
 
@@ -347,9 +291,9 @@ metrique.
 
 ### Ce qu'elle lit
 
-Sept fichiers depuis `raw.githubusercontent.com`, sans authentification :
+Six fichiers depuis `raw.githubusercontent.com`, sans authentification :
 `state.json`, `latest.json`, `history.json`, `stats.json`, `trains.json`,
-`push-token.json`, `watchlist.json`.
+`push-token.json`. Le reveil, lui, relit `state.json` et `latest.json` par l'API.
 
 Strategie **reseau d'abord, cache en repli** : l'inverse ferait clignoter
 l'interface a chaque ouverture pour une donnee qui change une fois par jour. Le
@@ -358,12 +302,11 @@ s'ouvre pleine dans un train sans reseau.
 
 ### Ce qu'elle ecrit
 
-- **En local** (`AsyncStorage`) : les reservations. Jamais ailleurs.
+- **En local** (`AsyncStorage`) : les reservations et le suivi. Jamais ailleurs.
 - **Dans le depot**, via l'API GitHub Contents avec un PAT fine-grained
   (`Contents: write`, ce seul depot) range dans le keystore Android :
-  `watchlist.json` et `data/push-token.json`. Le `sha` est relu juste avant
-  l'envoi, pour qu'une ecriture depuis le telephone se glisse entre deux commits
-  du bot. Le jeton est **verifie** avant enregistrement — un PAT tronque a la
+  `data/push-token.json`, seul fichier dont le collecteur a besoin. Le `sha` est
+  relu juste avant l'envoi, et un conflit se rejoue. Le jeton est **verifie** avant enregistrement — un PAT tronque a la
   copie se comportait sinon exactement comme un jeton absent.
 
 ### Ce qu'elle fait toute seule
@@ -420,11 +363,12 @@ npx expo export --platform android --output-dir /tmp/export
 Le **bundle Metro est la seule verification** qui attrape une resolution cassee
 vers les modules partages, qui vivent hors du dossier de l'application.
 
-Les modules purs de `src/` — `config`, `dates`, `duration`, `types`, `stats`,
-`watchlist` — sont importes tels quels par l'application. Metro les trouve grace
-au `watchFolders` de `mobile/metro.config.js` ; **ils ne doivent jamais toucher a
-`node:` ni a une dependance**. `diff.ts` et `history.ts`, eux, tirent `storage.ts`
-et restent donc hors du graphe de l'application.
+Les modules purs de `src/` — `config`, `dates`, `departures`, `diff`,
+`duration`, `label`, `notify`, `slots`, `stats`, `trace`, `types`, `watchlist` —
+sont importes tels quels par l'application. Metro les trouve grace au
+`watchFolders` de `mobile/metro.config.js` ; **ils ne doivent jamais toucher a
+`node:` ni a une dependance**. `history.ts`, lui, tire `storage.ts` et reste hors
+du graphe de l'application.
 
 Les fichiers `src/*.ts` s'executent directement (`node src/collect.ts`) : Node
 22.18+ retire les annotations de type a la volee. D'ou `erasableSyntaxOnly` dans
@@ -493,9 +437,11 @@ par sideload. Il faut Android + `preview` + base directory `mobile`.
    et **l'option « enhanced push security » activee** — le jeton de notification
    est public dans le depot, et sans elle quiconque le lit peut notifier
    l'appareil.
-5. Un PAT fine-grained saisi dans les reglages de l'application.
-
-Le cron ne se declenche que sur la branche par defaut.
+5. Un PAT fine-grained saisi dans les reglages de l'application (`Contents:
+   write`), pour publier le jeton de notification.
+6. Le Worker Cloudflare relie au depot (Workers Builds, dossier `cloudflare`),
+   avec le secret `GITHUB_TOKEN` : un PAT fine-grained `Actions: write`,
+   `Contents: read` sur ce seul depot.
 
 ---
 

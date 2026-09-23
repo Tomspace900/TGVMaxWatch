@@ -7,20 +7,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { DIRECTIONS, HORIZON_DAYS } from '../../../src/config.ts';
 import { addDays, todayInParis, weekday } from '../../../src/dates.ts';
 import { bookableTrainNo } from '../../../src/departures.ts';
-import { DAY_PERIODS } from '../../../src/periods.ts';
 import { slotOf } from '../../../src/stats.ts';
-import { hasWatch, matchesWatchlist, pruneWatch, setWatch } from '../../../src/watchlist.ts';
+import { hasWatch, pruneWatch, setWatch, stamp } from '../../../src/watchlist.ts';
 import { useStore } from '../../src/data/store.ts';
 import { openBooking, toggleBooking } from '../../src/data/booking.ts';
 import { buildCalendar, emptyDay } from '../../src/model.ts';
-import { dirLabel, longDate, watchCutoff, windowLabel } from '../../src/format.ts';
+import { dirLabel, longDate, watchCutoff } from '../../src/format.ts';
 import { Sparkline } from '../../src/ui/Sparkline.tsx';
 import { UndoBar, useUndo } from '../../src/ui/UndoBar.tsx';
 import { BAR_HEIGHT, StickyBar } from '../../src/ui/StickyBar.tsx';
 import { TrainRow } from '../../src/ui/TrainRow.tsx';
 import { radius, space, typo, useTheme } from '../../src/theme.ts';
 import type { Train } from '../../src/model.ts';
-import type { WatchEntry } from '../../../src/types.ts';
+import type { Watch } from '../../../src/types.ts';
 
 const TrainList = Animated.FlatList<Train>;
 
@@ -124,67 +123,19 @@ export default function DayScreen() {
    */
   const isBooked = (train: Train) => train.trainNos.some((trainNo) => booked.has(trainNo));
 
-  /**
-   * Le badge « suivi » se lit « une alerte partira pour ce train ». Il se
-   * decide donc par train, sur la fonction qui filtre reellement les
-   * notifications cote collecteur.
-   */
-  const isWatched = (depart: string) =>
-    matchesWatchlist(bundle.watchlist, { date, dir, depart });
+  /** Suivre un train seul : une fenetre fermee sur son heure de depart. */
+  const trainWatch = (depart: string): Watch => ({ dir, from: stamp(date, depart), to: stamp(date, depart) });
+  const isWatched = (depart: string) => hasWatch(bundle.watchlist, trainWatch(depart));
 
-  /**
-   * Une entree de suivi posee sur cette date et ce sens, avec cette fenetre.
-   *
-   * L'egalite porte sur les bornes, pas sur ce qu'elles couvrent : suivre « le
-   * matin » et suivre le train de 07h12 sont deux entrees distinctes, et
-   * retirer l'une ne doit pas emporter l'autre.
-   */
-  const watchedWindow = (after?: string, before?: string) =>
-    hasWatch(bundle.watchlist, entryFor(after, before));
-
-  const entryFor = (after?: string, before?: string): WatchEntry => ({
-    date,
-    dir,
-    ...(after ? { after } : {}),
-    ...(before ? { before } : {}),
-  });
-
-  /**
-   * Poser ou retirer un suivi sur cette date.
-   *
-   * Une seule fonction pour les trois formes : un train precis (fenetre fermee
-   * sur son heure), une periode de la journee, ou la journee entiere (aucune
-   * borne). Elles ne different que par la fenetre — les separer en trois gestes
-   * aurait fait trois occasions de diverger.
-   *
-   * Chaque ecriture emporte au passage les entrees dont le train est parti :
-   * c'est le seul moment ou l'on ecrit deja, et la liste ne grandit donc jamais
-   * pour rien.
-   */
-  const toggleWatchWindow = (after?: string, before?: string, label = 'la journee') => {
-    const already = watchedWindow(after, before);
+  const toggleTrain = (depart: string) => {
+    const already = isWatched(depart);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
     const write = (follow: boolean) =>
-      setWatchlist(
-        (current) => pruneWatch(setWatch(current, entryFor(after, before), follow), watchCutoff()),
-        `watchlist: ${follow ? 'suit' : 'retire'} ${date} ${label}`,
-      );
-
+      setWatchlist((current) => pruneWatch(setWatch(current, trainWatch(depart), follow), watchCutoff()));
     write(!already);
-
-    /*
-     * Le meme defaire que sur l'accueil, et pour la meme raison qu'il n'y a
-     * qu'un `SwipeRow` : un geste qui se rattrape a un endroit et pas a l'autre
-     * est un geste qu'on cesse d'essayer. Seul le retrait s'annonce — poser un
-     * suivi ne perd rien, et une barre a chaque geste redeviendrait un fond.
-     */
+    // Seul le retrait s'annonce : poser un suivi ne perd rien.
     if (already) {
-      const when = windowLabel(after, before);
-      undo.offer({
-        label: `${longDate(date)}${when ? ` ${when}` : ''} n'est plus suivi`,
-        undo: () => write(true),
-      });
+      undo.offer({ label: `${longDate(date)} ${depart} n'est plus suivi`, undo: () => write(true) });
     }
   };
 
@@ -360,25 +311,17 @@ export default function DayScreen() {
               )}
             </View>
 
-            {/* Suivre un moment de la journee plutot qu'un train : c'est la
-                maille a laquelle on decide un deplacement — « je descends
-                vendredi soir », pas « je prends le 19h04 ». */}
-            <Text style={[typo.chip, { color: theme.muted, marginTop: space.lg }]}>SUIVRE</Text>
-            <View style={styles.pills}>
-              <Pill
-                label="toute la journée"
-                active={watchedWindow()}
-                onPress={() => toggleWatchWindow()}
-              />
-              {DAY_PERIODS.map((period) => (
-                <Pill
-                  key={period.key}
-                  label={period.label}
-                  active={watchedWindow(period.after, period.before)}
-                  onPress={() => toggleWatchWindow(period.after, period.before, period.label)}
-                />
-              ))}
-            </View>
+            {/* Un creneau plutot qu'un train : c'est la maille a laquelle on
+                decide un deplacement. L'editeur part de ce jour et de ce sens. */}
+            <Pressable
+              onPress={() => router.push({ pathname: '/watch', params: { date, dir } })}
+              style={({ pressed }) => [
+                styles.follow,
+                { backgroundColor: theme.sunken, borderRadius: radius.pill, opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Text style={[typo.strong, { color: theme.text }]}>+ suivre un créneau</Text>
+            </Pressable>
 
             {/* La contrepartie de « suivre » : deux rangees construites pareil,
                 l'une qui ajoute au suivi, l'autre qui retire de la liste. */}
@@ -419,7 +362,7 @@ export default function DayScreen() {
             watched={isWatched(item.depart)}
             booked={isBooked(item)}
             trace={traces[item.depart]}
-            onWatch={() => toggleWatchWindow(item.depart, item.depart, item.depart)}
+            onWatch={() => toggleTrain(item.depart)}
             onBook={() => book(item)}
           />
         )}
@@ -527,6 +470,7 @@ function Step({
 
 const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg },
+  follow: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, marginTop: space.lg },
   back: { width: 22 },
   steps: { flexDirection: 'row', gap: space.xs + 2 },
   step: { width: 34, height: 30, alignItems: 'center', justifyContent: 'center' },

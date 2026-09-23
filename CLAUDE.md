@@ -8,6 +8,12 @@ rejouer. Deux autres documents, a tenir a jour avec le code : `README.md` decrit
 ce qui tourne et ce qu'on fait des donnees, `GUIDE.md` explique l'application a
 son utilisateur, sans jargon.
 
+**Petit projet perso : le moins de code possible.** Decide le 2026-09-23. Pas de
+filet de secours partout, pas de migration pour ce qui se refait a la main, la
+souplesse avant la robustesse. Ajouter du code demande une raison mesuree, en
+retirer n'en demande pas. Les lecons ci-dessous restent vraies ; celles qui ne
+justifiaient qu'un mecanisme supprime sont parties avec lui.
+
 ## L'invariant du projet
 
 **La source ecrase son dataset a chaque publication.** Un jour non collecte est
@@ -15,10 +21,11 @@ perdu pour toujours, et l'archive accumulee dans `data/snapshots/` est la seule
 chose que ce projet possede et que personne ne peut reconstituer. Tout le reste
 — l'application, les alertes, les statistiques — se refait.
 
-Consequence concrete, deja apprise a nos depens : `src/collect.ts` ecrit l'etat
-**avant** de notifier, et l'etape de commit de `collect.yml` est en `always()`.
-Une panne du canal d'alerte fait echouer le job, mais la journee est sauvee. Ne
-jamais remettre la notification avant l'ecriture.
+Consequence concrete, deja apprise a nos depens : l'etape de commit de
+`collect.yml` est en `always()`, et le telephone n'est reveille (`src/wake.ts`)
+qu'**apres** le push du commit. Une panne du canal d'alerte fait echouer le job,
+mais la journee est sauvee. Ne jamais remettre la notification avant
+l'ecriture.
 
 ## Architecture
 
@@ -34,7 +41,8 @@ data/         archive et agregats, commites par le bot
 | Stockage | fichiers versionnes dans le depot |
 | Application | Expo SDK 57, expo-router, Reanimated 4, EAS Build + EAS Update |
 | Donnees cote app | lues sur `raw.githubusercontent.com`, cache fichier pour le hors ligne |
-| Alertes | service Expo Push, jeton dans `data/push-token.json` |
+| Suivi | sur l'appareil seulement (AsyncStorage), jamais dans le depot |
+| Alertes | reveil silencieux Expo Push apres le commit ; le telephone compare et notifie |
 
 `data/snapshots/` est la source de verite. `history.json`, `stats.json` et
 `trains.json` en sont des vues **entierement recalculees a chaque execution** :
@@ -54,8 +62,11 @@ son adresse fait la meme chose que le cron, en disant ce qui s'est passe.
 ## Regles a ne pas casser
 
 **Les modules de `src/` importes par `mobile/` doivent rester purs.** Ce sont
-`config`, `dates`, `duration`, `types`, `stats`, `watchlist` : aucun `node:`,
-aucune dependance. Ils entrent dans le programme TypeScript de `mobile/` par
+`config`, `dates`, `departures`, `diff`, `duration`, `label`, `notify`,
+`slots`, `stats`, `trace`, `types`, `watchlist` : aucun `node:`, aucune
+dependance. Le telephone fait tourner le diff et compose le message : un
+`Buffer` oublie dans `notify.ts` casserait le bundle, et c'est l'export Metro
+qui le verrait. Ils entrent dans le programme TypeScript de `mobile/` par
 les imports, jamais par l'`include`.
 
 Corollaire, tombe **deux fois** dans ce projet : ne jamais mettre
@@ -326,10 +337,8 @@ plutot que de s'effacer. La barre nomme l'objet dans les mots ou il a ete pose
 — « jeu 18 sept matin n'est plus suivi » — parce que c'est cette information-la
 qui manquait, pas le bouton.
 
-Le retrait part immediatement et l'annulation le remet : `setWatch`, `setRule` et
-`toggleBooking` retirent avant d'ajouter, donc remettre est idempotent, et
-l'ecriture reseau serialisee ecrase la precedente au lieu d'empiler deux commits
-contradictoires. Une offre remplace la precedente au lieu de s'empiler, sans
+Le retrait part immediatement et l'annulation le remet : `setWatch` et
+`toggleBooking` retirent avant d'ajouter, donc remettre est idempotent. Une offre remplace la precedente au lieu de s'empiler, sans
 quoi deux balayages rapproches laisseraient a l'ecran un defaire perime qui
 remettrait la mauvaise ligne.
 
@@ -400,25 +409,24 @@ l'enregistrait une seconde fois, et seul l'ecran de reglages savait defaire.
 `toggleBooking` retire toujours avant d'ajouter — l'ecriture est donc idempotente
 par construction, et non conditionnee a un etat lu depuis le rendu precedent.
 
-**Ce qui est passe cesse d'exister.** Une entree de surveillance dont le train
-est parti depuis plus d'une heure n'est plus affichee, et disparait du fichier a
-la prochaine ecriture — jamais parce qu'un ecran s'est affiche : on n'ecrit pas
-dans le depot pour un rendu. La comparaison se fait sur des chaines, l'appelant
-fournissant l'horloge deja reculee de sa grace : une date de voyage ne se
-convertit pas, meme pour savoir si elle est passee.
+**Ce qui est passe cesse d'exister.** Un suivi dont la fenetre est finie depuis
+plus d'une heure n'est plus affiche, et disparait du stockage a la prochaine
+ecriture — jamais parce qu'un ecran s'est affiche. Les bornes s'ecrivent
+`AAAA-MM-JJ HH:MM` et se comparent comme des chaines, l'appelant fournissant
+l'horloge deja reculee de sa grace : une date de voyage ne se convertit pas,
+meme pour savoir si elle est passee.
 
-**Trois ecrans modifient la surveillance, un seul l'ecrit.** `setWatchlist`
-prend une fonction — meme raison que `setReservations` — et la persistance est
-un effet du changement d'etat, dans le fournisseur. Un marqueur distingue une
-edition locale d'un rafraichissement, sans quoi l'effet renverrait au depot ce
-qu'il vient d'en lire.
+**Trois ecrans modifient le suivi, un seul l'ecrit.** `setWatchlist` prend une
+fonction — meme raison que `setReservations` — et l'ecriture dans le stockage
+est un effet du changement d'etat, dans le fournisseur. Le suivi se lit une
+fois au demarrage et n'est jamais relu : l'appareil en est le seul auteur, et
+le relire pourrait ecraser un geste pose pendant la lecture.
 
 **Un geste sans affordance sera oublie entre deux vagues d'usage.** Cette
 application s'ouvre beaucoup pendant une semaine puis plus rien pendant quinze
 jours : un balayage peut etre un raccourci, jamais l'unique chemin vers une
-fonction de premiere importance. Poser une surveillance a donc un bouton, et le
-creneau recurrent — dont le format et le moteur existaient depuis le debut mais
-qui ne pouvait s'ecrire qu'a la main dans le depot — a enfin un ecran.
+fonction de premiere importance. Poser un creneau a donc un bouton, sur
+l'accueil et sur l'ecran de chaque jour.
 
 **Les reglages ne gerent rien.** Ils portaient la liste des reservations et
 celle des surveillances, avec leurs boutons : l'ecran le moins frequente charge
@@ -428,18 +436,6 @@ section : l'avertissement de panne du stockage local vivait dans celle des
 reservations, et il est parti avec — c'est le seul endroit ou la donnee n'est
 pas reconstituable depuis l'archive, il ne peut pas rester muet. Il est
 desormais la ou l'ecriture se fait.
-
-**Un ecran de choix n'a pas besoin d'etre presente.** Le formulaire de creneau
-recurrent s'ouvrait sur un paragraphe : sa premiere moitie decrivait ce que le
-titre « Suivre » et le bouton « Suivre les vendredis matin » disent deja, la
-seconde expliquait le recouvrement d'une heure des periodes — que la ligne de
-bornes sous les pastilles **montre**, 05:00 – 12:00 puis 11:00 – 16:00. Une
-demonstration au moment du choix bat une explication avant lui. Meme regle que
-pour les reglages : une explication n'a de valeur qu'attachee a une decision, et
-celle-ci l'etait a un ecran entier.
-
-Ce qui disparait d'un ecran doit rester quelque part : la regle du recouvrement
-vit toujours dans `GUIDE.md`, et la table dans `src/periods.ts`.
 
 **Les reglages ne portent que ce qui a un interrupteur.** Ils avaient perdu la
 gestion — reservations et suivis sont partis sur l'accueil — pour gagner le
@@ -500,15 +496,6 @@ n'a donc plus a etre affiche, mais il reste dans le stockage et dans l'export :
 effacer une donnee utilisateur en silence est exactement ce qui a deja coute une
 reservation a ce projet.
 
-**Une regle se relit dans la langue ou elle a ete decidee.** Personne ne choisit
-« apres 05:00 » : on choisit « le matin ». La liste affichait pourtant « chaque
-lundi apres 5:00 », et le bouton qui pose la regle disait « Suivre les lundis »
-— la periode choisie disparaissait purement et simplement du seul endroit ou
-l'on confirme son choix. `periodOf` faisait deja la traduction dans un sens ;
-`recurringLabel` et `followLabel` la font dans l'autre, au meme endroit pour les
-deux ecrans. Une fenetre posee a la main dans le depot ne nomme aucune periode
-connue : elle se relit par ses bornes, ce qui est honnete plutot que faux.
-
 **Le calendrier marque une reservation par un anneau, jamais par une teinte.**
 Le fond d'une case appartient a l'echelle `avail` et ne se partage pas. L'anneau
 est une marque posee par-dessus, dans la famille qui designe ce qui t'engage —
@@ -518,15 +505,6 @@ il n'y a rien : sinon les deux ou trois cases marquees auraient une boite
 interieure plus petite, et leurs chiffres sauteraient de deux pixels au milieu
 de la grille. Le marqueur du jour est parti dans le meme mouvement : la grille
 commence a aujourd'hui, il n'y a aucun jour d'avant dont le distinguer.
-
-**Les periodes de la journee se recouvrent d'une heure, et c'est le point.** Un
-depart a 11h30 est autant une fin de matinee qu'un debut de midi : avec des
-bornes jointives, quelqu'un qui suit « le matin » manque ce train pour trente
-minutes sans jamais comprendre pourquoi. Le recouvrement coute quelques trains
-suivis en trop, la coupure nette coute celui qu'on cherchait. La table vit dans
-`src/periods.ts` parce que deux ecrans la lisent — le formulaire recurrent et
-les raccourcis d'une journee — et que deux tables divergeant d'une heure seraient
-indiagnosticables depuis l'ecran.
 
 **Le verdict ne remplace pas entierement la frise.** Retirer les trente cellules
 etait juste ; ne plus rien montrer sur les lignes « stables » l'etait moins,
@@ -605,44 +583,31 @@ quelque chose » ne peut litteralement jamais etre observee — c'est exactement
 l'erreur que `filterNewDates` avait deja faite a l'echelle de la date, et elle
 s'est reproduite dans la premiere mesure faite pour calibrer ces seuils.
 
-**Un signal qu'on detecte mais qu'on ne met pas en titre n'existe pas.** Mesure
-sur les vingt diffs de l'archive, avec la watchlist reelle : les creneaux suivis
-ont bouge **25 fois** dans les quatorze jours, les 25 mouvements etaient dans le
-corps du message, et **2 seulement** dans le titre. Le 21/09, le jeudi matin
-passait de 1 a 7 trains a trois jours du depart ; le titre disait « 7 trains
-ouverts ». Sur un ecran verrouille on ne lit que le titre, donc le message etait
-indiscernable du bruit et se balayait. La detection n'etait pas en cause, et
-c'est le piege : ajouter des signaux aurait aggrave un probleme de hierarchie.
-Le titre **est** desormais la premiere ligne du message, jamais un resume
-fabrique a cote — deux facons de nommer le meme fait finissent toujours par en
-nommer deux differents, et ici la seconde etait vide.
-
 **Un evenement qui se produit systematiquement est un fond, pas une nouvelle.**
-`DECISION_HORIZON_DAYS` borne a quatorze jours les signaux generaux et les
-creneaux venus d'une regle. Mesure : **8 des 11** `REOPENED` de l'archive
-portent sur J+21 a J+30 et **aucun** sur J+0 a J+2 ; **6 des 9** ouvertures de
-creneau sont au-dela de deux semaines. C'est la mecanique de l'horizon glissant
-— une date y entre a zero place et se remplit le lendemain, toutes les dates le
-font, tous les jours. Ce n'est pas un filtre de preference, et la regle
-au-dessus tient toujours : les deux alertes universelles ne consultent aucune
-watchlist, elles regardent seulement a quelle distance elles parlent.
+`DECISION_HORIZON_DAYS` borne a quatorze jours les deux alertes generales.
+Mesure : **8 des 11** `REOPENED` de l'archive portent sur J+21 a J+30 et
+**aucun** sur J+0 a J+2. C'est la mecanique de l'horizon glissant — une date y
+entre a zero place et se remplit le lendemain, toutes les dates le font, tous
+les jours. Ce n'est pas un filtre de preference : elles ne consultent aucun
+suivi, elles regardent seulement a quelle distance elles parlent.
 
-Corollaire : **une entree datee est une intention, une regle recurrente n'en est
-pas une.** Personne ne suit le 07:12 du 15/10 par accident ; une regle « tous les
-jeudis » ratisse cinq jeudis et n'en designe aucun. La borne s'applique donc a
-la seconde et jamais a la premiere. Et le besoin reel — « la semaine prochaine
-je rentre jeudi soir » — se pose en suivi **date**, pas en regle : les regles
-sont pour ce qui est vraiment hebdomadaire.
+**Un suivi est une fenetre datee, et rien d'autre.** Les regles recurrentes et
+les periodes nommees sont parties le 2026-09-23. Une regle « tous les jeudis »
+ratissait cinq jeudis pour en designer un — 6 des 9 ouvertures de creneau de
+l'archive portaient sur un jeudi a plus de deux semaines — et « le soir »
+commencait a 19h quand le besoin disait 18h. Le besoin reel s'enonce « je rentre
+entre jeudi 18h et vendredi 11h » : un sens, un debut, une fin, qui peut passer
+la nuit. Un train seul est la meme chose, fermee sur son heure. Les trajets de
+plus de 3 h comptent par defaut — ce sont des solutions — et s'ecartent d'un
+geste dans l'editeur.
 
-**Un seuil qui ne fait que deplacer la ligne ne filtre rien.** `isCoveredBySlot`
-n'absorbait les trains d'un creneau suivi **que lorsque ce creneau produisait un
-signal**. Un mouvement sous le seuil laissait donc repasser exactement les memes
-trains un cran plus bas, a la maille de l'horaire, ou ils sont moins lisibles :
-le 14/09, « jeu 17/09 matin 5 → 9 » etait volontairement tu — on avait deja de
-quoi choisir — et le message affichait `05:18 06:58 09:46 10:17`. La separation
-se fait desormais dans `filterEvents`, la ou l'on sait de quelle maille est le
-suivi : une minute designe un depart et donne son horaire, tout le reste est un
-creneau et donne son compte.
+**Un seuil qui ne fait que deplacer la ligne ne filtre rien.** Les trains d'un
+creneau suivi n'etaient absorbes par lui **que lorsqu'il produisait un
+signal** : un mouvement sous le seuil laissait repasser les memes trains un cran
+plus bas, horaire par horaire. Le 14/09, « jeu 17/09 matin 5 → 9 » etait
+volontairement tu, et le message affichait quand meme `05:18 06:58 09:46 10:17`.
+Il n'y a desormais plus d'evenement de train du tout : chaque suivi, train seul
+compris, parle par son compte, une seule fois.
 
 **La rarete decide d'une baisse, la sortie de la rarete decide d'une hausse.**
 L'ancienne regle de creneau exigeait une chute d'au moins deux **et** deux
@@ -655,7 +620,7 @@ zero n'est pas un creneau qui se vide : il n'y a plus rien a en attendre, et
 c'est ce qui fait regarder un autre jour.
 
 **Ce qu'on ne repare pas, et c'est un choix.** Un creneau suivi dont le compte
-ne bouge jamais reste muet : le `lun 19:00-23:59` de la watchlist a **2 trains
+ne bouge jamais reste muet : l'ancienne regle `lun 19:00-23:59` avait **2 trains
 ouverts tous les jours, sur les quatre lundis, pendant vingt et un jours**, donc
 zero notification depuis toujours. Le filet manquant serait un rappel
 d'echeance — « J-2, ton lundi soir a 2 trains, decide » — et non un rappel de
@@ -676,16 +641,13 @@ de l'ouverture reelle des 48 h : pour un train du soir, le premier tombe encore
 avant le second, et la regle « un rappel avant que l'action soit possible n'est
 pas un rappel » ne souffre pas d'exception.
 
-**La maille du message suit la maille du suivi.** Un suivi pose sur une minute
-designe un train : c'est l'evenement de train qui le porte. Un suivi pose sur
-une fenetre designe un creneau : c'est le signal de creneau, et `isCoveredBySlot`
-retire alors les evenements de train qu'il absorbe — sans quoi « le matin du 18
-s'ouvre » serait suivi des trois horaires qui l'ont ouvert.
+**La maille du message suit la maille du suivi.** Un train seul dit « ouvert »
+ou « complet » ; une fenetre dit son compte, `1 → 7 trains`. C'est le meme
+mecanisme (`watchSignals`) : sur un train, le compte ne vaut que 0 ou 1.
 
 **Les deux alertes universelles ne consultent toujours aucune preference.**
-`slots.ts` est un pont a sens unique : il applique la dynamique d'une date aux
-seules fenetres explicitement suivies. Les signaux `REOPENED` et `DRAINING`
-continuent de partir pour tout le monde — c'est ce qui les rend fiables, et une
+`slots.ts` ne regarde que les fenetres suivies, `diff.ts` que les journees. Les
+signaux `REOPENED` et `DRAINING` partent quel que soit le suivi — c'est ce qui les rend fiables, et une
 regle taillee pour amortir le bruit des trains les avait deja reduits au
 silence six jours sur sept.
 
@@ -724,7 +686,9 @@ lisait apres s'y etre ecrite.** Mesure, pas supposee : la reponse porte
 suivi, l'ecriture par l'API partait bien, et le rechargement suivant reservait
 pendant cinq minutes la version d'avant — le suivi supprime revenait, celui
 qu'on venait d'ajouter manquait. Une lecture qui doit etre juste apres une
-ecriture passe par l'API Contents, qui repond depuis la ref.
+ecriture passe par l'API Contents, qui repond depuis la ref — c'est pourquoi le
+Worker et le reveil du telephone, qui lisent dans la minute du commit, passent
+par elle.
 
 **Et il y a deux caches, pas un — la meme correction ne vaut pas pour les
 deux.** Passer la watchlist sur l'API n'a pas suffi : le suivi disparaissait au
@@ -741,51 +705,34 @@ comme le reste — deux editions a moins d'une minute d'intervalle partaient ave
 un `sha` perime et se faisaient refuser en 409, trois fois de suite puisque
 chaque tentative relisait le meme cache.
 
-**Un `sha` ne suppose rien, et c'est pour ca qu'il tranche.** Deux fois de suite
-une supposition sur le comportement d'un cache a coute un suivi disparu a
-l'ecran. La regle ne porte donc plus sur le cache mais sur le contenu : on
-retient les `sha` que nos propres ecritures ont remplaces, et une reponse qui en
-porte un est en retard — elle ne peut pas etre une edition venue d'ailleurs,
-elle serait passee par ici. Un ensemble et non le dernier `sha` : deux editions
-rapprochees empilent deux etats remplaces, et une reponse en retard peut porter
-le plus ancien des deux.
+**Le suivi ne quitte plus l'appareil.** Il vivait dans le depot parce que le
+collecteur filtrait les notifications dessus, et le depot est public : 12
+suivis a la minute pres pour les 24 et 25 septembre disaient « je pars jeudi
+soir » aussi clairement que les reservations qu'on en avait deja retirees pour
+cette raison. Le collecteur ne compose donc plus rien : il reveille le
+telephone, qui compare le releve a **la derniere donnee qu'il a vue** — un
+reveil perdu fait un message plus riche le lendemain, pas un message en moins.
+Reste public ce qui a deja ete publie : l'historique Git garde les anciens
+suivis. Cout de la bascule : un APK, `expo-task-manager` changeant l'empreinte
+(`f02906ed` -> `a7b98333`).
 
-**L'appareil est l'auteur de la watchlist, le depot en est la publication.**
-Le collecteur ne peut pas filtrer sur un fichier qu'il ne lit pas : le fichier
-reste donc dans le depot. Mais il n'en est plus la *source affichee*. Le miroir
-local (`mobile/src/data/watch-sync.ts`) porte ce que l'ecran montre, et la
-publication est une consequence qui peut echouer, retarder ou attendre un
-jeton, sans que la liste bouge. C'est possible parce que le collecteur ne
-reecrit jamais ce fichier — il ne fait que le lire — donc il n'y a rien a
-arbitrer. Corollaires deja payes : un miroir absent n'est pas un miroir vide
-(meme lecon que `readReservations`), une edition non publiee gagne toujours sur
-un rafraichissement, et elle survit a la fermeture de l'application.
+**Une ecriture qui echoue ne s'avale pas.** `writeFile` relit le `sha` puis
+envoie : deux ecritures rapprochees produisaient un 409 avale par un
+`.catch(() => {})`. Le conflit se rejoue, en renvoyant l'etat complet. C'est le
+seul chemin d'ecriture qui reste — le jeton de notification.
 
-**Une ecriture reseau non serialisee perd le perdant, en silence.** `writeFile`
-relit le `sha` puis envoie : deux gestes rapproches suffisaient a produire un
-409, avale par un `.catch(() => {})`. Une seule ecriture en vol, la derniere
-valeur ecrase les precedentes dans la file — l'envoi porte l'etat complet, pas
-un increment — et le conflit se rejoue au lieu de se perdre. Et la panne se
-voit : une banniere sur l'accueil, parce qu'un suivi que le collecteur ne lit
-pas est un ecran juste avec des alertes fausses.
-
-**Un objet n'est pas une valeur.** Trois ecrans comparaient les entrees de
-suivi, chacun a sa maniere, et l'accueil le faisait par identite
-(`entry !== target`). Un rafraichissement remplace les objets entre le rendu et
-le geste : le filtre ne retirait plus rien et la suppression partait quand meme
-en commit. `watchKey` / `ruleKey` tranchent une fois pour toutes, `undefined`
-face a `''` compris, et `setWatch` / `setRule` retirent avant d'ajouter — meme
-raison que `toggleBooking`.
+**Un objet n'est pas une valeur.** L'accueil comparait les suivis par identite
+(`entry !== target`) : un rafraichissement remplacait les objets entre le rendu
+et le geste, et la suppression ne retirait rien. `watchKey` tranche une fois pour
+toutes, et `setWatch` retire avant d'ajouter — meme raison que `toggleBooking`.
 
 **Ce qui est personnel ne va pas dans le depot.** Il est public — l'application
 lit ses donnees sur `raw.githubusercontent.com` sans authentification — et
 `reservations.json` y publiait dates, sens et numeros de train, c'est-a-dire
 quand son proprietaire n'est pas chez lui. Les reservations vivent desormais
 dans le stockage local de l'application (`mobile/src/data/local.ts`), avec un
-export manuel comme seule sortie. La watchlist, elle, reste versionnee : le
-collecteur ne peut pas filtrer sur un fichier qu'il ne lit pas. C'est la ligne
-de partage — le depot porte ce dont le collecteur a besoin, l'appareil garde le
-reste.
+export manuel comme seule sortie, et le suivi les y a rejointes. Le depot ne
+porte plus que la donnee publique et le jeton de notification.
 
 **Une notification doit porter ce qu'on ne peut pas deviner.** Les lignes
 d'ouverture donnaient la date, l'heure, le numero de train et la duree, mais
@@ -817,9 +764,10 @@ colonne de marques, qui est tout l'interet du balayage, s'effondrait. Mesure
 apres coup, sur les huit vrais messages de l'archive : trois lignes sur
 trente-neuf debordent encore, contre la quasi-totalite avant.
 
-Regrouper les lignes par sens aurait casse l'ordre de priorite — creneau suivi,
-puis signal, puis ouverture, puis fermeture — qui est la seule chose garantissant
-que la ligne la plus utile est visible en premier. On garde donc l'ordre, et
+Regrouper les lignes par sens aurait casse l'ordre de priorite — ce qui est
+suivi, puis les alertes generales — qui est la seule chose garantissant que la
+ligne la plus utile est visible en premier. Le titre ne porte pas le sens non
+plus : c'est la premiere ligne du corps, visible juste dessous meme replie. On garde donc l'ordre, et
 l'en-tete se reecrit quand le sens ne vaut plus. L'en-tete ne porte pas de
 marque : au milieu de lignes qui commencent toutes par une pastille, une ligne
 nue se lit comme un titre sans qu'on ait a la decorer.
@@ -830,37 +778,18 @@ des lignes qui debordaient d'un ou deux, et ca se lit dans le sens du temps. La
 fleche y etait interdite parce que `dirLabel` en portait deja une sur la meme
 ligne — le sens ayant demenage, l'objection est tombee avec lui.
 
-**Le budget d'un message se prend sur ce que personne n'a demande.** Les
-creneaux suivis etaient bien en tete, mais les evenements de train — qui ne
-survivent a `filterEvents` que parce qu'on a demande a suivre cette fenetre —
-passaient **apres** les signaux generaux. Six dates que personne ne suit
-suffisaient donc a evincer le seul train qu'on attendait, et le « +N autres » ne
-disait pas lesquelles etaient parties. Mesure sur l'archive : le 03/09, deux
-lignes coupees, **les deux suivies**, pendant que quatre signaux generaux
-occupaient la place — un jour sur huit.
+**Le budget d'un message se prend sur ce que personne n'a demande.** Six dates
+que personne ne suivait suffisaient a evincer le seul train qu'on attendait, et
+le « +N autres » ne disait pas lesquelles etaient parties. Mesure sur l'archive :
+le 03/09, deux lignes coupees, **les deux suivies**, pendant que quatre signaux
+generaux occupaient la place. La coupe porte sur les generaux, et le tap ouvre
+toujours ce que le titre annonce.
 
-La coupe porte desormais sur les generaux, l'ordre d'affichage ne bouge pas, et
-le tap n'ouvre jamais une date que le message vient d'ecarter. Corollaire de
-methode : les deux tests ont ete verifies en remettant l'ancien ordre.
-
-Ce qui deborde vraiment — des trains **non suivis** qui s'ouvrent en plus — n'a
-pas besoin d'ecran : c'est une information dont on se passe, et le
-« +N autres » suffit a dire qu'elle existe. La regle de troncature porte sur ce
-qu'on a demande, pas sur tout.
-
-**Attention a ce que le test montre.** `notify-test` contourne la watchlist,
-la production non (`filterEvents` dans `collect.ts`). Un message de test peut
-donc afficher trente-neuf lignes d'ouvertures la ou le vrai message en aurait
-trois : juger la mise en page sur le test, c'est optimiser un cas qui n'arrive
-jamais. Les vrais messages font deux a sept lignes, mesure sur l'archive.
-
-**Le titre et le corps ne disent pas la meme chose.** Le titre annoncait
-« 1 train parti » et la seule ligne du corps commencait par « parti » : six
-caracteres de la seule ligne informative depenses a repeter ce qui etait deja
-lu. La marque a pris cette place au lieu de s'y ajouter. La faute subsiste
-ailleurs, et n'est pas encore corrigee : sur un signal unique, le titre et la
-ligne portent tous deux la date, le sens et le compte — le corps n'ajoute que le
-« hier ».
+**Le titre et le corps ne disent pas la meme chose.** Le titre **est** la
+premiere ligne du message, jamais un resume fabrique a cote — mesure sur
+l'archive, 25 mouvements de creneau suivi etaient dans le corps et 2 seulement
+dans le titre, sous un « 7 trains ouverts » indiscernable du bruit. Et le corps
+ne la repete pas : il n'en garde que le sens.
 
 **Le pari du plan sur l'entree d'une date a J+30 etait faux, et l'alerte batie
 dessus ne pouvait litteralement jamais partir.** Le plan supposait qu'une date
@@ -877,7 +806,10 @@ remontee franche dans la derniere semaine, ou le 06/09 est passe de 1 a 17
 places en un jour ; et croiser vitesse **et** rarete ramene le volume a une a
 quatre lignes. Deux jours de recul seulement : a reconfirmer.
 
-**Deplacer un stockage, c'est ecrire la migration dans le meme commit.** Les
+**Deplacer un stockage, c'est ecrire la migration dans le meme commit.** Une
+exception assumee depuis : le suivi est passe du depot a l'appareil sans
+migration, parce qu'il se recree en trois gestes. La regle tient pour ce qui ne
+se refait pas. Les
 reservations sont passees du depot au stockage local de l'application sans
 qu'aucun code ne transporte l'existant : a l'arrivee de la mise a jour, l'app a
 cesse de lire `reservations.json` et s'est mise a lire une cle vide. Le creneau
@@ -902,8 +834,7 @@ La watchlist etait appliquee aux ouvertures de train *et* aux dates entrantes.
 Taillee pour le premier cas, qui produit des centaines d'evenements, elle
 reduisait au silence six jours sur sept un signal qui en produit un par jour.
 Les deux alertes universelles — une date qui rouvre, un creneau qui se vide —
-contournent desormais la watchlist entierement ; elle ne sert plus qu'aux
-creneaux explicitement mis en suivi.
+contournent desormais le suivi entierement.
 
 **Les versions natives viennent de `mobile/node_modules/expo/bundledNativeModules.json`**,
 jamais du `latest` de npm. Le SDK 57 veut gesture-handler 2.32 et reanimated
@@ -965,7 +896,7 @@ monte la garde depuis.
 ## Verifier
 
 ```sh
-npm test              # 160 tests sur fixtures, aucun acces reseau
+npm test              # 111 tests sur fixtures, aucun acces reseau
 npm run typecheck
 npm run seed          # archive synthetique de 70 jours si besoin de recul
 
@@ -977,13 +908,10 @@ npx expo export --platform android --output-dir /tmp/export   # resolution Metro
 Le bundle Metro est la seule verification qui attrape une resolution cassee
 vers les modules partages, qui vivent hors du dossier du projet.
 
-Le canal d'alerte ne se verifie pas en lisant du code : declencher
-`notify-test.yml`. Il rejoue le vrai diff des deux derniers snapshots et envoie
-le message obtenu, sans rien ecrire. Les evenements de train n'y sont pas
-filtres par la watchlist — sinon il n'aurait presque jamais rien a envoyer —
-mais les creneaux suivis la reclament, un signal de creneau n'existant que
-parce qu'on a demande a suivre cette fenetre. En local,
-`TGVMAX_PUSH_URL` pointe le meme chemin vers un faux endpoint.
+Le canal d'alerte se verifie a l'usage : il n'a plus de message a rejouer, le
+telephone decidant seul. Le Worker, lui, se verifie en ouvrant son adresse, qui
+fait la meme chose que son cron et dit ce qui s'est passe. En local,
+`TGVMAX_PUSH_URL` pointe le reveil vers un faux endpoint.
 
 Le domaine `ressources.data.sncf.com` peut etre injoignable selon
 l'environnement. `TGVMAX_DATASET_URL` permet de rejouer la chaine complete
@@ -995,8 +923,8 @@ contre un faux endpoint, et `TGVMAX_ROOT` de le faire sans toucher a l'archive.
 branche de fonctionnalite, pas de pull request, pas de revue. Le proprietaire
 de ce depot n'ouvre jamais l'editeur : tout est demande depuis un telephone, et
 c'est l'assistant qui ecrit, verifie, commite et pousse. Les commits s'empilent
-sur `main`, et le push livre dans la foulee — OTA pour le JS, collecte au cron
-suivant. Une PR n'aurait personne pour la relire ; elle ne serait qu'une
+sur `main`, et le push livre dans la foulee — OTA pour le JS, collecte au
+prochain passage du Worker. Une PR n'aurait personne pour la relire ; elle ne serait qu'une
 ceremonie de plus.
 
 **En echange, la verification n'est pas negociable, et elle passe avant le
@@ -1044,10 +972,11 @@ installable par sideload. Il faut Android + `preview` + base directory `mobile`.
 
 ## Ce qui reste a faire
 
-**Les notifications sont verifiees de bout en bout** — jeton enregistre depuis
-l'appareil, message recu, tap qui ouvre le bon jour — le 2026-09-03. Le rappel
-de confirmation, lui, n'a encore jamais eu de reservation a signaler a la
-bonne heure : son premier vrai passage reste a observer.
+**Le reveil n'a encore jamais tourne sur l'appareil.** Le chemin actuel —
+collecte, commit, reveil silencieux, comparaison sur le telephone, notification
+locale — date du 2026-09-23 et demande l'APK `a7b98333`. Son premier vrai
+passage reste a observer, comme celui du rappel de confirmation a l'ouverture
+de la fenetre.
 
 **Statistiques.** Chaque metrique est publiee des qu'elle a un echantillon,
 plus toutes ensemble derriere un compteur de snapshots : l'erosion demande une
@@ -1063,7 +992,8 @@ ailleurs. Une notification push n'y peut rien : elle est envoyee *par* le
 collecteur, et un collecteur mort ne peut pas annoncer sa propre mort.
 
 L'appareil, lui, le peut. `scheduleStaleAlarm` repose a chaque rafraichissement
-reussi une alarme locale a 40h : tant que la donnee arrive, l'echeance recule.
+reussi, et a chaque reveil, une alarme locale a 40h : tant que la donnee arrive,
+l'echeance recule. Elle couvre donc aussi le reveil qui ne vient plus.
 C'est le seul dispositif qui survive a la panne qu'il surveille, et il ne
 demande aucun service tiers. Reste vraie la contrainte de fond : les workflows
 planifies sont desactives apres une longue inactivite du depot — verifier vers

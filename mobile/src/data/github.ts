@@ -93,10 +93,6 @@ export class NoTokenError extends Error {
   }
 }
 
-export function hasToken(): Promise<boolean> {
-  return getToken().then((token) => token !== null && token !== '');
-}
-
 /**
  * `cache-control: no-cache`, et ce n'est pas la meme histoire que le CDN.
  *

@@ -198,7 +198,7 @@ export default function SettingsScreen() {
 
     const { reservations, watchlist } = result.data;
     setReservations(() => reservations);
-    setWatchlist(() => watchlist, 'watchlist: restauration');
+    setWatchlist(() => watchlist);
     void syncConfirmReminders(reservations.slots);
     setMessage({ text: `${reservations.slots.length} créneaux restaurés.`, bad: false });
   };
@@ -332,8 +332,8 @@ export default function SettingsScreen() {
         {!editingToken && !token && (
           <>
             <Note>
-              Un PAT fine-grained avec Contents: write sur ce dépôt. C’est lui qui publie tes suivis
-              — sans lui, aucune alerte ne part.
+              Un PAT fine-grained avec Contents: write sur ce dépôt. C’est lui qui publie le jeton de
+              cet appareil — sans lui, le collecteur ne peut pas le réveiller.
             </Note>
             <Action
               label="Enregistrer un jeton"

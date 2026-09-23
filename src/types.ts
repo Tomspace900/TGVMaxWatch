@@ -26,8 +26,6 @@ export interface State {
   dataProcessed: string | null;
   /** Instant ou le collecteur a ecrit ce snapshot. */
   collectedAt: string | null;
-  /** Date du dernier envoi push reussi, affichee dans l'application. */
-  lastPushOk: string | null;
   /** Date de collecte du dernier snapshot, `YYYY-MM-DD`. */
   latestSnapshot: string | null;
   snapshotCount: number;
@@ -46,27 +44,6 @@ export interface Observation {
 export type History = Record<string, Record<Dir, Observation[]>>;
 
 export type DurationTier = 'direct' | 'intermediaire' | 'long';
-
-export type EventKind = 'OPEN' | 'CLOSE' | 'REMOVED';
-
-/**
- * Un changement detecte entre deux snapshots consecutifs, pour un depart.
- *
- * La maille est le depart et non la rame : deux rames a la meme minute sont un
- * seul train pour qui voyage, et l'une s'ouvrant quand l'autre etait deja
- * ouverte ne change rien — l'annoncer serait une fausse alerte.
- */
-export interface TrainEvent {
-  kind: EventKind;
-  date: string;
-  dir: Dir;
-  /** Rames de ce depart. Une ou deux. */
-  trainNos: string[];
-  depart: string;
-  arrivee: string;
-  durationMin: number;
-  tier: DurationTier;
-}
 
 /**
  * Ce qui merite de deranger, independamment de toute preference.
@@ -89,71 +66,42 @@ export interface DateSignal {
 }
 
 /**
- * Ce qui bouge sur un creneau explicitement suivi.
+ * Un suivi : un sens et une fenetre, qui peut chevaucher plusieurs jours.
  *
- * Les deux alertes generales portent sur le compte d'une (date, sens) entiere
- * et ne consultent aucune preference — c'est ce qui les rend universelles. Un
- * signal de creneau porte au contraire sur une fenetre horaire que quelqu'un a
- * demande a suivre : « les jeudis matin ». Les deux mecanismes ont ete separes
- * volontairement ; celui-ci est le pont, et il ne s'applique qu'a ce qui est
- * suivi.
+ * Les bornes sont des instants locaux francais ecrits `AAAA-MM-JJ HH:MM`, qui
+ * se comparent comme des chaines — une date de voyage ne se convertit jamais.
+ * Un train seul est une fenetre fermee : `from === to`.
  *
- * Quatre mots parce qu'un creneau suivi a quatre etats qui decident : il
- * s'ouvre, il se remplit, il se vide, il se ferme. Il n'y en avait que deux, et
- * les deux manquants sont ceux qu'on attendait — mesure sur l'archive, **20 des
- * 25** mouvements de creneau dans les quatorze jours ne produisaient aucun
- * signal, dont un `1 -> 7` a trois jours du depart.
+ * Il remplace les regles recurrentes et les periodes nommees. Le besoin reel
+ * est « je rentre entre jeudi 18h et vendredi 11h », pas « tous les jeudis
+ * matin » : une regle ratissait cinq jeudis pour en designer un.
  */
-export type SlotSignalKind =
-  | 'SLOT_OPENED'
-  | 'SLOT_FILLING'
-  | 'SLOT_DRAINING'
-  | 'SLOT_CLOSED';
-
-export interface SlotSignal {
-  kind: SlotSignalKind;
-  date: string;
+export interface Watch {
   dir: Dir;
-  /** Bornes de la fenetre suivie, absentes pour une journee entiere. */
-  after?: string;
-  before?: string;
-  /** Nom lisible de la fenetre : `matin`, `toute la journee`, `18:00-20:00`. */
-  label: string;
-  /** Trains ouverts *dans la fenetre* au snapshot precedent, puis au courant. */
-  before_count: number;
-  after_count: number;
+  from: string;
+  to: string;
+  /** Vrai pour ecarter les trajets de plus de 3 h. Ils comptent par defaut : c'est une solution. */
+  skipLong?: true;
 }
 
-export interface DiffResult {
-  events: TrainEvent[];
-  signals: DateSignal[];
-  /** Vide tant que rien n'est suivi : ces signaux dependent des preferences. */
-  slots: SlotSignal[];
-}
+/** Vit sur l'appareil, jamais dans le depot. */
+export type Watchlist = Watch[];
 
-/** Une entree explicite de surveillance. */
-export interface WatchEntry {
-  date: string;
-  /** Absent = les deux sens. */
-  dir?: Dir;
-  /** `HH:MM`, bornes inclusives sur l'heure de depart. */
-  after?: string;
-  before?: string;
-}
+/**
+ * Ce qui bouge dans un suivi : il s'ouvre, se remplit, se vide, se ferme.
+ *
+ * Sur un train seul, seuls le premier et le dernier peuvent arriver : c'est
+ * le meme mecanisme, et c'est pour ca qu'il n'y a plus d'evenement de train a
+ * part.
+ */
+export type WatchSignalKind = 'OPENED' | 'FILLING' | 'DRAINING' | 'CLOSED';
 
-export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
-
-/** Une regle recurrente, appliquee a toute date correspondante. */
-export interface WatchRule {
-  weekday: Weekday;
-  dir?: Dir;
-  after?: string;
-  before?: string;
-}
-
-export interface Watchlist {
-  watch: WatchEntry[];
-  rules: WatchRule[];
+export interface WatchSignal {
+  kind: WatchSignalKind;
+  watch: Watch;
+  /** Trains ouverts dans la fenetre, au dernier releve vu puis a celui-ci. */
+  before: number;
+  after: number;
 }
 
 /**

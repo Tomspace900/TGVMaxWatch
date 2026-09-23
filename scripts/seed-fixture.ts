@@ -155,7 +155,6 @@ function main(): void {
   const state: State = {
     dataProcessed: `${today}T04:22:11+00:00`,
     collectedAt: new Date().toISOString(),
-    lastPushOk: null,
     latestSnapshot: today,
     snapshotCount: dates.length,
     recordCount: last.length,

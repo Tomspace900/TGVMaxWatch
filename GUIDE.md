@@ -39,16 +39,16 @@ tout, il le dit autrement — ce ne sont pas les mêmes situations.
 **3. Le suivi — c'est le cœur, donc c'est en haut.** Tout ce que tu suis, en
 entier, jamais tronqué. Chaque ligne porte :
 
-- l'heure du train suivi, le nom de la période (**MATIN**, **SOIR**…) si tu
-  suis un moment de la journée, **JOUR** si tu suis la journée entière, ou
-  **RÈGLE** si c'est un créneau récurrent ;
-- la date, et **à combien de jours du départ on est** — « complet » à J-20 et
-  « complet » à J-2 ne se lisent pas pareil ;
+- le créneau tel que tu l'as posé — `jeu 24/09 18h → ven 25/09 11h` — ou
+  l'heure du train si tu suis un train seul ;
+- **à combien de jours du départ on est** — « complet » à J-20 et « complet » à
+  J-2 ne se lisent pas pareil ;
 - **le sens**, sur chaque ligne : la question « est-ce que ce bloc suit le
   sélecteur du haut ? » ne se pose plus, chaque ligne répond pour elle-même ;
-- **l'état, en toutes lettres** : `ouvert · 4 j`, `complet · 2 j`,
-  `vient de rouvrir`. Le nombre de jours dit sur combien d'observations l'état
-  tient — sur une archive jeune, c'est exactement ce qu'il faut savoir.
+- **l'état, en toutes lettres** : pour un créneau, combien de trains y sont
+  ouverts (`3 trains ouverts`) ; pour un train, `ouvert · 4 j`, `complet · 2 j`,
+  `vient de rouvrir` — le nombre de jours dit sur combien d'observations l'état
+  tient.
 
 Touche une ligne pour ouvrir le jour correspondant, ou **balaie-la** : vers la
 gauche pour ne plus la suivre, vers la droite pour marquer ou démarquer une
@@ -56,24 +56,20 @@ réservation — exactement les mêmes gestes, sur exactement le même objet, qu
 dans la liste des trains d'un jour.
 
 **Tout retrait se défait.** Quand tu enlèves un suivi ou une réservation, une
-barre apparaît en bas et **nomme ce qui vient de partir** — « jeu 18 sept matin
-n'est plus suivi » — avec un bouton *annuler*. Elle reste six secondes. Pas de
+barre apparaît en bas et **nomme ce qui vient de partir** — « jeu 24/09 18h →
+ven 25/09 11h n'est plus suivi » — avec un bouton *annuler*. Elle reste six secondes. Pas de
 fenêtre de confirmation : le balayage doit rester un geste, pas un formulaire.
 Et c'est le même comportement sur l'écran d'un jour.
 
-**Le bouton « + créneau régulier »** ouvre la seule chose qui ne pouvait pas se
-faire depuis l'application : poser un suivi qui se répète. Tu choisis le
-jour de la semaine, le sens, et le créneau — matin, midi, soir, ou toute la
-journée — et l'alerte partira chaque semaine, sans rien redemander. Sous les
-pastilles, les **bornes réelles** du créneau choisi : « 05:00 – 12:00 ». Le
-raccourci ne cache jamais ce qu'il fait, et c'est là qu'on voit le
-recouvrement d'une heure entre deux périodes voisines.
+**Le bouton « + créneau »** pose ce que tu cherches vraiment : « je rentre entre
+jeudi 18h et vendredi 11h ». Tu choisis le sens, puis **de** tel jour à telle
+heure, **à** tel jour à telle heure — la fenêtre peut passer la nuit. Les trajets
+de plus de 3 h comptent par défaut, parce que ce sont des solutions ; un choix
+les écarte. Le même bouton existe sur l'écran de chaque jour, et part de ce jour
+et de ce sens.
 
-Une règle régulière ne te prévient que pour les **deux semaines qui viennent** :
-elle couvre cinq jeudis d'un coup, et le jeudi d'après le jeudi d'après n'est
-pas encore une décision. Quand tu sais déjà que c'est *ce* jeudi-là qui compte,
-pose le créneau depuis l'écran de ce jour — pastille « matin », « soir »… : ce
-suivi-là est daté, donc voulu, et il te prévient à n'importe quelle distance.
+Un créneau s'efface tout seul une heure après sa fin. Il n'y a plus de créneau
+qui se répète chaque semaine : il en couvrait cinq pour t'en désigner un.
 
 **4. Tes réservations**, quand tu en as. Une ligne par voyage à venir, avec le
 sens et l'état de la confirmation. Balaie vers la droite pour retirer une
@@ -113,11 +109,9 @@ En haut, une barre qui ne bouge pas : le retour au calendrier, la date, et
 calendrier — c'est le geste qu'on fait vraiment quand un créneau ne convient
 pas.
 
-Une rangée **SUIVRE** pose un suivi d'un geste : toute la journée, ou seulement
-le matin, le midi, l'après-midi ou le soir. **Les périodes se recouvrent d'une
-heure** — un départ à 11 h 30 compte dans le matin comme dans le midi : avec des
-bornes jointives, on manquerait le train cherché pour trente minutes sans jamais
-comprendre pourquoi.
+Le bouton **+ suivre un créneau** ouvre l'éditeur sur ce jour et ce sens. Pour
+suivre un train précis — un omnibus que tu es prêt à prendre, par exemple —
+balaie sa ligne vers la gauche.
 
 Ensuite l'encart du jour : **deux nombres et une forme**. À gauche « 1/29 » —
 combien de trains sont ouverts, sur combien qui circulent. À droite, la courbe,
@@ -220,8 +214,9 @@ sur l'accueil, là où tu es quand ils comptent.
 
 - **Activer les notifications**, une seule fois.
 - **Exporter tes données** pour changer de téléphone, et les restaurer.
-- **Enregistrer ton jeton GitHub**, une seule fois. Il est vérifié avant d'être
-  accepté, puis masqué : il faut demander à le modifier pour y toucher.
+- **Enregistrer ton jeton GitHub**, une seule fois. Il sert seulement à dire au
+  collecteur quel téléphone réveiller. Il est vérifié avant d'être accepté, puis
+  masqué.
 - **Voir la version de l'application**, la date du code qui tourne, et chercher
   une mise à jour.
 
@@ -229,60 +224,42 @@ sur l'accueil, là où tu es quand ils comptent.
 
 ## Quand tu es prévenu
 
-Tu reçois **au plus une notification par collecte**, soit une par jour. Elle
-regroupe tout ce qui s'est passé, et le plus souvent elle n'a qu'une ou deux
-lignes.
+Tu reçois **au plus une notification par jour**, vers 6 h 30, juste après la
+publication de la SNCF. Le plus souvent elle n'a qu'une ou deux lignes, et
+souvent rien du tout. C'est ton téléphone qui décide : lui seul sait ce que tu
+suis, rien ne quitte l'appareil.
 
-**Le titre nomme ce que tu suis, toujours.** C'est la seule chose que tu lis sur
-un écran verrouillé, et elle porte désormais une date, un sens et un compte :
-« jeu 24/09 Bordeaux → Paris matin : 1 → 7 trains ». Avant, ce même message
-s'appelait « 7 trains ouverts » et le jeudi matin était trois lignes plus bas.
+Il compare avec **la dernière donnée qu'il a vue**, pas avec celle de la veille :
+si un jour ton téléphone ne se réveille pas, le message du lendemain raconte les
+deux jours. Tant que tu ne fais pas « Forcer l'arrêt » sur l'application dans les
+réglages Android, pas besoin de la laisser ouverte, ni de la rouvrir après un
+redémarrage.
 
-**En tête, ce que tu suis.** Un créneau que tu suis — « les jeudis matin » —
-donne une ligne dès qu'il bouge pour de bon, avec quatre mots selon ce qui
-arrive :
+**Le titre nomme ce que tu suis, toujours** : « jeu 24/09 18h → ven 25/09 11h :
+1 → 7 trains ». Juste en dessous, le sens. Pour un train suivi seul : « lun 28/09
+19:11 : ouvert » ou « complet ».
+
+Un créneau que tu suis donne une ligne dès qu'il bouge pour de bon :
 
 - **il s'ouvre** — il n'y avait rien, il y a au moins un train ;
-- **il se remplit** — il en restait deux ou trois, il en arrive au moins deux de
-  plus ;
-- **il se vide** — il en reste deux ou moins ;
+- **il se remplit** — il en restait trois ou moins, il en arrive au moins deux ;
+- **il se vide** — il en reste deux ou moins, même s'il n'en a perdu qu'un ;
 - **il se ferme** — il n'en reste plus aucun, va voir un autre jour.
 
-Les horaires ne sont pas répétés en dessous : tu as demandé à suivre un créneau,
-on te prévient pour un créneau. Touche la notification pour voir lesquels. Un
-suivi posé sur **un train précis**, lui, te donne son heure — c'est ce train-là
-que tu as demandé.
-
-Un créneau est vide la plupart du temps — 65 % à midi, 63 % le soir — donc
-« il s'ouvre » se déclenche dès **un** train : ce qu'on veut savoir, c'est qu'il
-devient possible. Et une baisse se dit dès qu'il n'en reste presque plus, même
-si elle n'est que d'un train : `2 → 1` à deux jours du départ est exactement ce
-qu'on attend d'être prévenu.
-
-**Rien au-delà de deux semaines**, sauf pour les dates que tu as suivies une par
-une. Une journée qui entre dans la fenêtre des trente jours arrive toujours vide
-et se remplit le lendemain : trois quarts des « telle date rouvre » portaient sur
-des voyages à trois semaines, c'est-à-dire sur une mécanique et pas sur une
-nouvelle. Une règle du type « tous les jeudis » ratisse cinq jeudis d'un coup ;
-suivre une date précise, au contraire, est une intention, et celle-là n'est
-jamais masquée.
-
-Ensuite, deux raisons de te déranger même sans rien suivre — et elles ne passent
-jamais devant ce que tu suis :
+Ensuite, deux raisons de te déranger même sans rien suivre, qui ne passent
+jamais devant ce que tu suis, et seulement pour des voyages dans les **deux
+semaines** — au-delà, une date qui se remplit n'est que la mécanique de la
+fenêtre de trente jours :
 
 1. **Une date rouvre.** Une journée qui n'avait plus un seul train en a de
-   nouveau au moins cinq. C'est le moment où le choix est le plus large.
+   nouveau au moins cinq.
 2. **Une date se vide.** Une journée a perdu au moins trois trains et il en
-   reste trois ou moins. Autrement dit : ça part, et il faut décider maintenant.
-
-Les deux partent toujours, même si tu ne suis rien — mais seulement pour des
-voyages dans les deux semaines.
+   reste trois ou moins.
 
 **Ce que l'application ne te dira pas.** Un créneau qui ne bouge pas ne produit
-rien. Si ton lundi soir a deux trains ouverts et les garde pendant trois
-semaines, tu ne recevras aucun message à son sujet : l'application signale ce qui
-**change**, pas ce qui est. Pour l'état d'un créneau, l'écran d'accueil le montre
-en permanence.
+rien : s'il garde deux trains ouverts pendant trois semaines, tu ne recevras
+aucun message à son sujet. L'application signale ce qui **change** ; l'état,
+c'est l'accueil qui le montre.
 
 **Trois canaux Android séparés** : les disponibilités, le rappel de
 confirmation, et la panne de collecte. Tu peux en couper un dans les réglages
@@ -320,9 +297,10 @@ alertes.
 
 ## Quand c'est mis à jour
 
-**Les données de trains : une fois par jour.** La SNCF publie vers 4 h du matin.
-La collecte passe deux fois pour être sûre de ne rien manquer, et l'application
-récupère la nouvelle version à chaque ouverture. Tire vers le bas pour forcer.
+**Les données de trains : une fois par jour.** La SNCF publie vers 6 h 25, et la
+collecte part dans les cinq minutes. Le téléphone est réveillé juste après : s'il
+y a quelque chose à dire, tu le sais avant 6 h 30. L'application récupère aussi
+la nouvelle version à chaque ouverture. Tire vers le bas pour forcer.
 
 L'écran affiche toujours la date de publication et l'âge de la donnée. **Au-delà
 de 36 h, un bandeau prévient que quelque chose ne tourne plus.**

@@ -17,7 +17,7 @@ async function cacheFile(name: string): Promise<File> {
   return file;
 }
 
-async function readCache<T>(name: string): Promise<T | null> {
+export async function readCache<T>(name: string): Promise<T | null> {
   try {
     const file = await cacheFile(name);
     if (!file.exists) return null;
@@ -27,7 +27,7 @@ async function readCache<T>(name: string): Promise<T | null> {
   }
 }
 
-async function writeCache(name: string, raw: string): Promise<void> {
+export async function writeCache(name: string, raw: string): Promise<void> {
   try {
     const file = await cacheFile(name);
     if (!file.exists) file.create({ overwrite: true });

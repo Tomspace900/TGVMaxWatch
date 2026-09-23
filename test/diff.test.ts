@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { DECISION_HORIZON_DAYS } from '../src/config.ts';
 import { addDays } from '../src/dates.ts';
-import { diffSnapshots } from '../src/diff.ts';
+import { dateSignals } from '../src/diff.ts';
 import { BP, PB, departures, t } from './helpers.ts';
 import type { Availability, TrainRecord } from '../src/types.ts';
 
@@ -30,75 +30,6 @@ function fleet(date: string, count: number, availability: Availability, dir = PB
   });
 }
 
-describe('diff entre deux snapshots', () => {
-  it('detecte une ouverture NON -> OUI', () => {
-    const before = departures(t('2026-10-17', '8441', 'NON', '16:12'));
-    const after = departures(t('2026-10-17', '8441', 'OUI', '16:12'));
-
-    const { events } = diffSnapshots(before, after, TODAY);
-    assert.equal(events.length, 1);
-    assert.equal(events[0]?.kind, 'OPEN');
-    assert.equal(events[0]?.trainNos[0], '8441');
-  });
-
-  it('detecte une fermeture OUI -> NON', () => {
-    const before = departures(t('2026-10-17', '8441', 'OUI'));
-    const after = departures(t('2026-10-17', '8441', 'NON'));
-
-    const { events } = diffSnapshots(before, after, TODAY);
-    assert.equal(events[0]?.kind, 'CLOSE');
-  });
-
-  it('distingue un train supprime d un train complet', () => {
-    // Le meme jour de voyage reste suivi, mais le train 8441 a disparu du plan
-    // de transport : ce n'est pas une saturation.
-    const before = departures(
-      t('2026-10-17', '8441', 'OUI', '08:00'),
-      t('2026-10-17', '8443', 'OUI', '09:00'),
-    );
-    const after = departures(t('2026-10-17', '8443', 'OUI', '09:00'));
-
-    const { events } = diffSnapshots(before, after, TODAY);
-    assert.equal(events.length, 1);
-    assert.equal(events[0]?.kind, 'REMOVED');
-    assert.equal(events[0]?.trainNos[0], '8441');
-  });
-
-  it('ne signale pas un train inchange', () => {
-    const before = departures(
-      t('2026-10-17', '8441', 'OUI', '08:00'),
-      t('2026-10-17', '8443', 'NON', '09:00'),
-    );
-    const { events } = diffSnapshots(before, before, TODAY);
-    assert.deepEqual(events, []);
-  });
-
-  it('ne signale une cle nouvelle que si elle est reservable', () => {
-    const before = departures(t('2026-10-17', '8441', 'OUI', '08:00'));
-    const after = departures(
-      t('2026-10-17', '8441', 'OUI', '08:00'),
-      t('2026-10-17', '8445', 'NON', '09:00'),
-      t('2026-10-17', '8447', 'OUI', '10:00'),
-    );
-
-    const { events } = diffSnapshots(before, after, TODAY);
-    assert.equal(events.length, 1);
-    assert.equal(events[0]?.trainNos[0], '8447');
-  });
-
-  it('traite les deux sens comme des trains distincts', () => {
-    const before = departures(t('2026-10-17', '8441', 'NON', '08:00', PB));
-    const after = departures(
-      t('2026-10-17', '8441', 'NON', '08:00', PB),
-      t('2026-10-17', '8441', 'OUI', '08:00', BP),
-    );
-
-    const { events } = diffSnapshots(before, after, TODAY);
-    assert.equal(events.length, 1);
-    assert.equal(events[0]?.dir, BP);
-  });
-});
-
 /*
  * Les seuils de ces regles viennent de l'archive reelle, pas d'une intuition :
  * notifier chaque train qui s'ouvre produisait 12 a 13 lignes par jour, ces
@@ -109,7 +40,7 @@ describe('signaux de date', () => {
     const before = departures(...fleet('2026-10-17', 8, 'NON'));
     const after = departures(...fleet('2026-10-17', 8, 'OUI'));
 
-    const { signals } = diffSnapshots(before, after, TODAY);
+    const signals = dateSignals(before, after, TODAY);
     assert.equal(signals.length, 1);
     assert.deepEqual(signals[0], {
       kind: 'REOPENED',
@@ -129,7 +60,7 @@ describe('signaux de date', () => {
       ...fleet('2026-10-17', 8, 'NON').slice(1),
     );
 
-    const { signals } = diffSnapshots(before, after, TODAY);
+    const signals = dateSignals(before, after, TODAY);
     assert.deepEqual(signals, []);
   });
 
@@ -140,7 +71,7 @@ describe('signaux de date', () => {
       ...fleet('2026-10-17', 9, 'NON').slice(2),
     );
 
-    const { signals } = diffSnapshots(before, after, TODAY);
+    const signals = dateSignals(before, after, TODAY);
     assert.equal(signals.length, 1);
     assert.equal(signals[0]?.kind, 'DRAINING');
     assert.equal(signals[0]?.before, 9);
@@ -156,7 +87,7 @@ describe('signaux de date', () => {
       ...fleet('2026-10-17', 27, 'NON').slice(20),
     );
 
-    const { signals } = diffSnapshots(before, after, TODAY);
+    const signals = dateSignals(before, after, TODAY);
     assert.deepEqual(signals, []);
   });
 
@@ -166,7 +97,7 @@ describe('signaux de date', () => {
     const before = departures(t('2026-10-17', '8441', 'OUI'));
     const after = departures(t('2026-10-17', '8441', 'OUI'), ...fleet('2026-10-18', 12, 'OUI'));
 
-    const { signals } = diffSnapshots(before, after, TODAY);
+    const signals = dateSignals(before, after, TODAY);
     assert.deepEqual(signals, []);
   });
 
@@ -181,7 +112,7 @@ describe('signaux de date', () => {
     const before = departures(...fleet(far, 8, 'NON'));
     const after = departures(...fleet(far, 8, 'OUI'));
 
-    assert.deepEqual(diffSnapshots(before, after, TODAY).signals, []);
+    assert.deepEqual(dateSignals(before, after, TODAY), []);
   });
 
   it('signale la meme date un jour plus tot, a la limite exacte', () => {
@@ -189,14 +120,14 @@ describe('signaux de date', () => {
     const before = departures(...fleet(edge, 8, 'NON'));
     const after = departures(...fleet(edge, 8, 'OUI'));
 
-    assert.equal(diffSnapshots(before, after, TODAY).signals.length, 1);
+    assert.equal(dateSignals(before, after, TODAY).length, 1);
   });
 
   it('ignore une date de voyage deja passee', () => {
     const before = departures(...fleet('2026-09-20', 8, 'NON'));
     const after = departures(...fleet('2026-09-20', 8, 'OUI'));
 
-    const { signals } = diffSnapshots(before, after, TODAY);
+    const signals = dateSignals(before, after, TODAY);
     assert.deepEqual(signals, []);
   });
 
@@ -208,7 +139,7 @@ describe('signaux de date', () => {
       ...fleet('2026-10-20', 8, 'OUI', BP),
     );
 
-    const { signals } = diffSnapshots(before, after, TODAY);
+    const signals = dateSignals(before, after, TODAY);
     assert.equal(signals.length, 2);
     assert.equal(signals[0]?.kind, 'REOPENED');
     assert.equal(signals[1]?.kind, 'DRAINING');

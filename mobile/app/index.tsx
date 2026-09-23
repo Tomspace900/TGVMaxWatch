@@ -10,16 +10,7 @@ import { openBooking, toggleBooking } from '../src/data/booking.ts';
 import { cancelConfirmReminder } from '../src/data/reminders.ts';
 import { bookableTrainNo } from '../../src/departures.ts';
 import { buildCalendar, type Train } from '../src/model.ts';
-import {
-  ageLabel,
-  dirLabel,
-  hoursSince,
-  longDate,
-  recurringLabel,
-  reverseDir,
-  watchCutoff,
-  windowLabel,
-} from '../src/format.ts';
+import { ageLabel, dirLabel, hoursSince, longDate, reverseDir, watchCutoff } from '../src/format.ts';
 import { BookingList } from '../src/ui/BookingList.tsx';
 import { ConfirmCard, StatsCard } from '../src/ui/Cards.tsx';
 import { CalendarPager } from '../src/ui/CalendarPager.tsx';
@@ -28,15 +19,15 @@ import { Segmented } from '../src/ui/Segmented.tsx';
 import { UndoBar, useUndo } from '../src/ui/UndoBar.tsx';
 import { WatchList } from '../src/ui/WatchList.tsx';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
-import { pruneWatch, setRule, setWatch } from '../../src/watchlist.ts';
-import type { Reservation, WatchEntry, WatchRule } from '../../src/types.ts';
+import { watchLabel } from '../../src/label.ts';
+import { pruneWatch, setWatch } from '../../src/watchlist.ts';
+import type { Reservation, Watch } from '../../src/types.ts';
 
 export default function CalendarScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { bundle, loading, offline, storageOk, watchSync, refresh, setReservations, setWatchlist } =
-    useStore();
+  const { bundle, loading, offline, storageOk, refresh, setReservations, setWatchlist } = useStore();
 
   const today = useMemo(() => todayInParis(), []);
   const calendar = useMemo(() => buildCalendar(bundle.latest), [bundle.latest]);
@@ -97,60 +88,15 @@ export default function CalendarScreen() {
   const stale = age !== null && age > STALE_DATA_HOURS;
 
   /*
-   * Les memes gestes que dans la liste d'un jour.
-   *
-   * Chaque ecriture emporte au passage les entrees dont le train est parti :
-   * c'est le seul moment ou l'on ecrit deja dans le depot, et la liste ne
-   * grandit donc jamais pour rien.
-   *
-   * `setWatch` compare par valeur et non par identite d'objet. Le filtre
-   * d'avant — `entry !== target` — ne retirait rien des lors qu'un
-   * rafraichissement avait remplace les objets entre le rendu et le geste : la
-   * suppression partait en commit sans avoir rien supprime, et l'entree etait
-   * toujours la au rechargement.
+   * Chaque retrait s'annonce et se defait : un defaire, jamais une
+   * confirmation — le geste *est* l'interface. `setWatch` retire avant
+   * d'ajouter, donc remettre est idempotent.
    */
-  /*
-   * Chaque retrait s'annonce et se defait.
-   *
-   * Le balayage retirait sans rien dire : la ligne disparaissait de la liste et
-   * il ne restait aucune trace de ce qui venait de partir — pas meme son nom.
-   * Un defaire, et non une confirmation : confirmer chaque balayage en ferait
-   * un formulaire, alors que le geste *est* l'interface ici. Le libelle nomme
-   * l'objet dans les mots ou il a ete pose, comme la liste elle-meme.
-   *
-   * Le retrait part immediatement, l'annulation le remet : `setWatch` et
-   * `setRule` retirent avant d'ajouter, donc remettre est idempotent, et
-   * l'ecriture reseau serialisee ecrase la precedente au lieu d'empiler deux
-   * commits contradictoires.
-   */
-  const removeEntry = (target: WatchEntry) => {
-    setWatchlist(
-      (current) => pruneWatch(setWatch(current, target, false), watchCutoff()),
-      `watchlist: retire ${target.date}${target.after ? ` ${target.after}` : ''}`,
-    );
-    const when = windowLabel(target.after, target.before);
+  const removeWatch = (target: Watch) => {
+    setWatchlist((current) => pruneWatch(setWatch(current, target, false), watchCutoff()));
     undo.offer({
-      label: `${longDate(target.date)}${when ? ` ${when}` : ''} n'est plus suivi`,
-      undo: () =>
-        setWatchlist(
-          (current) => pruneWatch(setWatch(current, target, true), watchCutoff()),
-          `watchlist: suit ${target.date}${target.after ? ` ${target.after}` : ''}`,
-        ),
-    });
-  };
-
-  const removeRule = (target: WatchRule) => {
-    setWatchlist(
-      (current) => pruneWatch(setRule(current, target, false), watchCutoff()),
-      `watchlist: retire la regle ${target.weekday}`,
-    );
-    undo.offer({
-      label: `${recurringLabel(target)} n'est plus suivi`,
-      undo: () =>
-        setWatchlist(
-          (current) => pruneWatch(setRule(current, target, true), watchCutoff()),
-          `watchlist: regle ${target.weekday}`,
-        ),
+      label: `${watchLabel(target)} n'est plus suivi`,
+      undo: () => setWatchlist((current) => pruneWatch(setWatch(current, target, true), watchCutoff())),
     });
   };
 
@@ -269,28 +215,6 @@ export default function CalendarScreen() {
           </View>
         )}
 
-        {/* Un suivi qui n'atteint pas le depot est un suivi que le collecteur ne
-            lit pas : l'ecran est juste, les alertes ne le sont pas. C'etait le
-            plus silencieux des ecarts — l'ecriture partait dans un `catch` vide
-            — et c'est exactement le mode de panne que ce projet combat. La
-            liste, elle, n'est pas perdue : elle est gardee sur l'appareil et
-            repart au rafraichissement suivant. */}
-        {(watchSync === 'no-token' || watchSync === 'failed') && (
-          <Pressable
-            onPress={() => (watchSync === 'no-token' ? router.push('/settings') : void refresh())}
-            style={[
-              styles.banner,
-              { backgroundColor: theme.accent, marginHorizontal: space.lg, borderRadius: radius.sm },
-            ]}
-          >
-            <Text style={[typo.strong, { color: theme.onBrand, lineHeight: 18 }]}>
-              {watchSync === 'no-token'
-                ? "Tes suivis restent sur cet appareil : sans jeton GitHub, le collecteur ne les voit pas et aucune alerte ne partira. Touche ici pour l'enregistrer."
-                : 'Les derniers suivis ne sont pas publiés. Ils sont gardés ici — touche pour réessayer.'}
-            </Text>
-          </Pressable>
-        )}
-
         {/* Le seul endroit ou cette application peut couter de l'argent reel :
             au-dessus de tout le reste, et seulement quand c'est vrai. */}
         <View style={{ paddingHorizontal: space.lg }}>
@@ -312,8 +236,7 @@ export default function CalendarScreen() {
             router.push({ pathname: '/day/[date]', params: { date, dir: selectedDir } })
           }
           onCreate={() => router.push('/watch')}
-          onRemoveEntry={removeEntry}
-          onRemoveRule={removeRule}
+          onRemove={removeWatch}
           onBook={book}
         />
 

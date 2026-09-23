@@ -1,29 +1,18 @@
 import { todayInParis } from './dates.ts';
-import { foldDepartures } from './departures.ts';
 import { rebuildDerived } from './derive.ts';
-import { diffSnapshots } from './diff.ts';
-import { isTracked } from './duration.ts';
-import { buildNotification } from './notify.ts';
-import { sendPush } from './push.ts';
 import { fetchDatasetInfo, fetchSnapshot, selectFor } from './sncf.ts';
-import {
-  listSnapshotDates,
-  readSnapshot,
-  readState,
-  readWatchlist,
-  writeRecords,
-  writeSnapshot,
-  writeState,
-} from './storage.ts';
-import { filterEvents } from './watchlist.ts';
-import type { Snapshot, State } from './types.ts';
+import { listSnapshotDates, readState, writeRecords, writeSnapshot, writeState } from './storage.ts';
 
 /**
- * Collecteur quotidien.
+ * Collecteur : archive le releve du jour et refait les vues derivees.
  *
- * Tourne deux fois par jour parce que le cron GitHub est frequemment retarde
- * et parfois saute ; l'idempotence sur `data_processed` fait que la seconde
- * execution ne coute rien quand la premiere a deja travaille.
+ * Il ne compose plus aucun message. Le telephone est le seul a connaitre ce
+ * qu'on suit : `collect.yml` le reveille une fois le commit pousse, et c'est
+ * lui qui compare et decide. L'invariant du projet en sort renforce — la
+ * donnee est dans le depot avant que quiconque soit prevenu.
+ *
+ * Idempotent sur `data_processed` : le Worker Cloudflare peut le lancer sans
+ * se soucier d'un doublon.
  */
 async function main(): Promise<void> {
   const today = todayInParis();
@@ -39,101 +28,19 @@ async function main(): Promise<void> {
   const snapshot = await fetchSnapshot(selectFor(fields));
   console.log(`[collect] ${snapshot.length} lignes recuperees`);
 
-  // Le snapshot precedent doit etre lu avant d'ecrire le nouveau, sans quoi le
-  // diff comparerait le nouveau fichier avec lui-meme.
-  const previous = readPreviousSnapshot(today);
-
   writeSnapshot(today, snapshot);
   writeRecords('data/latest.json', snapshot);
-
   rebuildDerived(today);
 
-  const nextState: State = {
+  writeState({
     ...state,
     dataProcessed,
     collectedAt: new Date().toISOString(),
     latestSnapshot: today,
     snapshotCount: listSnapshotDates().length,
     recordCount: snapshot.length,
-  };
-
-  /*
-   * L'etat est ecrit avant la notification, et non apres.
-   *
-   * L'archive est la partie irremplacable : la source ecrase son dataset et un
-   * jour non collecte est perdu pour toujours. Une panne du canal d'alerte ne
-   * doit donc jamais emporter la collecte avec elle — le workflow echouera
-   * quand meme, mais apres avoir mis les donnees a l'abri.
-   */
-  writeState(nextState);
+  });
   console.log('[collect] donnees ecrites');
-
-  if (!previous) {
-    console.log('[collect] premier snapshot, aucun diff possible');
-    return;
-  }
-
-  const pushedAt = await notify(previous, snapshot, today, state.lastPushOk);
-  if (pushedAt !== state.lastPushOk) {
-    writeState({ ...nextState, lastPushOk: pushedAt });
-  }
-  console.log('[collect] termine');
-}
-
-/**
- * Snapshot de reference pour le diff : le plus recent qui ne soit pas celui
- * qu'on s'apprete a ecrire. Une seconde publication le meme jour ecrase le
- * fichier du jour, donc on l'exclut explicitement.
- *
- * Le filtrage est le meme que pour les agregats, et pour la meme raison : les
- * snapshots ecrits avant la restriction du perimetre contiennent encore des
- * gares hors sujet. Le nouveau snapshot, lui, arrive deja filtre — sans cette
- * symetrie, chacune de ces lignes ressort en train supprime a chaque
- * execution.
- */
-function readPreviousSnapshot(today: string): Snapshot | null {
-  const previousDate = listSnapshotDates()
-    .filter((date) => date !== today)
-    .at(-1);
-  return previousDate ? readSnapshot(previousDate).filter(isTracked) : null;
-}
-
-/**
- * Diff, puis au plus un message pousse.
- *
- * Deux chemins distincts, et c'est le coeur du reglage : les evenements de
- * train passent par la watchlist — ce sont les creneaux qu'on suit — tandis que
- * les signaux de date la contournent entierement. Les faire passer par le meme
- * filtre reduisait au silence, six jours sur sept, la seule alerte qui n'ait
- * besoin d'aucune preference pour etre utile.
- */
-async function notify(
-  previous: Snapshot,
-  current: Snapshot,
-  today: string,
-  lastPushOk: string | null,
-): Promise<string | null> {
-  const watchlist = readWatchlist();
-  const { events, signals, slots } = diffSnapshots(
-    foldDepartures(previous),
-    foldDepartures(current),
-    today,
-    watchlist,
-  );
-  console.log(
-    `[collect] ${events.length} evenements, ${signals.length} signaux, ${slots.length} creneaux suivis`,
-  );
-
-  const watched = filterEvents(watchlist, events, today);
-
-  const notification = buildNotification(watched, signals, slots);
-  if (!notification) {
-    console.log('[collect] rien a signaler, aucune notification');
-    return lastPushOk;
-  }
-
-  const outcome = await sendPush(notification);
-  return outcome === 'sent' ? new Date().toISOString() : lastPushOk;
 }
 
 await main();

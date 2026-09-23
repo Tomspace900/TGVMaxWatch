@@ -9,15 +9,10 @@ import {
 } from '../../src/config.ts';
 import { addDays } from '../../src/dates.ts';
 import { weekdayShort } from '../../src/label.ts';
-import { periodOf } from '../../src/periods.ts';
 
 export { formatDuration } from '../../src/duration.ts';
 
 const WEEKDAYS_FULL = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-const WEEKDAY_BY_KEY: Record<string, string> = {
-  mon: 'lundi', tue: 'mardi', wed: 'mercredi', thu: 'jeudi',
-  fri: 'vendredi', sat: 'samedi', sun: 'dimanche',
-};
 const MONTHS = [
   'janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
   'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre',
@@ -58,10 +53,6 @@ export function weekdayFull(iso: string): string {
   return WEEKDAYS_FULL[parts(iso).weekday]!;
 }
 
-/** Traduit la cle d'une regle de watchlist (`fri`) en francais. */
-export function weekdayName(key: string): string {
-  return WEEKDAY_BY_KEY[key] ?? key;
-}
 
 export function dayNumber(iso: string): string {
   return String(parts(iso).day);
@@ -78,45 +69,6 @@ export function ageLabel(isoInstant: string): string {
 
 export function hoursSince(isoInstant: string): number {
   return (Date.now() - Date.parse(isoInstant)) / 3_600_000;
-}
-
-/**
- * La fenetre d'un suivi, dite comme on y pense.
- *
- * Personne ne decide « apres 05:00 » : on decide « le matin ». La table de
- * `src/periods.ts` fait deja la traduction dans un sens ; ici c'est l'inverse,
- * et c'est le sens qui compte a la relecture. Une fenetre posee a la main dans
- * le depot ne nommera aucune periode connue — elle se relit alors par ses
- * bornes, ce qui est honnete plutot que faux.
- */
-export function windowLabel(after?: string, before?: string): string | null {
-  const period = periodOf(after, before);
-  if (period) return period.label;
-  if (!after && !before) return null;
-  if (after && after === before) return `à ${after}`;
-  if (after && before) return `de ${after} à ${before}`;
-  return after ? `après ${after}` : `avant ${before}`;
-}
-
-/**
- * Une regle recurrente en toutes lettres : « chaque lundi matin ».
- *
- * Deux ecrans nomment la meme regle — la liste de suivi et le bouton du
- * formulaire qui la cree — et ils en disaient deux choses differentes :
- * « chaque lundi apres 5:00 » d'un cote, « Suivre les lundis » de l'autre, ou
- * la periode choisie disparaissait purement et simplement.
- */
-export function recurringLabel(rule: { weekday: string; after?: string; before?: string }): string {
-  const when = windowLabel(rule.after, rule.before);
-  const day = weekdayName(rule.weekday);
-  return when ? `chaque ${day} ${when}` : `chaque ${day}`;
-}
-
-/** Le meme creneau a l'imperatif, pour le bouton qui le pose. */
-export function followLabel(rule: { weekday: string; after?: string; before?: string }): string {
-  const when = windowLabel(rule.after, rule.before);
-  const days = `${weekdayName(rule.weekday)}s`;
-  return when ? `Suivre les ${days} ${when}` : `Suivre tous les ${days}`;
 }
 
 /**
@@ -200,18 +152,13 @@ export function untilLabel(target: Date): string {
 /**
  * L'horloge de l'appareil, sous la forme des dates de voyage.
  *
- * `isExpired` compare des chaines et jamais des `Date`, parce qu'une date de
- * voyage est une date locale francaise qu'on ne convertit pas. Il faut donc lui
- * donner l'instant courant sous la meme forme — deja recule de la periode de
- * grace, pour qu'il n'ait aucune arithmetique a faire.
+ * `AAAA-MM-JJ HH:MM`, deja recule de la periode de grace : les bornes d'un
+ * suivi se comparent comme des chaines, une date de voyage ne se convertit pas.
  */
-export function watchCutoff(now: Date = new Date()): { date: string; time: string } {
+export function watchCutoff(now: Date = new Date()): string {
   const at = new Date(now.getTime() - WATCH_GRACE_HOURS * 3_600_000);
   const pad = (value: number) => String(value).padStart(2, '0');
-  return {
-    date: `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`,
-    time: `${pad(at.getHours())}:${pad(at.getMinutes())}`,
-  };
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
 /** Instant du depart, en heure locale de l'appareil. */

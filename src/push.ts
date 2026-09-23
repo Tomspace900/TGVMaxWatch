@@ -1,5 +1,4 @@
 import { readJson } from './storage.ts';
-import type { Notification } from './notify.ts';
 import type { PushTokenRecord } from './types.ts';
 
 const TOKEN_PATH = 'data/push-token.json';
@@ -28,9 +27,6 @@ const DEFAULT_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 /** Lu a l'appel et non au chargement : l'environnement peut changer entre les deux. */
 const pushUrl = (): string => env('TGVMAX_PUSH_URL') ?? DEFAULT_PUSH_URL;
 
-/** Plafond du payload accepte par Expo, Android et iOS confondus. */
-const MAX_PAYLOAD_BYTES = 4096;
-
 const RETRY_DELAYS_MS = [2_000, 4_000, 8_000];
 
 export type PushOutcome = 'sent' | 'no-subscription' | 'not-configured';
@@ -44,71 +40,43 @@ interface PushTicket {
 }
 
 /**
- * Envoie l'unique message de l'execution via le service Expo Push.
+ * Reveille le telephone : un message sans titre ni corps, que l'application
+ * traite en arriere-plan.
  *
- * Le job cron *est* le backend d'envoi : il n'y a pas de serveur, le jeton est
- * versionne dans le depot et l'envoi part de l'Action.
+ * Il ne porte rien — ni sens, ni date, ni ce qu'on suit, que le collecteur ne
+ * connait plus. Le telephone relit la donnee lui-meme, la compare a la
+ * derniere qu'il a vue, et decide seul s'il y a quelque chose a dire.
  *
- * Le jeton etant public, la requete est signee avec EXPO_TOKEN : l'API Expo
- * accepte par defaut n'importe quel appel non authentifie, et sans cette
- * signature toute personne lisant le depot pourrait envoyer des notifications
- * sur le telephone. Cote compte Expo, l'option « enhanced push security » rend
- * cette authentification obligatoire, ce qui ferme la porte pour de bon.
+ * Le jeton etant public, la requete est signee avec EXPO_TOKEN : sans cette
+ * signature, toute personne lisant le depot pourrait reveiller le telephone.
+ * Cote compte Expo, l'option « enhanced push security » la rend obligatoire.
  */
-export async function sendPush(notification: Notification): Promise<PushOutcome> {
+export async function sendWake(): Promise<PushOutcome> {
   const record = readJson<PushTokenRecord | null>(TOKEN_PATH, null);
-
   if (!record?.expoPushToken) {
-    // Pas encore de jeton : l'application n'a jamais demande la permission.
-    // Ce n'est pas une panne, contrairement a un jeton rejete.
-    console.warn('[push] aucun jeton enregistre, notification non envoyee');
+    console.warn('[push] aucun jeton enregistre, rien a reveiller');
     return 'no-subscription';
   }
-
-  await sendToExpo(notification, record.expoPushToken);
+  await wakeDevice(record.expoPushToken);
   return 'sent';
 }
 
-/**
- * Envoi proprement dit, separe de la lecture du jeton pour etre testable :
- * le chemin d'erreur — jeton rejete, reprise sur 429 — ne se verifie
- * autrement que sur un envoi reel.
- */
-export async function sendToExpo(
-  notification: Notification,
-  expoPushToken: string,
-): Promise<void> {
-  const message = {
-    to: expoPushToken,
-    title: notification.title,
-    body: notification.body,
-    data: { url: notification.url },
-    // Le canal doit exister cote application ; il y est cree au demarrage.
-    channelId: 'alerts',
-    priority: 'high',
-    sound: 'default',
-  };
+/** L'envoi lui-meme, separe de la lecture du jeton pour etre testable. */
+export async function wakeDevice(expoPushToken: string): Promise<void> {
+  // Ni `title`, ni `body`, ni `channelId` : n'importe lequel en ferait un
+  // message affiche, et la tache de l'application ne tournerait pas.
+  const ticket = await post(
+    JSON.stringify({ to: expoPushToken, data: { wake: true }, priority: 'high' }),
+  );
 
-  const payload = JSON.stringify(message);
-  if (Buffer.byteLength(payload) > MAX_PAYLOAD_BYTES) {
-    throw new Error(`[push] payload de ${Buffer.byteLength(payload)} octets, au-dela de la limite`);
-  }
-
-  const ticket = await post(payload);
-
+  // Un ticket `ok` dit seulement qu'Expo a recu. `DeviceNotRegistered` sort
+  // parfois ici : l'application a ete desinstallee, le canal est mort.
   if (ticket.status === 'error') {
-    /*
-     * `DeviceNotRegistered` signifie que l'application a ete desinstallee ou
-     * que la permission a ete retiree : le canal d'alerte est mort et il faut
-     * le savoir. On echoue donc bruyamment — le mail d'echec de GitHub est le
-     * seul canal de secours quand le push ne passe plus.
-     */
     throw new Error(
-      `[push] envoi refuse (${ticket.details?.error ?? 'erreur inconnue'}) : ${ticket.message ?? ''}`,
+      `[push] reveil refuse (${ticket.details?.error ?? 'erreur inconnue'}) : ${ticket.message ?? ''}`,
     );
   }
-
-  console.log(`[push] envoye : ${notification.title}`);
+  console.log('[push] telephone reveille');
 }
 
 /** POST vers Expo, avec reprise sur les erreurs temporaires. */

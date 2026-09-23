@@ -1,212 +1,75 @@
-import { DECISION_HORIZON_DAYS } from './config.ts';
-import { daysBetween, timeToMinutes, weekdayKey } from './dates.ts';
-import type { TrainEvent, WatchEntry, Watchlist, WatchRule } from './types.ts';
+import type { Departure } from './departures.ts';
+import type { Watch, Watchlist } from './types.ts';
 
-interface Candidate {
-  date: string;
-  dir: string;
-  /** `HH:MM` de depart. Absent pour une date entiere. */
-  depart?: string;
+/**
+ * Le suivi : des fenetres datees, posees sur l'appareil.
+ *
+ * Module pur — l'application et les tests le lisent, le collecteur plus du
+ * tout : la liste ne quitte plus le telephone.
+ */
+
+/** `2026-09-24` + `18:11` -> `2026-09-24 18:11`. Comparable comme une chaine. */
+export function stamp(date: string, time: string): string {
+  return `${date} ${time}`;
+}
+
+/** Un train seul : une fenetre fermee sur son heure de depart. */
+export function isTrainWatch(watch: Watch): boolean {
+  return watch.from === watch.to;
+}
+
+/** Le depart tombe-t-il dans la fenetre ? Bornes incluses. */
+export function covers(watch: Watch, departure: Pick<Departure, 'date' | 'dir' | 'depart' | 'tier'>): boolean {
+  if (departure.dir !== watch.dir) return false;
+  if (watch.skipLong && departure.tier === 'long') return false;
+  const at = stamp(departure.date, departure.depart);
+  return watch.from <= at && at <= watch.to;
 }
 
 /**
- * Un evenement ne declenche une notification que s'il concerne une entree
- * `watch` explicite ou matche une `rule` recurrente.
+ * Ce qui distingue deux suivis, et rien d'autre.
  *
- * Le critere de reussite du projet est une semaine sans notification inutile :
- * en cas de bruit, resserrer la regle, ne jamais elargir ce filtre.
+ * Deux objets qui decrivent la meme fenetre sont le meme suivi : l'interface
+ * les comparait par identite, et un rafraichissement qui remplacait les objets
+ * entre le rendu et le geste faisait echouer la suppression.
  */
-export function matchesWatchlist(watchlist: Watchlist, candidate: Candidate): boolean {
-  return (
-    watchlist.watch.some((entry) => matchesEntry(entry, candidate)) ||
-    watchlist.rules.some((rule) => matchesRule(rule, candidate))
-  );
+export function watchKey(watch: Watch): string {
+  return [watch.dir, watch.from, watch.to, watch.skipLong ? 'court' : ''].join('|');
 }
 
-function matchesEntry(entry: WatchEntry, candidate: Candidate): boolean {
-  if (entry.date !== candidate.date) return false;
-  if (entry.dir && entry.dir !== candidate.dir) return false;
-  return withinWindow(entry, candidate.depart);
+export function hasWatch(list: Watchlist, watch: Watch): boolean {
+  const key = watchKey(watch);
+  return list.some((current) => watchKey(current) === key);
 }
 
-function matchesRule(rule: WatchRule, candidate: Candidate): boolean {
-  if (rule.weekday !== weekdayKey(candidate.date)) return false;
-  if (rule.dir && rule.dir !== candidate.dir) return false;
-  return withinWindow(rule, candidate.depart);
+/** Poser ou retirer, toujours en retirant d'abord : rejouer le geste ne double rien. */
+export function setWatch(list: Watchlist, watch: Watch, watched: boolean): Watchlist {
+  const key = watchKey(watch);
+  const rest = list.filter((current) => watchKey(current) !== key);
+  return watched ? [...rest, watch] : rest;
 }
 
 /**
- * Fenetre horaire, bornes inclusives.
+ * Ce qui est passe cesse d'exister.
  *
- * Sans heure de depart (cas d'une date entiere), une fenetre est consideree
- * satisfaite : c'est a l'appelant de verifier qu'au moins un train de la date
- * tombe dans la fenetre, ce qu'il sait faire et pas nous.
+ * `cutoff` est l'instant courant deja recule de sa grace, sous la meme forme :
+ * c'est l'appelant qui connait l'horloge.
  */
-export function withinWindow(
-  window: { after?: string; before?: string },
-  depart?: string,
-): boolean {
-  if (!depart) return true;
-  const minutes = timeToMinutes(depart);
-  if (window.after && minutes < timeToMinutes(window.after)) return false;
-  if (window.before && minutes > timeToMinutes(window.before)) return false;
-  return true;
+export function pruneWatch(list: Watchlist, cutoff: string): Watchlist {
+  const kept = list.filter((watch) => watch.to >= cutoff);
+  return kept.length === list.length ? list : kept;
 }
 
-/**
- * Vrai pour une fenetre posee sur une minute : elle ne designe qu'un train.
- *
- * C'est la frontiere entre les deux mailles du message. Une minute designe un
- * depart, et c'est son horaire qu'on veut lire. Tout le reste — une periode,
- * une journee — designe un creneau, et c'est son **compte** qu'on veut lire.
- */
-function isMinute(window: { after?: string; before?: string }): boolean {
-  return window.after !== undefined && window.after === window.before;
-}
-
-/**
- * Evenements de train retenus par la watchlist.
- *
- * Seuls les suivis poses sur une minute survivent ici. Les autres — une
- * periode, une journee — sont des creneaux, et un creneau parle par son compte
- * dans `slotSignals`, jamais par la liste de ses horaires.
- *
- * `isCoveredBySlot` faisait deja cette absorption, mais **seulement quand le
- * creneau produisait un signal**. Un mouvement sous le seuil laissait donc
- * repasser les memes trains un cran plus bas : le 14/09, « jeu 17/09 matin
- * 5 → 9 » etait volontairement tu — on avait deja de quoi choisir — et le
- * message affichait quand meme `05:18 06:58 09:46 10:17`. Le seuil ne servait a
- * rien, il deplacait la ligne. C'est ici que la separation se fait, parce que
- * c'est ici que l'on sait de quelle maille est le suivi.
- *
- * C'est aussi le **seul** usage de la watchlist dans les notifications : les
- * deux alertes generales ne passent pas par ici et ne dependent d'aucune
- * preference. Les melanger etait le defaut d'origine — une regle taillee pour
- * amortir le bruit des ouvertures de train reduisait au silence, six jours sur
- * sept, un signal qui n'en produisait aucun.
- *
- * Une entree datee ignore l'horizon de decision : la poser est une intention,
- * et personne ne suit le 07:12 du 15/10 par accident. Une regle, elle, ratisse
- * cinq jeudis d'un coup et n'en designe aucun.
- */
-export function filterEvents(
-  watchlist: Watchlist,
-  events: TrainEvent[],
-  today: string,
-): TrainEvent[] {
-  return events.filter((event) => {
-    const candidate = { date: event.date, dir: event.dir, depart: event.depart };
-    if (watchlist.watch.some((entry) => isMinute(entry) && matchesEntry(entry, candidate))) {
-      return true;
-    }
-    if (daysBetween(today, event.date) > DECISION_HORIZON_DAYS) return false;
-    return watchlist.rules.some((rule) => isMinute(rule) && matchesRule(rule, candidate));
-  });
-}
-
-/**
- * Une entree dont le train est parti.
- *
- * La comparaison est faite sur des chaines, jamais sur des `Date` : les dates
- * de voyage sont des dates locales francaises et ne doivent pas etre
- * converties. L'appelant fournit l'instant courant deja recule de sa periode de
- * grace, sous la meme forme — c'est lui qui connait l'horloge.
- *
- * Sans heure de depart, l'entree porte la journee entiere : elle n'expire donc
- * qu'une fois le dernier train parti.
- */
-export function isExpired(
-  entry: { date: string; after?: string },
-  cutoff: { date: string; time: string },
-): boolean {
-  const depart = entry.after ?? '23:59';
-  if (entry.date !== cutoff.date) return entry.date < cutoff.date;
-  return depart < cutoff.time;
-}
-
-/** La watchlist debarrassee de ce qui est parti. */
-export function pruneWatch(
-  watchlist: Watchlist,
-  cutoff: { date: string; time: string },
-): Watchlist {
-  const watch = watchlist.watch.filter((entry) => !isExpired(entry, cutoff));
-  return watch.length === watchlist.watch.length ? watchlist : { ...watchlist, watch };
-}
-
-/**
- * Cle canonique d'une entree, et de meme pour une regle.
- *
- * Deux objets qui decrivent la meme fenetre sont la meme entree. L'interface
- * les comparait par identite d'objet (`entry !== target`) : un rafraichissement
- * remplacait les objets entre le rendu et le geste, le filtre ne trouvait plus
- * rien a retirer, et la suppression partait quand meme en commit. L'entree
- * « supprimee » etait toujours la au rechargement suivant.
- *
- * Une cle plutot qu'une comparaison champ a champ parce que trois ecrans
- * comparaient deja ces objets, chacun a sa maniere, et que `undefined` face a
- * `''` s'y decidait trois fois.
- */
-export function watchKey(entry: WatchEntry): string {
-  return [entry.date, entry.dir ?? '', entry.after ?? '', entry.before ?? ''].join('|');
-}
-
-export function ruleKey(rule: WatchRule): string {
-  return [rule.weekday, rule.dir ?? '', rule.after ?? '', rule.before ?? ''].join('|');
-}
-
-export function hasWatch(watchlist: Watchlist, entry: WatchEntry): boolean {
-  const key = watchKey(entry);
-  return watchlist.watch.some((current) => watchKey(current) === key);
-}
-
-export function hasRule(watchlist: Watchlist, rule: WatchRule): boolean {
-  const key = ruleKey(rule);
-  return watchlist.rules.some((current) => ruleKey(current) === key);
-}
-
-/**
- * Poser ou retirer un suivi, toujours en retirant d'abord.
- *
- * Meme raison que `toggleBooking` : l'ecriture est idempotente par
- * construction, et non conditionnee a un etat lu depuis le rendu precedent.
- * Rejouer deux fois le meme geste ne peut donc ni doubler une entree ni en
- * laisser une derriere.
- */
-export function setWatch(watchlist: Watchlist, entry: WatchEntry, watched: boolean): Watchlist {
-  const key = watchKey(entry);
-  const watch = watchlist.watch.filter((current) => watchKey(current) !== key);
-  if (watched) watch.push(entry);
-  return { ...watchlist, watch };
-}
-
-export function setRule(watchlist: Watchlist, rule: WatchRule, active: boolean): Watchlist {
-  const key = ruleKey(rule);
-  const rules = watchlist.rules.filter((current) => ruleKey(current) !== key);
-  if (active) rules.push(rule);
-  return { ...watchlist, rules };
-}
-
-/**
- * Une valeur venue d'ailleurs, ramenee a la forme attendue.
- *
- * Le fichier du depot peut avoir ete edite a la main, et une lecture reseau
- * ratee rendait jusqu'ici une liste vide indiscernable d'une vraie liste vide.
- * Ici on refuse ce qui n'est pas une watchlist ; c'est a l'appelant de decider
- * quoi faire du refus, et il ne peut le decider que s'il le voit.
- */
+/** Une valeur venue d'ailleurs — stockage, sauvegarde — ramenee a la forme attendue. */
 export function parseWatchlist(value: unknown): Watchlist | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
-  const record = value as Record<string, unknown>;
-  if (!Array.isArray(record['watch']) || !Array.isArray(record['rules'])) return null;
-
-  const watch = (record['watch'] as unknown[]).filter(isWindow).map((entry) => entry as WatchEntry);
-  const rules = (record['rules'] as unknown[])
-    .filter((rule) => isWindow(rule) && typeof (rule as WatchRule).weekday === 'string')
-    .map((rule) => rule as WatchRule);
-
-  return { watch, rules };
-}
-
-function isWindow(value: unknown): boolean {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (!Array.isArray(value)) return null;
+  return value.filter(
+    (item): item is Watch =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof item.dir === 'string' &&
+      typeof item.from === 'string' &&
+      typeof item.to === 'string' &&
+      item.from <= item.to,
+  );
 }

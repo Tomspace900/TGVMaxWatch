@@ -1,4 +1,5 @@
 import { weekday } from './dates.ts';
+import type { Watch } from './types.ts';
 
 /**
  * Le mot juste pour ce que compte ce projet.
@@ -56,4 +57,35 @@ export function trainsWord(count: number): string {
 export function openTrainsLabel(count: number): string {
   if (count === 0) return 'aucun train ouvert';
   return `${count} ${trainsWord(count)} ouvert${count > 1 ? 's' : ''}`;
+}
+
+/**
+ * `2026-09-14` -> `lun 14/09`.
+ *
+ * Le jour de la semaine et non la seule date : « le 14 » ne decide rien.
+ */
+export function dateLabel(iso: string): string {
+  const [, month = '', day = ''] = iso.split('-');
+  return `${weekdayShort(iso)} ${day}/${month}`;
+}
+
+/** `18:00` -> `18h`, `18:30` -> `18h30`. Une borne de fenetre, pas un horaire. */
+function hourLabel(time: string): string {
+  const [hours = '', minutes = ''] = time.split(':');
+  return minutes === '00' ? `${Number(hours)}h` : `${Number(hours)}h${minutes}`;
+}
+
+/**
+ * Un suivi, dit comme on l'a pose.
+ *
+ * `jeu 24/09 18:11` pour un train, `jeu 24/09 18h–21h` sur une journee,
+ * `jeu 24/09 18h → ven 25/09 11h` quand la fenetre passe la nuit. La notification
+ * et l'ecran le lisent tous les deux : une seule facon de l'ecrire.
+ */
+export function watchLabel(watch: Watch): string {
+  const [fromDate = '', fromTime = ''] = watch.from.split(' ');
+  const [toDate = '', toTime = ''] = watch.to.split(' ');
+  if (watch.from === watch.to) return `${dateLabel(fromDate)} ${fromTime}`;
+  if (fromDate === toDate) return `${dateLabel(fromDate)} ${hourLabel(fromTime)}–${hourLabel(toTime)}`;
+  return `${dateLabel(fromDate)} ${hourLabel(fromTime)} → ${dateLabel(toDate)} ${hourLabel(toTime)}`;
 }

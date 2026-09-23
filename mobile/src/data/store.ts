@@ -1,5 +1,4 @@
 import { createContext, useContext } from 'react';
-import type { SyncState } from './watch-sync.ts';
 import type {
   History,
   Reservations,
@@ -28,7 +27,6 @@ export const EMPTY_BUNDLE: Bundle = {
   state: {
     dataProcessed: null,
     collectedAt: null,
-    lastPushOk: null,
     latestSnapshot: null,
     snapshotCount: 0,
     recordCount: 0,
@@ -37,7 +35,7 @@ export const EMPTY_BUNDLE: Bundle = {
   history: {},
   stats: null,
   trains: { dates: [], series: {} },
-  watchlist: { watch: [], rules: [] },
+  watchlist: [],
   reservations: { slots: [] },
   pushToken: null,
 };
@@ -49,32 +47,14 @@ export interface Store {
   /** Vrai quand tout vient du cache : le reseau n'a pas repondu. */
   offline: boolean;
   /**
-   * Faux quand le stockage local des reservations n'a pas pu etre lu ou ecrit.
+   * Faux quand le stockage local — reservations ou suivi — n'a pas pu etre lu ou ecrit.
    * Les ecritures sont alors bloquees : mieux vaut ne rien enregistrer que
    * remplacer une liste peut-etre recuperable par une liste vide.
    */
   storageOk: boolean;
-  /**
-   * Ou en est la publication du suivi vers le depot.
-   *
-   * Le suivi s'edite sur l'appareil et se lit par le collecteur : tant qu'il
-   * n'est pas publie, l'ecran est juste et les alertes ne le sont pas. C'est
-   * exactement le genre d'ecart que ce projet ne laisse pas passer en silence,
-   * et il n'existait aucun moyen de le voir — une ecriture ratee etait avalee
-   * par un `catch` vide.
-   */
-  watchSync: SyncState;
-  /** Rejoue une publication en echec. Le tirage vers le bas le fait deja. */
-  retryWatchSync: () => void;
   refresh: () => Promise<void>;
-  /**
-   * Prend une fonction, jamais une valeur, pour la meme raison que
-   * `setReservations` — et l'ecriture dans le depot part d'ici, pas des ecrans.
-   * Trois ecrans modifient desormais le suivi ; qu'ils sachent chacun
-   * comment la persister etait une regle de plus a tenir a jour a trois
-   * endroits.
-   */
-  setWatchlist: (update: (current: Watchlist) => Watchlist, message: string) => void;
+  /** Prend une fonction, jamais une valeur : meme raison que `setReservations`. */
+  setWatchlist: (update: (current: Watchlist) => Watchlist) => void;
   /**
    * Prend une fonction, jamais une valeur.
    *

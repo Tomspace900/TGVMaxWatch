@@ -1,72 +1,62 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { DIRECTIONS } from '../../src/config.ts';
-import { DAY_PERIODS } from '../../src/periods.ts';
-import { hasRule, pruneWatch, setRule } from '../../src/watchlist.ts';
+import { DIRECTIONS, HORIZON_DAYS } from '../../src/config.ts';
+import { addDays, todayInParis } from '../../src/dates.ts';
+import { dateLabel, watchLabel } from '../../src/label.ts';
+import { hasWatch, pruneWatch, setWatch, stamp } from '../../src/watchlist.ts';
 import { useStore } from '../src/data/store.ts';
-import { dirLabel, followLabel, watchCutoff, weekdayName } from '../src/format.ts';
+import { dirLabel, watchCutoff } from '../src/format.ts';
 import { radius, space, typo, useTheme } from '../src/theme.ts';
-import type { Weekday, WatchRule } from '../../src/types.ts';
+import type { Watch } from '../../src/types.ts';
 
 /**
- * Creer un suivi recurrent.
+ * Suivre un creneau : un sens, un debut, une fin.
  *
- * Le format `{jour de semaine, sens, fenetre horaire}` et le moteur qui le lit
- * existaient depuis le debut ; il n'y avait simplement aucun ecran pour en
- * poser une, et elles ne pouvaient s'ecrire qu'a la main dans le depot. C'est
- * pourtant la forme la plus utile du suivi : « les lundis matin dans ce sens »
- * ne se redemande pas chaque semaine.
+ * Le besoin s'enonce « je rentre entre jeudi 18h et vendredi 11h » : une
+ * fenetre qui peut passer la nuit, et rien d'autre. Les regles recurrentes et
+ * les periodes nommees sont parties — une regle ratissait cinq jeudis pour en
+ * designer un, et « le soir » commencait a 19h quand on voulait 18h.
  */
 
-const WEEKDAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-
-/**
- * Les memes periodes que les raccourcis d'une journee, plus « tout ».
- *
- * La table vit dans `src/periods.ts` : deux ecrans nomment les memes moments,
- * et deux tables qui divergeraient d'une heure seraient impossibles a
- * diagnostiquer depuis l'ecran.
- */
-const SLOTS: readonly { key: string; label: string; after?: string; before?: string }[] = [
-  ...DAY_PERIODS,
-  { key: 'jour', label: 'toute la journée' },
-];
+/** Les heures proposees, par demi-heure. Avant 5h il ne part aucun train. */
+const TIMES = Array.from({ length: 38 }, (_, i) => {
+  const minutes = 5 * 60 + i * 30;
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${minutes % 60 === 0 ? '00' : '30'}`;
+});
 
 export default function WatchScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ date?: string; dir?: string }>();
   const { bundle, setWatchlist } = useStore();
 
-  const [weekday, setWeekday] = useState<Weekday>('fri');
-  const [dirIndex, setDirIndex] = useState<number>(0);
-  const [slotIndex, setSlotIndex] = useState(0);
+  const today = todayInParis();
+  const last = addDays(today, HORIZON_DAYS);
+  const start = params.date && params.date >= today ? params.date : today;
 
-  const slot = SLOTS[slotIndex]!;
-  // Le troisieme choix est « les deux sens », que le format exprime par
-  // l'absence de sens.
-  const dir = DIRECTIONS[dirIndex];
+  const [dir, setDir] = useState(params.dir ?? DIRECTIONS[0]!);
+  const [fromDate, setFromDate] = useState(start);
+  const [fromTime, setFromTime] = useState('05:00');
+  const [toDate, setToDate] = useState(start);
+  const [toTime, setToTime] = useState('23:30');
+  const [skipLong, setSkipLong] = useState(false);
 
-  const rule: WatchRule = {
-    weekday,
-    ...(dir ? { dir } : {}),
-    ...(slot.after ? { after: slot.after } : {}),
-    ...(slot.before ? { before: slot.before } : {}),
+  const watch: Watch = {
+    dir,
+    from: stamp(fromDate, fromTime),
+    to: stamp(toDate, toTime),
+    ...(skipLong ? { skipLong: true as const } : {}),
   };
-
-  const already = hasRule(bundle.watchlist, rule);
+  const valid = watch.from <= watch.to;
+  const already = hasWatch(bundle.watchlist, watch);
 
   const save = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // `setRule` retire avant d'ajouter : rejouer le formulaire sur la meme
-    // regle ne peut pas la doubler, meme si l'ecran s'est rouvert entre-temps.
-    setWatchlist(
-      (current) => pruneWatch(setRule(current, rule, true), watchCutoff()),
-      `watchlist: regle ${weekday}${slot.after ? ` ${slot.after}` : ''}`,
-    );
+    setWatchlist((current) => pruneWatch(setWatch(current, watch, true), watchCutoff()));
     router.back();
   };
 
@@ -86,76 +76,104 @@ export default function WatchScreen() {
         </Pressable>
       </View>
 
-      {/* Plus de paragraphe d'introduction. Sa premiere moitie decrivait ce
-          que le titre « Suivre » et le bouton « Suivre les vendredis matin »
-          disent deja ; la seconde expliquait le recouvrement d'une heure des
-          periodes, que la ligne de bornes sous les pastilles **montre** — on y
-          lit 05:00 – 12:00 puis 11:00 – 16:00, ce qui est plus precis qu'une
-          phrase et ne se lit qu'au moment ou l'on choisit. */}
-      <Field label="Jour">
-        <View style={styles.chips}>
-          {WEEKDAYS.map((day) => (
-            <Chip
-              key={day}
-              label={weekdayName(day).slice(0, 3)}
-              active={day === weekday}
-              onPress={() => setWeekday(day)}
-            />
-          ))}
-        </View>
-      </Field>
-
       <Field label="Sens">
         <View style={styles.chips}>
-          {DIRECTIONS.map((value, index) => (
-            <Chip
-              key={value}
-              label={dirLabel(value)}
-              active={index === dirIndex}
-              onPress={() => setDirIndex(index)}
-            />
+          {DIRECTIONS.map((value) => (
+            <Chip key={value} label={dirLabel(value)} active={value === dir} onPress={() => setDir(value)} />
           ))}
-          <Chip
-            label="les deux sens"
-            active={dirIndex === DIRECTIONS.length}
-            onPress={() => setDirIndex(DIRECTIONS.length)}
-          />
         </View>
       </Field>
 
-      <Field label="Période">
+      <Bound
+        label="De"
+        date={fromDate}
+        time={fromTime}
+        min={today}
+        max={last}
+        onDate={(date) => {
+          setFromDate(date);
+          // La fin suit le debut quand il la depasse : on ne pose jamais une
+          // fenetre a l'envers sans l'avoir voulu.
+          if (date > toDate) setToDate(date);
+        }}
+        onTime={setFromTime}
+      />
+      <Bound label="À" date={toDate} time={toTime} min={fromDate} max={last} onDate={setToDate} onTime={setToTime} />
+
+      <Field label="Trajets de plus de 3 h">
         <View style={styles.chips}>
-          {SLOTS.map((entry, index) => (
-            <Chip
-              key={entry.key}
-              label={entry.label}
-              active={index === slotIndex}
-              onPress={() => setSlotIndex(index)}
-            />
-          ))}
+          <Chip label="comptés" active={!skipLong} onPress={() => setSkipLong(false)} />
+          <Chip label="écartés" active={skipLong} onPress={() => setSkipLong(true)} />
         </View>
-        {/* Le raccourci ne doit jamais cacher ce qu'il fait. */}
-        <Text style={[typo.digits, { color: theme.muted, marginTop: space.sm }]}>
-          {slot.after ? `${slot.after} – ${slot.before}` : 'tous les départs'}
-        </Text>
       </Field>
 
       <Pressable
-        onPress={already ? undefined : save}
+        onPress={valid && !already ? save : undefined}
         style={({ pressed }) => [
           styles.save,
           {
             backgroundColor: theme.accent,
             borderRadius: radius.sm,
-            opacity: already ? 0.4 : pressed ? 0.75 : 1,
+            opacity: !valid || already ? 0.4 : pressed ? 0.75 : 1,
           },
         ]}
       >
         <Text style={[typo.section, { color: theme.onBrand }]}>
-          {already ? 'Ce créneau est déjà suivi' : followLabel(rule)}
+          {!valid ? 'La fin est avant le début' : already ? 'Déjà suivi' : `Suivre ${watchLabel(watch)}`}
         </Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+/** Une borne : un jour qu'on fait defiler, une heure qu'on touche. */
+function Bound({
+  label,
+  date,
+  time,
+  min,
+  max,
+  onDate,
+  onTime,
+}: {
+  label: string;
+  date: string;
+  time: string;
+  min: string;
+  max: string;
+  onDate: (date: string) => void;
+  onTime: (time: string) => void;
+}) {
+  const theme = useTheme();
+  const step = (days: number) => {
+    const next = addDays(date, days);
+    if (next < min || next > max) return;
+    void Haptics.selectionAsync();
+    onDate(next);
+  };
+
+  return (
+    <Field label={label}>
+      <View style={styles.day}>
+        <Pressable onPress={() => step(-1)} hitSlop={12}>
+          <Text style={[typo.title, { color: date > min ? theme.text : theme.line }]}>‹</Text>
+        </Pressable>
+        <Text style={[typo.section, { color: theme.text }]}>{dateLabel(date)}</Text>
+        <Pressable onPress={() => step(1)} hitSlop={12}>
+          <Text style={[typo.title, { color: date < max ? theme.text : theme.line }]}>›</Text>
+        </Pressable>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.times}>
+        {TIMES.map((value) => (
+          <Chip
+            key={value}
+            label={value.endsWith(':00') ? `${Number(value.slice(0, 2))}h` : `${Number(value.slice(0, 2))}h30`}
+            active={value === time}
+            onPress={() => onTime(value)}
+          />
+        ))}
+      </ScrollView>
+    </Field>
   );
 }
 
@@ -163,23 +181,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   const theme = useTheme();
   return (
     <View style={[styles.field, { borderTopColor: theme.line }]}>
-      <Text style={[typo.chip, { color: theme.muted, marginBottom: space.sm }]}>
-        {label.toUpperCase()}
-      </Text>
+      <Text style={[typo.chip, { color: theme.muted, marginBottom: space.sm }]}>{label.toUpperCase()}</Text>
       {children}
     </View>
   );
 }
 
-function Chip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
+function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const theme = useTheme();
   return (
     <Pressable
@@ -203,12 +211,16 @@ function Chip({
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  field: {
-    paddingTop: space.lg,
-    marginTop: space.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
+  field: { paddingTop: space.lg, marginTop: space.lg, borderTopWidth: StyleSheet.hairlineWidth },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  times: { flexDirection: 'row', gap: space.sm },
+  day: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: space.sm,
+    paddingHorizontal: space.sm,
+  },
   chip: { paddingHorizontal: 14, paddingVertical: 9 },
   save: { marginTop: space.xl, paddingVertical: 15, alignItems: 'center' },
 });

@@ -1,203 +1,78 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  filterEvents,
-  hasRule,
+  covers,
   hasWatch,
-  matchesWatchlist,
   parseWatchlist,
-  setRule,
+  pruneWatch,
   setWatch,
+  stamp,
 } from '../src/watchlist.ts';
-import { DECISION_HORIZON_DAYS } from '../src/config.ts';
-import { addDays, weekdayKey } from '../src/dates.ts';
-import { diffSnapshots } from '../src/diff.ts';
-import { BP, PB, departures, t } from './helpers.ts';
-import type { Watchlist } from '../src/types.ts';
+import type { Watch } from '../src/types.ts';
+import { BP, PB } from './helpers.ts';
 
-const EMPTY: Watchlist = { watch: [], rules: [] };
-
-/** Cadre du diff : les dates de voyage des tests lui sont posterieures. */
-const TODAY = '2026-10-10';
-
-describe('filtrage par la watchlist', () => {
-  it('ne laisse rien passer quand la watchlist est vide', () => {
-    assert.equal(matchesWatchlist(EMPTY, { date: '2026-10-17', dir: PB }), false);
-  });
-
-  it('matche une entree explicite avec sa fenetre horaire', () => {
-    const watchlist: Watchlist = {
-      watch: [{ date: '2026-10-17', dir: PB, after: '16:00' }],
-      rules: [],
-    };
-
-    assert.equal(
-      matchesWatchlist(watchlist, { date: '2026-10-17', dir: PB, depart: '16:12' }),
-      true,
-    );
-    assert.equal(
-      matchesWatchlist(watchlist, { date: '2026-10-17', dir: PB, depart: '15:59' }),
-      false,
-    );
-    assert.equal(
-      matchesWatchlist(watchlist, { date: '2026-10-17', dir: BP, depart: '18:00' }),
-      false,
-    );
-    assert.equal(
-      matchesWatchlist(watchlist, { date: '2026-10-18', dir: PB, depart: '18:00' }),
-      false,
-    );
-  });
-
-  it('matche une entree sans sens dans les deux sens', () => {
-    const watchlist: Watchlist = { watch: [{ date: '2026-10-17' }], rules: [] };
-    assert.equal(matchesWatchlist(watchlist, { date: '2026-10-17', dir: PB }), true);
-    assert.equal(matchesWatchlist(watchlist, { date: '2026-10-17', dir: BP }), true);
-  });
-
-  it('matche une regle recurrente sur le jour de la semaine', () => {
-    const watchlist: Watchlist = {
-      watch: [],
-      rules: [{ weekday: 'fri', dir: PB, after: '16:00' }],
-    };
-
-    // 2026-10-16 est un vendredi, 2026-10-17 un samedi.
-    assert.equal(
-      matchesWatchlist(watchlist, { date: '2026-10-16', dir: PB, depart: '18:30' }),
-      true,
-    );
-    assert.equal(
-      matchesWatchlist(watchlist, { date: '2026-10-17', dir: PB, depart: '18:30' }),
-      false,
-    );
-  });
-
-  /*
-   * Seule une fenetre posee sur une minute survit ici : elle designe un depart,
-   * et c'est son horaire qu'on veut lire. Une periode ou une journee est un
-   * creneau, et un creneau parle par son compte dans `slotSignals`.
-   *
-   * `isCoveredBySlot` faisait deja cette absorption, mais **seulement quand le
-   * creneau produisait un signal**. Un mouvement sous le seuil laissait donc
-   * repasser les memes trains un cran plus bas : le 14/09, « jeu 17/09 matin
-   * 5 -> 9 » etait volontairement tu et le message affichait quand meme les
-   * quatre horaires. Le seuil ne servait a rien, il deplacait la ligne.
-   */
-  it('ne retient que les suivis poses sur une minute', () => {
-    const before = departures(
-      t('2026-10-16', '8441', 'NON', '18:00', PB),
-      t('2026-10-16', '8443', 'NON', '19:00', PB),
-    );
-    const after = departures(
-      t('2026-10-16', '8441', 'OUI', '18:00', PB),
-      t('2026-10-16', '8443', 'OUI', '19:00', PB),
-    );
-
-    const { events } = diffSnapshots(before, after, TODAY);
-    assert.equal(events.length, 2);
-
-    const minute: Watchlist = {
-      watch: [{ date: '2026-10-16', dir: PB, after: '18:00', before: '18:00' }],
-      rules: [],
-    };
-    const kept = filterEvents(minute, events, TODAY);
-    assert.equal(kept.length, 1);
-    assert.equal(kept[0]?.depart, '18:00');
-
-    const window: Watchlist = { watch: [], rules: [{ weekday: 'fri', dir: PB }] };
-    assert.deepEqual(filterEvents(window, events, TODAY), []);
-  });
-
-  /*
-   * Une entree datee ignore l'horizon : la poser est une intention, et personne
-   * ne suit le 07:12 du 15/10 par accident. Une regle, elle, ratisse cinq
-   * vendredis d'un coup et n'en designe aucun.
-   */
-  it('borne une regle a la minute, jamais une entree datee', () => {
-    const far = addDays(TODAY, DECISION_HORIZON_DAYS + 1);
-    const before = departures(t(far, '8441', 'NON', '18:00', PB));
-    const after = departures(t(far, '8441', 'OUI', '18:00', PB));
-    const { events } = diffSnapshots(before, after, TODAY);
-
-    const dated: Watchlist = {
-      watch: [{ date: far, dir: PB, after: '18:00', before: '18:00' }],
-      rules: [],
-    };
-    assert.equal(filterEvents(dated, events, TODAY).length, 1);
-
-    const recurring: Watchlist = {
-      watch: [],
-      rules: [{ weekday: weekdayKey(far), dir: PB, after: '18:00', before: '18:00' }],
-    };
-    assert.deepEqual(filterEvents(recurring, events, TODAY), []);
-  });
-
+const RETOUR: Watch = { dir: BP, from: '2026-09-24 18:00', to: '2026-09-25 11:00' };
+const depart = (date: string, time: string, tier: 'direct' | 'long' = 'direct', dir = BP) => ({
+  date,
+  dir,
+  depart: time,
+  tier,
 });
 
-describe('cles et gestes sur la watchlist', () => {
+describe('covers', () => {
+  it('prend les deux jours d une fenetre qui passe la nuit, bornes incluses', () => {
+    assert.equal(covers(RETOUR, depart('2026-09-24', '18:00')), true);
+    assert.equal(covers(RETOUR, depart('2026-09-24', '23:30')), true);
+    assert.equal(covers(RETOUR, depart('2026-09-25', '06:04')), true);
+    assert.equal(covers(RETOUR, depart('2026-09-25', '11:00')), true);
+  });
+
+  it('laisse dehors ce qui est avant, apres, ou dans l autre sens', () => {
+    assert.equal(covers(RETOUR, depart('2026-09-24', '17:59')), false);
+    assert.equal(covers(RETOUR, depart('2026-09-25', '11:01')), false);
+    assert.equal(covers(RETOUR, depart('2026-09-24', '19:00', 'direct', PB)), false);
+  });
+
+  it('ecarte un trajet long seulement quand on l a demande', () => {
+    assert.equal(covers(RETOUR, depart('2026-09-24', '19:00', 'long')), true);
+    assert.equal(covers({ ...RETOUR, skipLong: true }, depart('2026-09-24', '19:00', 'long')), false);
+  });
+});
+
+describe('gestes sur la liste', () => {
   it('compare par valeur, pas par identite d objet', () => {
-    const watchlist: Watchlist = {
-      watch: [{ date: '2026-10-17', dir: PB, after: '16:00' }],
-      rules: [],
-    };
-
-    // L'objet vient d'un autre rendu : c'est exactement ce qu'un
-    // rafraichissement produisait, et le filtre par identite n'y retirait rien.
-    const jumeau = { date: '2026-10-17', dir: PB, after: '16:00' };
-
-    assert.equal(hasWatch(watchlist, jumeau), true);
-    assert.deepEqual(setWatch(watchlist, jumeau, false).watch, []);
+    // L'objet vient d'un autre rendu : c'est ce qu'un rafraichissement produit.
+    const jumeau = { ...RETOUR };
+    assert.equal(hasWatch([RETOUR], jumeau), true);
+    assert.deepEqual(setWatch([RETOUR], jumeau, false), []);
   });
 
-  it('ne confond pas une borne absente et une borne vide', () => {
-    const jour: Watchlist = { watch: [{ date: '2026-10-17', dir: PB }], rules: [] };
-    assert.equal(hasWatch(jour, { date: '2026-10-17', dir: PB, after: '16:00' }), false);
+  it('ne double jamais un suivi deja pose', () => {
+    assert.equal(setWatch(setWatch([], RETOUR, true), { ...RETOUR }, true).length, 1);
   });
 
-  it('ne double jamais une entree deja posee', () => {
-    const entry = { date: '2026-10-17', dir: PB, after: '16:00' };
-    const once = setWatch(EMPTY, entry, true);
-    const twice = setWatch(once, { ...entry }, true);
-    assert.equal(twice.watch.length, 1);
-  });
-
-  it('ne double jamais une regle deja posee', () => {
-    const rule = { weekday: 'fri', dir: PB, after: '16:00' } as const;
-    const once = setRule(EMPTY, rule, true);
-    assert.equal(hasRule(once, { ...rule }), true);
-    assert.equal(setRule(once, { ...rule }, true).rules.length, 1);
-    assert.deepEqual(setRule(once, { ...rule }, false).rules, []);
-  });
-
-  it('retire une entree sans toucher aux autres fenetres de la meme date', () => {
-    const watchlist: Watchlist = {
-      watch: [
-        { date: '2026-10-17', dir: PB },
-        { date: '2026-10-17', dir: PB, after: '07:12', before: '07:12' },
-        { date: '2026-10-17', dir: BP, after: '07:12', before: '07:12' },
-      ],
-      rules: [],
-    };
-
-    const next = setWatch(watchlist, { date: '2026-10-17', dir: PB }, false);
-    assert.equal(next.watch.length, 2);
-    assert.equal(hasWatch(next, { date: '2026-10-17', dir: PB, after: '07:12', before: '07:12' }), true);
+  it('distingue la meme fenetre avec ou sans les trajets longs', () => {
+    assert.equal(hasWatch([RETOUR], { ...RETOUR, skipLong: true }), false);
   });
 });
 
-describe('lecture d une watchlist venue d ailleurs', () => {
-  it('refuse ce qui n en est pas une plutot que de rendre une liste vide', () => {
-    // Le mode de panne combattu partout ici : une lecture ratee qui se fait
-    // passer pour « rien a suivre », et qui ecrase.
-    assert.equal(parseWatchlist(null), null);
-    assert.equal(parseWatchlist('nope'), null);
-    assert.equal(parseWatchlist({}), null);
-    assert.equal(parseWatchlist({ watch: [] }), null);
-    assert.deepEqual(parseWatchlist({ watch: [], rules: [] }), { watch: [], rules: [] });
+describe('pruneWatch', () => {
+  it('garde une fenetre tant que sa fin n est pas passee', () => {
+    assert.deepEqual(pruneWatch([RETOUR], stamp('2026-09-25', '10:00')), [RETOUR]);
+    assert.deepEqual(pruneWatch([RETOUR], stamp('2026-09-25', '11:01')), []);
   });
 
-  it('ecarte les entrees qui ne sont pas des objets', () => {
-    const parsed = parseWatchlist({ watch: [{ date: '2026-10-17' }, 42, null], rules: ['x'] });
-    assert.deepEqual(parsed, { watch: [{ date: '2026-10-17' }], rules: [] });
+  it('rend la meme reference quand rien n a expire', () => {
+    const list = [RETOUR];
+    assert.equal(pruneWatch(list, stamp('2026-09-20', '00:00')), list);
+  });
+});
+
+describe('parseWatchlist', () => {
+  it('refuse ce qui n est pas une liste, et ecarte les entrees incompletes', () => {
+    assert.equal(parseWatchlist({ watch: [], rules: [] }), null);
+    assert.deepEqual(parseWatchlist([RETOUR, { dir: BP }, { ...RETOUR, from: '2026-09-26 00:00' }]), [
+      RETOUR,
+    ]);
   });
 });

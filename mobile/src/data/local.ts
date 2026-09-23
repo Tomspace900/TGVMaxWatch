@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { parseWatchlist } from '../../../src/watchlist.ts';
 import type { Reservation, Reservations, Watchlist } from '../../../src/types.ts';
 
 /**
@@ -9,10 +10,11 @@ import type { Reservation, Reservations, Watchlist } from '../../../src/types.ts
  * Action et devait les lire ; ce rappel est desormais une alarme posee par le
  * telephone, et plus rien cote depot n'en a l'usage.
  *
- * La watchlist, elle, reste dans le depot : le collecteur ne peut pas filtrer
- * ses notifications sur un fichier qu'il ne lit pas.
+ * Le suivi aussi : c'est le telephone qui compare chaque releve a ce qu'on
+ * suit, le collecteur n'en a plus l'usage.
  */
 const RESERVATIONS_KEY = 'tgvmax.reservations';
+const WATCHLIST_KEY = 'tgvmax.watchlist';
 
 export const EMPTY_RESERVATIONS: Reservations = { slots: [] };
 
@@ -46,6 +48,25 @@ export async function readReservations(): Promise<ReservationsRead> {
 export async function writeReservations(reservations: Reservations): Promise<boolean> {
   try {
     await AsyncStorage.setItem(RESERVATIONS_KEY, JSON.stringify(reservations));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Meme regle que les reservations : une lecture qui echoue n'est pas une liste vide. */
+export async function readWatchlist(): Promise<{ watchlist: Watchlist; ok: boolean }> {
+  try {
+    const raw = await AsyncStorage.getItem(WATCHLIST_KEY);
+    return { watchlist: raw ? (parseWatchlist(JSON.parse(raw)) ?? []) : [], ok: true };
+  } catch {
+    return { watchlist: [], ok: false };
+  }
+}
+
+export async function writeWatchlist(watchlist: Watchlist): Promise<boolean> {
+  try {
+    await AsyncStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist));
     return true;
   } catch {
     return false;
@@ -96,12 +117,11 @@ export function parseExport(raw: string): { reservations: Reservations; watchlis
 
   if (!isRecord(parsed) || parsed['kind'] !== 'tgvmax-watch/export') return null;
 
-  const watchlist = parsed['watchlist'];
+  // Une sauvegarde d'avant les creneaux porte un suivi a l'ancienne forme :
+  // il ne se lit plus, seules les reservations reviennent.
   return {
     reservations: normalizeReservations(parsed['reservations']),
-    watchlist: isRecord(watchlist)
-      ? { watch: asArray(watchlist['watch']), rules: asArray(watchlist['rules']) }
-      : { watch: [], rules: [] },
+    watchlist: parseWatchlist(parsed['watchlist']) ?? [],
   };
 }
 

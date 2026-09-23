@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer, type Server } from 'node:http';
 import { after, before, describe, it } from 'node:test';
-import { sendToExpo } from '../src/push.ts';
+import { wakeDevice } from '../src/push.ts';
 
 interface Recorded {
   authorization?: string;
@@ -41,26 +41,22 @@ function reset(next: { status: number; body: unknown }[] = []) {
   responses = next;
 }
 
-const NOTIFICATION = {
-  title: '3 places ouvertes',
-  body: '17/10 16:12 n8441 2h14',
-  url: 'https://example.test/?date=2026-10-17&dir=FRPMO%3EFRBOJ',
-  tag: 'tgvmax',
-};
-
 describe('envoi via Expo Push', () => {
-  it('envoie le jeton, le canal et le lien', async () => {
+  /*
+   * Un reveil n'affiche rien : un titre, un corps ou un canal en feraient un
+   * message que le systeme montre lui-meme, et la tache de l'application —
+   * seule a connaitre ce qu'on suit — ne tournerait jamais.
+   */
+  it('envoie un reveil silencieux, sans rien a afficher', async () => {
     reset();
-    await sendToExpo(NOTIFICATION, 'ExponentPushToken[abc]');
+    await wakeDevice('ExponentPushToken[abc]');
 
     assert.equal(received.length, 1);
     const body = received[0]!.body as Record<string, unknown>;
     assert.equal(body['to'], 'ExponentPushToken[abc]');
-    assert.equal(body['title'], NOTIFICATION.title);
-    // Le canal doit exister cote application, sinon Android n'affiche rien.
-    assert.equal(body['channelId'], 'alerts');
-    // Le lien porte la date : taper la notification doit ouvrir le bon jour.
-    assert.deepEqual(body['data'], { url: NOTIFICATION.url });
+    assert.equal(body['priority'], 'high');
+    for (const shown of ['title', 'body', 'channelId']) assert.equal(body[shown], undefined);
+    assert.ok(body['data']);
   });
 
   it('signe la requete quand EXPO_TOKEN est defini', async () => {
@@ -68,12 +64,12 @@ describe('envoi via Expo Push', () => {
     // n'importe qui pourrait pousser vers l'appareil.
     reset();
     process.env['EXPO_TOKEN'] = 'secret-de-test';
-    await sendToExpo(NOTIFICATION, 'ExponentPushToken[abc]');
+    await wakeDevice('ExponentPushToken[abc]');
     assert.equal(received[0]?.authorization, 'Bearer secret-de-test');
 
     reset();
     process.env['EXPO_TOKEN'] = '   ';
-    await sendToExpo(NOTIFICATION, 'ExponentPushToken[abc]');
+    await wakeDevice('ExponentPushToken[abc]');
     assert.equal(received[0]?.authorization, undefined);
     delete process.env['EXPO_TOKEN'];
   });
@@ -95,7 +91,7 @@ describe('envoi via Expo Push', () => {
     ]);
 
     await assert.rejects(
-      () => sendToExpo(NOTIFICATION, 'ExponentPushToken[mort]'),
+      () => wakeDevice('ExponentPushToken[mort]'),
       /DeviceNotRegistered/,
     );
   });
@@ -107,14 +103,14 @@ describe('envoi via Expo Push', () => {
       { status: 200, body: { data: { status: 'ok', id: 'x' } } },
     ]);
 
-    await sendToExpo(NOTIFICATION, 'ExponentPushToken[abc]');
+    await wakeDevice('ExponentPushToken[abc]');
     assert.equal(received.length, 3);
   });
 
   it('ne rejoue pas une requete refusee sur le fond', async () => {
     reset([{ status: 400, body: { errors: [{ message: 'payload malforme' }] } }]);
 
-    await assert.rejects(() => sendToExpo(NOTIFICATION, 'ExponentPushToken[abc]'), /refusee/);
+    await assert.rejects(() => wakeDevice('ExponentPushToken[abc]'), /refusee/);
     // Une seule tentative : rejouer un payload invalide ne le rendra pas valide.
     assert.equal(received.length, 1);
   });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { openTrainsLabel, trainsLabel, trainsWord, weekdayShort } from '../src/label.ts';
+import { openTrainsLabel, trainsLabel, trainsWord, watchLabel, weekdayShort } from '../src/label.ts';
 
 /*
  * Le vocabulaire est teste parce qu'il a deja ete faux partout.
@@ -52,5 +52,21 @@ describe('trains ouverts', () => {
     assert.equal(openTrainsLabel(1), '1 train ouvert');
     assert.equal(openTrainsLabel(2), '2 trains ouverts');
     assert.equal(openTrainsLabel(29), '29 trains ouverts');
+  });
+});
+
+describe('watchLabel', () => {
+  /*
+   * La notification et l'ecran nomment le meme suivi : une seule facon de
+   * l'ecrire, dans les mots ou on l'a pose.
+   */
+  it('dit un train par son heure, une fenetre par ses bornes', () => {
+    const dir = 'FRBOJ>FRPMO';
+    assert.equal(watchLabel({ dir, from: '2026-09-24 18:11', to: '2026-09-24 18:11' }), 'jeu 24/09 18:11');
+    assert.equal(watchLabel({ dir, from: '2026-09-24 18:00', to: '2026-09-24 21:30' }), 'jeu 24/09 18h–21h30');
+    assert.equal(
+      watchLabel({ dir, from: '2026-09-24 18:00', to: '2026-09-25 11:00' }),
+      'jeu 24/09 18h → ven 25/09 11h',
+    );
   });
 });

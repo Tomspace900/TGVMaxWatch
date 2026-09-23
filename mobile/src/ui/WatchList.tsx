@@ -1,40 +1,22 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DIRECTIONS } from '../../../src/config.ts';
-import { daysBetween, weekdayKey } from '../../../src/dates.ts';
-import { openTrainsLabel } from '../../../src/label.ts';
-import { bookableTrainNo } from '../../../src/departures.ts';
-import { periodOf } from '../../../src/periods.ts';
+import { addDays, daysBetween } from '../../../src/dates.ts';
+import { openTrainsLabel, watchLabel } from '../../../src/label.ts';
 import { isNotable, traceVerdict, verdictLabel } from '../../../src/trace.ts';
-import { isExpired } from '../../../src/watchlist.ts';
-import { dirLabel, longDate, recurringLabel, watchCutoff } from '../format.ts';
-import { horizonDates, type Calendar, type Train } from '../model.ts';
+import { covers, isTrainWatch } from '../../../src/watchlist.ts';
+import { dirLabel, watchCutoff } from '../format.ts';
+import type { Calendar, Train } from '../model.ts';
 import { SwipeRow } from './SwipeRow.tsx';
 import { WatchedChip } from './TrainRow.tsx';
 import { radius, space, typo, useTheme } from '../theme.ts';
-import type {
-  Reservations,
-  TrainTrends,
-  WatchEntry,
-  Watchlist,
-  WatchRule,
-} from '../../../src/types.ts';
+import type { Reservations, TrainTrends, Watch, Watchlist } from '../../../src/types.ts';
 
 /**
- * Ce qui est suivi, en entier et en tete de l'ecran.
- *
- * C'est le coeur du produit, et il vivait dans une carte de quatre lignes sous
- * trente cases de calendrier, tronquee sans le dire, sans le sens de chaque
- * entree — l'information la plus discriminante — et sans autre etat qu'un
- * code-barres a decoder.
+ * Ce qui est suivi, en entier et en tete de l'ecran : un creneau ou un train
+ * par ligne, avec ce qu'il vaut aujourd'hui.
  *
  * Les memes gestes que dans la liste d'un jour : vers la gauche pour ne plus
- * suivre, vers la droite apres avoir reserve. Un geste qui marche a un endroit
- * et pas a l'autre est un geste qu'on cesse d'essayer.
- *
- * Le bloc s'appelait « Surveillance ». Le geste, lui, a toujours dit « suivre »
- * et le badge « suivi » : le titre etait le seul endroit ou l'application
- * parlait une autre langue qu'elle-meme.
+ * suivre, vers la droite apres avoir reserve un train.
  */
 
 interface Props {
@@ -45,9 +27,20 @@ interface Props {
   today: string;
   onOpen: (date: string, dir: string) => void;
   onCreate: () => void;
-  onRemoveEntry: (entry: WatchEntry) => void;
-  onRemoveRule: (rule: WatchRule) => void;
+  onRemove: (watch: Watch) => void;
   onBook: (date: string, dir: string, train: Train, booked: boolean) => void;
+}
+
+/** Les departs du releve qui tombent dans la fenetre, sur tous ses jours. */
+function trainsIn(watch: Watch, calendar: Calendar): Train[] {
+  const found: Train[] = [];
+  const last = watch.to.slice(0, 10);
+  for (let date = watch.from.slice(0, 10); date <= last; date = addDays(date, 1)) {
+    for (const train of calendar.get(date)?.get(watch.dir)?.trains ?? []) {
+      if (covers(watch, train)) found.push(train);
+    }
+  }
+  return found;
 }
 
 export function WatchList({
@@ -58,42 +51,29 @@ export function WatchList({
   today,
   onOpen,
   onCreate,
-  onRemoveEntry,
-  onRemoveRule,
+  onRemove,
   onBook,
 }: Props) {
   const theme = useTheme();
-  const dates = useMemo(() => horizonDates(today), [today]);
 
-  /*
-   * Ce qui est parti ne s'affiche plus.
-   *
-   * Une entree dont le train est passe ne dit plus rien et la liste
-   * s'allongerait indefiniment. Le filtre est immediat ; le nettoyage du
-   * fichier, lui, se fait a la prochaine ecriture — on n'ecrit pas dans le
-   * depot juste parce qu'un ecran s'est affiche.
-   */
-  const entries = useMemo(() => {
+  // Ce qui est fini ne s'affiche plus ; le stockage, lui, se nettoie a la
+  // prochaine ecriture.
+  const shown = useMemo(() => {
     const cutoff = watchCutoff();
-    return watchlist.watch
-      .filter((entry) => !isExpired(entry, cutoff))
-      .sort((a, b) => a.date.localeCompare(b.date) || (a.after ?? '').localeCompare(b.after ?? ''));
-  }, [watchlist.watch]);
+    return watchlist
+      .filter((watch) => watch.to >= cutoff)
+      .sort((a, b) => a.from.localeCompare(b.from));
+  }, [watchlist]);
 
   const booked = useMemo(
     () => new Set(reservations.slots.map((slot) => `${slot.date}|${slot.dir}|${slot.trainNo}`)),
     [reservations.slots],
   );
 
-  const total = entries.length + watchlist.rules.length;
-
   return (
     <View style={styles.block}>
       <View style={styles.head}>
         <Text style={[typo.title, { color: theme.text }]}>Suivi</Text>
-        {/* Un chemin visible pour creer, et pas seulement un geste : un
-            balayage sans affordance, dans une application ouverte par vagues,
-            est un geste qu'on aura oublie a la vague suivante. */}
         <Pressable
           onPress={onCreate}
           hitSlop={10}
@@ -102,47 +82,53 @@ export function WatchList({
             { backgroundColor: theme.sunken, borderRadius: radius.pill, opacity: pressed ? 0.6 : 1 },
           ]}
         >
-          <Text style={[typo.strong, { color: theme.text }]}>+ créneau régulier</Text>
+          <Text style={[typo.strong, { color: theme.text }]}>+ créneau</Text>
         </Pressable>
       </View>
 
-      {total === 0 && (
+      {shown.length === 0 && (
         <Text style={[typo.body, { color: theme.muted, lineHeight: 20 }]}>
-          Rien de suivi : seules les deux alertes générales partiront. Balaie un train vers la
-          gauche depuis un jour, ou pose un créneau régulier ci-dessus.
+          Rien de suivi : seules les alertes générales partiront. Pose un créneau ci-dessus, ou balaie
+          un train vers la gauche depuis un jour.
         </Text>
       )}
 
-      {entries.map((entry) => (
-        <EntryRow
-          key={`${entry.date}-${entry.dir ?? ''}-${entry.after ?? ''}`}
-          entry={entry}
-          calendar={calendar}
-          trains={trains}
-          booked={booked}
-          today={today}
-          onOpen={onOpen}
-          onRemove={() => onRemoveEntry(entry)}
-          onBook={onBook}
-        />
-      ))}
+      {shown.map((watch) => {
+        const inside = trainsIn(watch, calendar);
+        const date = watch.from.slice(0, 10);
+        const left = daysBetween(today, date);
+        const train = isTrainWatch(watch) ? inside[0] : undefined;
+        const isBooked = Boolean(
+          train?.trainNos.some((trainNo) => booked.has(`${date}|${watch.dir}|${trainNo}`)),
+        );
 
-      {watchlist.rules.map((rule) => {
-        /*
-         * Une regle recurrente ne designe pas une date : elle en designe une par
-         * semaine. Ce qu'on veut savoir devant elle, c'est ou en est la
-         * prochaine — sinon la ligne ne dit que ce qu'on a soi-meme ecrit.
-         */
-        const nextDate = dates.find((date) => weekdayKey(date) === rule.weekday);
-        const nextDay = nextDate && rule.dir ? calendar.get(nextDate)?.get(rule.dir) : undefined;
+        // Un train : est-ce que *ce train-la* tient. Une fenetre : combien il en reste.
+        const verdict = train ? traceVerdict(trains.series[`${date}|${watch.dir}`]?.[train.depart]) : null;
+        const state = train
+          ? verdict && verdict.kind !== 'inconnu'
+            ? verdictLabel(verdict)
+            : train.available
+              ? 'ouvert'
+              : 'complet'
+          : isTrainWatch(watch)
+            ? 'plus au programme'
+            : openTrainsLabel(inside.filter((item) => item.available).length);
 
         return (
           <SwipeRow
-            key={`rule-${rule.weekday}-${rule.dir ?? ''}-${rule.after ?? ''}`}
-            left={{ label: 'NE PLUS SUIVRE', onAction: () => onRemoveRule(rule) }}
+            key={`${watch.dir}|${watch.from}|${watch.to}|${watch.skipLong ? 1 : 0}`}
+            left={{ label: 'NE PLUS SUIVRE', onAction: () => onRemove(watch) }}
+            {...(train
+              ? {
+                  right: {
+                    label: isBooked ? 'PLUS RÉSERVÉ' : "J'AI RÉSERVÉ",
+                    onAction: () => onBook(date, watch.dir, train, isBooked),
+                  },
+                }
+              : {})}
           >
             <Pressable
-              onPress={() => nextDate && onOpen(nextDate, rule.dir ?? DIRECTIONS[0])}
+              onPress={() => onOpen(date, watch.dir)}
               style={({ pressed }) => [
                 styles.row,
                 {
@@ -153,20 +139,25 @@ export function WatchList({
                 },
               ]}
             >
-              <Text
-                style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}
-              >
-                RÈGLE
-              </Text>
-
               <View style={styles.body}>
-                <Text style={[typo.section, { color: theme.text }]} numberOfLines={1}>
-                  {recurringLabel(rule)}
-                </Text>
-                <Text style={[typo.small, { color: theme.muted }]} numberOfLines={1}>
-                  {rule.dir ? dirLabel(rule.dir) : 'les deux sens'}
-                  {nextDate ? ` · prochain ${longDate(nextDate)}` : ''}
-                  {nextDay ? ` · ${countLabel(nextDay.available)}` : ''}
+                <View style={styles.line}>
+                  <Text style={[typo.section, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                    {watchLabel(watch)}
+                  </Text>
+                  <WatchedChip watched={false} booked={isBooked} />
+                  <Text style={[typo.digits, { color: theme.muted }]}>
+                    {left <= 0 ? "aujourd'hui" : `J-${left}`}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    verdict && isNotable(verdict) ? typo.strong : typo.small,
+                    { color: verdict && isNotable(verdict) ? theme.text : theme.muted },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {dirLabel(watch.dir)} · {state}
+                  {watch.skipLong ? ' · sans les longs' : ''}
                 </Text>
               </View>
             </Pressable>
@@ -177,150 +168,11 @@ export function WatchList({
   );
 }
 
-function countLabel(available: number): string {
-  return openTrainsLabel(available);
-}
-
-function EntryRow({
-  entry,
-  calendar,
-  trains,
-  booked,
-  today,
-  onOpen,
-  onRemove,
-  onBook,
-}: {
-  entry: WatchEntry;
-  calendar: Calendar;
-  trains: TrainTrends;
-  booked: Set<string>;
-  today: string;
-  onOpen: (date: string, dir: string) => void;
-  onRemove: () => void;
-  onBook: (date: string, dir: string, train: Train, booked: boolean) => void;
-}) {
-  const theme = useTheme();
-
-  const day = entry.dir ? calendar.get(entry.date)?.get(entry.dir) : undefined;
-  const period = periodOf(entry.after, entry.before);
-  // Une periode couvre plusieurs trains : c'est le compte du jour qui repond,
-  // pas l'etat d'un train. Seule une fenetre fermee designe un train.
-  const train =
-    entry.after && entry.after === entry.before
-      ? day?.trains.find((item) => item.depart === entry.after)
-      : undefined;
-
-  /*
-   * Une entree porte une heure de depart : ce qu'on veut savoir devant elle,
-   * c'est si *ce train-la* tient. Sans heure, elle porte la journee entiere, et
-   * le compte du jour redevient la bonne reponse.
-   */
-  const verdict = train
-    ? traceVerdict(trains.series[`${entry.date}|${entry.dir}`]?.[train.depart])
-    : null;
-  const state = verdict
-    ? verdict.kind === 'inconnu'
-      ? train?.available
-        ? 'ouvert'
-        : 'complet'
-      : verdictLabel(verdict)
-    : day
-      ? countLabel(day.available)
-      : '—';
-
-  const left = daysBetween(today, entry.date);
-  const isBooked = Boolean(
-    train &&
-      entry.dir &&
-      train.trainNos.some((trainNo) => booked.has(`${entry.date}|${entry.dir}|${trainNo}`)),
-  );
-
-  return (
-    <SwipeRow
-      left={{ label: 'NE PLUS SUIVRE', onAction: onRemove }}
-      // « J'ai reserve » n'a de sens que sur un train identifie : une journee
-      // entiere ne se reserve pas.
-      {...(train && entry.dir
-        ? {
-            right: {
-              label: isBooked ? 'PLUS RÉSERVÉ' : "J'AI RÉSERVÉ",
-              onAction: () => onBook(entry.date, entry.dir!, train, isBooked),
-            },
-          }
-        : {})}
-    >
-      <Pressable
-        onPress={() => onOpen(entry.date, entry.dir ?? DIRECTIONS[0])}
-        style={({ pressed }) => [
-          styles.row,
-          {
-            backgroundColor: theme.raised,
-            borderColor: theme.line,
-            borderRadius: radius.sm,
-            opacity: pressed ? 0.6 : 1,
-          },
-        ]}
-      >
-        {/* Une fenetre qui couvre une periode connue se relit par son nom :
-            « matin » plutot que « 05:00 ». Une fenetre fermee sur une minute est
-            un train precis, et son heure est ce qu'on cherche. */}
-        {period ? (
-          <Text style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}>
-            {period.label.toUpperCase()}
-          </Text>
-        ) : entry.after ? (
-          <Text style={[typo.clock, styles.leadTime, { color: theme.text }]}>{entry.after}</Text>
-        ) : (
-          <Text style={[typo.chip, styles.lead, { color: theme.muted, backgroundColor: theme.sunken }]}>
-            JOUR
-          </Text>
-        )}
-
-        <View style={styles.body}>
-          <View style={styles.line}>
-            <Text style={[typo.section, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-              {longDate(entry.date)}
-            </Text>
-            {/* Pas de badge « suivi » ici : tout ce que cette liste montre est
-                suivi par definition, et un signal present sur chaque ligne est
-                un fond. Seule la reservation apprend quelque chose. */}
-            <WatchedChip watched={false} booked={isBooked} />
-            {/* La distance au depart decide autant que l'etat : « complet » a
-                J-20 et « complet » a J-2 ne se lisent pas pareil. */}
-            <Text style={[typo.digits, { color: theme.muted }]}>
-              {left === 0 ? "aujourd'hui" : `J-${left}`}
-            </Text>
-          </View>
-
-          <Text
-            style={[
-              verdict && isNotable(verdict) ? typo.strong : typo.small,
-              { color: verdict && isNotable(verdict) ? theme.text : theme.muted },
-            ]}
-            numberOfLines={1}
-          >
-            {entry.dir ? `${dirLabel(entry.dir)} · ` : 'les deux sens · '}
-            {state}
-          </Text>
-        </View>
-      </Pressable>
-    </SwipeRow>
-  );
-}
-
 const styles = StyleSheet.create({
   block: { paddingHorizontal: space.lg, gap: space.sm },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   add: { paddingHorizontal: 12, paddingVertical: 7 },
-  /*
-   * Le meme objet que dans la liste d'un jour.
-   *
-   * Ces lignes etaient plates, separees par un filet ; le meme balayage y
-   * revelait un degrade sur toute la largeur, sans coin ni marge — le geste
-   * etait identique, l'objet non, et ca se voyait. Un geste qui se fait sur
-   * deux formes differentes se lit comme deux gestes.
-   */
+  // Le meme objet que dans la liste d'un jour : le meme geste, la meme forme.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -329,14 +181,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-  },
-  leadTime: { minWidth: 58 },
-  lead: {
-    minWidth: 58,
-    textAlign: 'center',
-    overflow: 'hidden',
-    paddingVertical: 4,
-    borderRadius: radius.sm,
   },
   body: { flex: 1, gap: 2 },
   line: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
