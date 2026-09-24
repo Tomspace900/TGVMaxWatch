@@ -154,7 +154,7 @@ export function CalendarGrid({ width, dates, dir, calendar, ring, onSelect }: Gr
 
         {dates.map((date) => {
           const day = calendar.get(date)?.get(dir) ?? emptyDay(date, dir);
-          const bucket = availabilityBucket(day.available);
+          const [morning, afternoon] = day.halves;
           const mark = ring(date);
 
           return (
@@ -167,12 +167,11 @@ export function CalendarGrid({ width, dates, dir, calendar, ring, onSelect }: Gr
               /*
                * Un anneau Carmillon, et non une teinte.
                *
-               * Le fond de la case appartient a l'echelle de disponibilite et
-               * ne se partage pas : la repeindre pour dire autre chose la
-               * rendrait illisible. L'anneau est une marque posee par-dessus,
-               * dans la famille qui designe ce qui t'engage — une reservation
-               * en est. Un point aurait dispute la place aux deux nombres que
-               * la case porte deja.
+               * La couleur de la case appartient a l'echelle de disponibilite
+               * et ne se partage pas : la repeindre pour dire autre chose la
+               * rendrait illisible. L'anneau est une marque posee autour, dans
+               * la famille qui designe ce qui t'engage — une reservation en
+               * est.
                *
                * La bordure est sur *toutes* les cases, transparente quand il
                * n'y a rien : sinon les deux ou trois cases marquees auraient
@@ -184,29 +183,32 @@ export function CalendarGrid({ width, dates, dir, calendar, ring, onSelect }: Gr
                 {
                   width: cell,
                   height: cell / 0.74,
-                  backgroundColor: theme.avail[bucket],
                   borderColor: mark ? theme.accent : 'transparent',
                   borderStyle: mark === 'watched' ? 'dashed' : 'solid',
                   borderRadius: radius.sm,
                   transform: [{ scale: pressed ? 0.93 : 1 }],
                 },
               ]}
-              accessibilityLabel={`${date}, ${day.available} trains ouverts${
+              accessibilityLabel={`${date}, ${morning} trains ouverts le matin, ${afternoon} après midi${
                 mark === 'booked' ? ', train réservé' : mark === 'watched' ? ', créneau suivi' : ''
               }`}
             >
-              {/* Une case porte deux nombres au maximum : le quantieme et le
-                  compte. Le triangle qui marquait « tous les trains ouverts
-                  sont longs » demandait une memoire que l'usage par vagues ne
-                  permet pas, et le point qui marquait aujourd'hui ne
-                  distinguait rien — la grille commence a aujourd'hui, il n'y a
-                  aucun jour d'avant dont le separer. */}
-              <Text style={[styles.dayNumber, { color: theme.availInk[bucket] }]}>
-                {dayNumber(date)}
-              </Text>
-              <Text style={[styles.count, { color: theme.availInk[bucket] }]}>
-                {day.available}
-              </Text>
+              {/* Le jour en gros, et la couleur dit quand.
+                  Le compte de la journee etait le plus gros caractere de la
+                  case, et redisait ce que la couleur disait deja ; il est sur
+                  l'ecran du jour. Une case qui paraissait bonne cachait une
+                  fois sur cinq une demi-journee vide — celle du « jeudi
+                  soir ». Matin a gauche, apres-midi a droite : l'heure se lit
+                  dans le sens de la lecture, sans legende. */}
+              <Text style={[styles.dayNumber, { color: theme.text }]}>{dayNumber(date)}</Text>
+              <View style={styles.halves}>
+                {day.halves.map((count, i) => (
+                  <View
+                    key={i}
+                    style={[styles.half, { backgroundColor: theme.avail[availabilityBucket(count)] }]}
+                  />
+                ))}
+              </View>
             </Pressable>
           );
         })}
@@ -221,9 +223,8 @@ const styles = StyleSheet.create({
   weekdays: { flexDirection: 'row', gap: space.sm, marginBottom: space.sm },
   weekday: { ...typo.chip, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  cell: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2 },
-  dayNumber: { ...typo.small, fontSize: 10.5, opacity: 0.72, lineHeight: 13 },
-  // Le compte se lit comme un afficheur : chiffres de largeur egale, une
-  // colonne de cases qui ne s'alignent pas se lit comme un defaut.
-  count: { ...typo.clock, fontSize: 21, lineHeight: 25, letterSpacing: 0 },
+  cell: { justifyContent: 'space-between', overflow: 'hidden', borderWidth: 2, padding: 3 },
+  dayNumber: { ...typo.title, fontSize: 18, lineHeight: 24, textAlign: 'center' },
+  halves: { flexDirection: 'row', gap: 2, height: '42%' },
+  half: { flex: 1, borderRadius: 4 },
 });

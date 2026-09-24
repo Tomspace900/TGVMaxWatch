@@ -461,9 +461,9 @@ par sideload. Il faut Android + `preview` + base directory `mobile`.
 - **Aucune vision au-dela de J+30.**
 - La donnee affichee peut avoir plus de 24 h ; l'application montre toujours sa
   date de publication.
-- Le jeton GitHub du Worker **expire** a la date choisie a sa creation : ce
-  jour-la, la collecte s'arrete sans bruit, et seule l'alarme de 40 h de
-  l'application le signale.
+- Le jeton GitHub du Worker n'expire pas, mais s'il est revoque ou remplace
+  sans mettre a jour le secret Cloudflare, la collecte s'arrete sans bruit ;
+  seule l'alarme de 40 h de l'application le signale.
 - `reopen` est calcule et publie mais **n'a encore aucune interface**.
 
 ---

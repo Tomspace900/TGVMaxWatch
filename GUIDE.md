@@ -83,21 +83,24 @@ demandent plus rien. Ils restent dans l'appareil et dans l'export.
 suivi, sa ligne s'en va : elle ne dit plus rien, et la liste s'allongerait
 indéfiniment. Le fichier, lui, se nettoie à la prochaine modification.
 
-**5. Le calendrier.** Trente jours, une case par jour. **Plus la case est
-colorée, plus il y a de trains ouverts.** Une case grise veut dire aucun train
-ce jour-là, dans le sens affiché. Deux nombres par case et pas un de plus : le
-quantième, et le compte.
+**5. Le calendrier.** Trente jours, une case par jour. Chaque case porte le
+jour en gros, et en dessous **deux pavés : le matin à gauche, l'après-midi et
+le soir à droite** — la coupure est à midi. **Plus un pavé est coloré, plus il
+y a de trains ouverts dans cette moitié de journée** : un seul train, puis 2 à
+3, 4 à 6, 7 et plus. Un pavé gris veut dire aucun train, dans le sens affiché.
+Le compte exact est sur l'écran du jour : touche la case.
+
+Pourquoi deux pavés plutôt qu'un chiffre : une journée « à 5 trains » peut
+n'en avoir aucun le soir, et c'est arrivé une fois sur cinq. Si tu cherches un
+retour le jeudi soir, c'est le pavé de droite qui répond.
 
 Un **anneau** autour d'une case marque ce que tu y as posé : **plein** pour un
 train réservé, **en pointillés** pour un créneau suivi. Une fenêtre qui passe
 la nuit marque ses deux jours. Chaque sens a ses propres marques.
 
-Ce compte est un nombre de **trains**, jamais de places : la SNCF ne publie pas
-ses sièges, seulement si un train est ouvert au TGVmax. Et c'est un nombre de
-**départs** — deux rames à la même minute comptent pour un. Les chiffres du
-calendrier ont donc baissé d'environ un dixième le jour où ce changement est
-arrivé ; il n'y a pas moins de trains qu'avant, ils ne sont plus comptés deux
-fois.
+Ce qu'on compte, ce sont des **trains**, jamais des places : la SNCF ne
+publie pas ses sièges, seulement si un train est ouvert au TGVmax. Et ce sont
+des **départs** — deux rames à la même minute comptent pour un.
 
 Juste au-dessus, le sélecteur de sens — Paris → Bordeaux ou Bordeaux → Paris.
 Il est là, et plus tout en haut de l'écran, parce qu'il ne gouverne que le

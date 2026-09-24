@@ -40,9 +40,8 @@ export interface Palette {
   muted: string;
   inverseBg: string;
   inverseText: string;
-  /** Cinq paliers : 0 / 1-2 / 3-5 / 6-11 / 12+ trains eligibles. */
+  /** Cinq paliers par demi-journee : 0 / 1 / 2-3 / 4-6 / 7+ trains eligibles. */
   avail: readonly string[];
-  availInk: readonly string[];
   /** Degrade Carmillon, du violet au vermillon. Habillage uniquement. */
   brand: readonly string[];
   /** L'accent plein, la ou un degrade n'a pas la place de se deployer. */
@@ -90,7 +89,6 @@ const light: Palette = {
   // l'echelle qui separe « rien » de « quelque chose », et elle etait
   // indistinguable — deux gris a peine teintes l'un de l'autre.
   avail: ['#e6e6e2', '#b3e2cb', '#63c69e', '#219067', '#0a5c3f'],
-  availInk: ['#8b9196', '#0f4530', '#062e20', '#ffffff', '#ffffff'],
   brand: CARMILLON,
   accent: '#c21758',
   onBrand: '#ffffff',
@@ -117,7 +115,6 @@ const dark: Palette = {
   // franchement vert. Un vert tres sombre a cote d'un gris tres sombre ne se
   // lisait pas, surtout dehors.
   avail: ['#1a1d21', '#14563c', '#1c8460', '#31b98a', '#5ce8b0'],
-  availInk: ['#767f87', '#cdebdc', '#eafaf3', '#04231b', '#04231b'],
   brand: CARMILLON,
   accent: '#c21758',
   onBrand: '#ffffff',

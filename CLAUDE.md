@@ -510,9 +510,8 @@ reservation a ce projet.
 
 **Le calendrier marque une reservation par un anneau, jamais par une teinte.**
 Le fond d'une case appartient a l'echelle `avail` et ne se partage pas. L'anneau
-est une marque posee par-dessus, dans la famille qui designe ce qui t'engage —
-une reservation en est. Un point aurait dispute la place aux deux nombres que la
-case porte deja. Et la bordure est sur **toutes** les cases, transparente quand
+est une marque posee autour, dans la famille qui designe ce qui t'engage —
+une reservation en est. Et la bordure est sur **toutes** les cases, transparente quand
 il n'y a rien : sinon les deux ou trois cases marquees auraient une boite
 interieure plus petite, et leurs chiffres sauteraient de deux pixels au milieu
 de la grille. Le marqueur du jour est parti dans le meme mouvement : la grille
@@ -528,6 +527,34 @@ une seconde grille pour choisir une date serait un second calendrier a tenir.
 Un jour venu de l'ecran d'une journee s'etend au toucher suivant ; aujourd'hui,
 pose faute de mieux, est remplace — sinon toucher jeudi suivrait
 « de maintenant a jeudi ».
+
+**La case d'un jour dit quand, pas combien.** Le compte de la journee etait le
+plus gros caractere de la case, et redisait ce que la couleur disait deja,
+pendant que le quantieme — ce qu'on cherche dans un calendrier — tenait en
+10 px a 72 % d'opacite. Surtout, le compte mentait sur la question reelle :
+mesure sur 23 collectes, **43 %** des jours ouverts le sont dans une seule
+moitie de journee, et **une case sur cinq** qui paraissait bonne (3 trains ou
+plus) cachait une demi-journee vide — celle du « jeudi soir ». La case porte
+donc le jour en gros et deux paves, matin a gauche et apres-midi a droite,
+chacun peint par son propre compte ; le compte exact est sur l'ecran du jour.
+
+La coupure est a midi (`MIDDAY`) parce que la grille horaire a son trou la —
+11h vers Paris, 13h vers Bordeaux — et qu'elle n'en a qu'un : trois tranches
+auraient invente une frontiere. Les paliers ont suivi (`AVAILABILITY_BUCKETS`,
+1 / 2-3 / 4-6 / 7+) : ceux de la journee laissaient le dernier vide sur une
+demi-journee. Ecartees : une frise horaire dans la case (2 px par heure, et
+une frise a deja ete retiree pour moins que ca) et un filtre matin/soir au-dessus
+de la grille (une grille filtree ressemble a une grille normale).
+
+**Ce qui fait monter une journee, ce sont des vagues, pas une fonte lente.**
+Mesure du 2026-09-23 sur 22 paires de collectes : entre deux vagues, une
+demi-journee perd en mediane **zero** train ; a **J-3**, une journee gagne en
+mediane **six** trains par sens (80 % en gagnent trois ou plus, huit dates vides
+la veille sur dix s'ouvrent), autant le matin que le soir ; J-11 et J-29
+donnent +2. Un repere « ca part vite » serait donc presque toujours eteint.
+L'idee d'une phrase « la remise de J-3 n'a pas encore eu lieu » sur l'ecran d'un
+jour est en attente ; les courbes d'erosion, calculables des la 25e collecte,
+diront si la vague tient.
 
 **Le verdict ne remplace pas entierement la frise.** Retirer les trente cellules
 etait juste ; ne plus rien montrer sur les lignes « stables » l'etait moins,
@@ -995,11 +1022,12 @@ installable par sideload. Il faut Android + `preview` + base directory `mobile`.
 
 ## Ce qui reste a faire
 
-**Le reveil n'a ete observe que du cote du collecteur.** Le 2026-09-24, Expo a
-accepte le reveil a 04:31:04. Ce que fait l'appareil ensuite — comparer, poser
-la notification — ne laisse aucune trace hors du telephone, et l'absence de
-message ne dit rien : aucun suivi n'a peut-etre bouge. Reste a observer, comme
-le rappel de confirmation a l'ouverture de la fenetre.
+**Le reveil a fait tout le chemin le 2026-09-24.** Publication SNCF a 04:23:44
+UTC, reveil accepte par Expo a 04:31:04, notification sur l'appareil a 06:32
+heure de Paris, avec le creneau suivi en titre. Ce que fait l'appareil ne
+laisse aucune trace hors du telephone : l'absence de message ne dit rien, un
+jour sans mouvement est muet. Reste a observer le rappel de confirmation a
+l'ouverture de la fenetre.
 
 **Statistiques.** Chaque metrique est publiee des qu'elle a un echantillon,
 plus toutes ensemble derriere un compteur de snapshots : l'erosion demande une
@@ -1018,9 +1046,10 @@ L'appareil, lui, le peut. `scheduleStaleAlarm` repose a chaque rafraichissement
 reussi, et a chaque reveil, une alarme locale a 40h : tant que la donnee arrive,
 l'echeance recule. Elle couvre donc aussi le reveil qui ne vient plus.
 C'est le seul dispositif qui survive a la panne qu'il surveille, et il ne
-demande aucun service tiers. L'echeance de fond a change de nature : plus de
-workflow planifie que l'inactivite du depot desactiverait, mais le jeton du
-Worker expire a la date choisie a sa creation, et ce jour-la la collecte
+demande aucun service tiers. Plus de workflow planifie que l'inactivite du
+depot desactiverait, et le jeton du Worker a ete cree **sans expiration** :
+il ne sait que lancer une collecte idempotente et lire un depot public, une
+fuite ne coute donc rien. Le jour ou il est revoque ou remplace, la collecte
 s'arrete sans bruit — seule l'alarme de 40 h le dira.
 
 ## Source et licence

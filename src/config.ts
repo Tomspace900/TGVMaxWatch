@@ -318,11 +318,21 @@ export const MIN_EROSION_SPAN = 24;
 export const TRAIN_TREND_DAYS = 30;
 
 /**
- * Echelle de disponibilite : borne basse de chaque palier de couleur.
+ * Midi coupe la case d'un jour en deux, matin a gauche, apres-midi a droite.
  *
- * Le plan prevoyait 0 / 1-2 / 3-5 / 6+. La premiere collecte reelle montre
- * ~32 trains par jour et par sens sur cet axe, avec des journees a 30 places
- * disponibles : le palier « 6+ » avalait alors la majorite du calendrier et la
- * couleur n'encodait plus rien. Cinq paliers couvrent la plage observee.
+ * C'est la que la grille horaire a son trou — 11h vers Paris, 13h vers
+ * Bordeaux — et « le matin » se comprend sans regle. Un seul trou dans la
+ * journee, donc une seule coupure : une troisieme tranche serait inventee.
  */
-export const AVAILABILITY_BUCKETS = [0, 1, 3, 6, 12] as const;
+export const MIDDAY = '12:00';
+
+/**
+ * Echelle de disponibilite d'une demi-journee : borne basse de chaque palier.
+ *
+ * La journee entiere se peignait en 0 / 1-2 / 3-5 / 6-11 / 12+. Appliques a une
+ * demi-journee, ces paliers laissaient le dernier vide (1 % des cases) : mesure
+ * sur 23 collectes, 1 / 2-3 / 4-6 / 7+ repartit les demi-journees non vides en
+ * 22 / 36 / 25 / 16 %, pres des 32 / 30 / 23 / 14 % de la journee. « 1 » reste
+ * seul dans son palier : c'est la rarete, celle qui decide.
+ */
+export const AVAILABILITY_BUCKETS = [0, 1, 2, 4, 7] as const;

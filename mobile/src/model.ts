@@ -1,4 +1,4 @@
-import { AVAILABILITY_BUCKETS, HORIZON_DAYS } from '../../src/config.ts';
+import { AVAILABILITY_BUCKETS, HORIZON_DAYS, MIDDAY } from '../../src/config.ts';
 import { addDays, todayInParis } from '../../src/dates.ts';
 import { foldDepartures, type Departure } from '../../src/departures.ts';
 import type { TrainRecord } from '../../src/types.ts';
@@ -17,8 +17,10 @@ export interface Day {
   date: string;
   dir: string;
   trains: Train[];
-  /** Departs eligibles. C'est ce que compte le calendrier. */
+  /** Departs eligibles. */
   available: number;
+  /** Les memes, avant et apres midi : ce que peint le calendrier. */
+  halves: [number, number];
 }
 
 /*
@@ -61,14 +63,17 @@ export function buildCalendar(records: TrainRecord[]): Calendar {
 
     const day =
       byDir.get(departure.dir) ??
-      ({ date: departure.date, dir: departure.dir, trains: [], available: 0 } as Day);
+      emptyDay(departure.date, departure.dir);
     byDir.set(departure.dir, day);
     day.trains.push(departure);
   }
 
   for (const byDir of calendar.values()) {
     for (const day of byDir.values()) {
-      day.available = day.trains.filter((train) => train.available).length;
+      const open = day.trains.filter((train) => train.available);
+      day.available = open.length;
+      const morning = open.filter((train) => train.depart < MIDDAY).length;
+      day.halves = [morning, open.length - morning];
     }
   }
 
@@ -80,7 +85,7 @@ export function horizonDates(today = todayInParis()): string[] {
   return Array.from({ length: HORIZON_DAYS + 1 }, (_, offset) => addDays(today, offset));
 }
 
-/** Palier de couleur d'une case : 0, 1-2, 3-5, 6-11, 12+ departs ouverts. */
+/** Palier de couleur d'une demi-journee : 0, 1, 2-3, 4-6, 7+ departs ouverts. */
 export function availabilityBucket(count: number): number {
   let bucket = 0;
   AVAILABILITY_BUCKETS.forEach((floor, index) => {
@@ -90,5 +95,5 @@ export function availabilityBucket(count: number): number {
 }
 
 export function emptyDay(date: string, dir: string): Day {
-  return { date, dir, trains: [], available: 0 };
+  return { date, dir, trains: [], available: 0, halves: [0, 0] };
 }
