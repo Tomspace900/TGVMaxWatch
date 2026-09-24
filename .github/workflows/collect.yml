@@ -1,17 +1,15 @@
 name: collect
 
 on:
-  # Le dataset est publie vers 04h20 UTC. Deux passages laissent de la marge :
-  # le cron GitHub est frequemment retarde et parfois saute sous charge.
-  schedule:
-    - cron: '15 6 * * *'
-    - cron: '15 8 * * *'
+  # Lance par le Worker Cloudflare (`cloudflare/worker.js`) des que la SNCF
+  # publie, et a la main au besoin. Plus de cron GitHub : il partait 2 a 7 h
+  # apres la publication.
   workflow_dispatch:
 
 permissions:
   contents: write
 
-# Les deux executions quotidiennes ne doivent jamais commiter en meme temps.
+# Un lancement du Worker et un lancement a la main ne commitent jamais ensemble.
 concurrency:
   group: data-write
   cancel-in-progress: false

@@ -39,8 +39,12 @@ async function run(env) {
   const today = new Date().toISOString().slice(0, 10);
   if (collected?.startsWith(today)) return `a jour : ${collected}`;
 
+  // Seule la publication du jour se collecte. La SNCF republie parfois dans la
+  // journee (`data_processed` a 10:00 le 23/09, apparu apres 13:38) : vue apres
+  // minuit, cette republication de la veille a lance une collecte a 01:15 UTC,
+  // rangee sous la date du lendemain, et reveille le telephone en pleine nuit.
   const published = (await (await fetch(SNCF)).json()).metas.default.data_processed;
-  if (published === collected) return `rien de neuf : ${published}`;
+  if (!published?.startsWith(today)) return `pas encore publie aujourd'hui : ${published}`;
 
   const res = await github('actions/workflows/collect.yml/dispatches', {
     method: 'POST',

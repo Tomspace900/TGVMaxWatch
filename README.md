@@ -104,6 +104,11 @@ Builds). Le cron vit dans `wrangler.toml`, le secret `GITHUB_TOKEN` (Actions :
 ecriture, Contents : lecture) dans la console. Ouvrir son adresse fait la meme
 chose que le cron et dit ce qui s'est passe.
 
+Seule la **publication du jour** declenche une collecte : la SNCF republie
+parfois dans la journee, et une republication de la veille vue apres minuit
+lancait une collecte en pleine nuit, rangee sous la mauvaise date. Premier
+passage le 2026-09-24 : publication a 04:23:44, telephone reveille a 04:31:04.
+
 ### Le collecteur, etape par etape
 
 `src/collect.ts` :
@@ -407,7 +412,7 @@ pas de pull request, les commits s'empilent et le push livre dans la foulee.
 
 **La verification passe avant le push**, et l'asymetrie explique pourquoi :
 `update.yml` fait tourner son propre typecheck et ses tests avant de publier, donc
-du JS casse n'atteint pas le telephone ; `collect.yml` part au cron sans rien
+du JS casse n'atteint pas le telephone ; `collect.yml` part au signal du Worker sans rien
 demander a personne, et une journee manquee est perdue pour toujours.
 
 **Changement JS** — interface, gestes, logique metier : le push sur `main`
@@ -456,8 +461,9 @@ par sideload. Il faut Android + `preview` + base directory `mobile`.
 - **Aucune vision au-dela de J+30.**
 - La donnee affichee peut avoir plus de 24 h ; l'application montre toujours sa
   date de publication.
-- Les workflows planifies sont **desactives apres une longue inactivite du
-  depot**. Verifier au bout de deux mois que la tache tourne encore.
+- Le jeton GitHub du Worker **expire** a la date choisie a sa creation : ce
+  jour-la, la collecte s'arrete sans bruit, et seule l'alarme de 40 h de
+  l'application le signale.
 - `reopen` est calcule et publie mais **n'a encore aucune interface**.
 
 ---

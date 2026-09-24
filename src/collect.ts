@@ -33,7 +33,6 @@ async function main(): Promise<void> {
   rebuildDerived(today);
 
   writeState({
-    ...state,
     dataProcessed,
     collectedAt: new Date().toISOString(),
     latestSnapshot: today,

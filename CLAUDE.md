@@ -58,6 +58,18 @@ Seule l'alarme de fraicheur de l'appareil (40 h) le fera savoir. Le Worker est
 deploye par Cloudflare depuis `cloudflare/` a chaque push (Workers Builds) ; le
 cron vit dans `wrangler.toml`, le secret `GITHUB_TOKEN` dans la console. Ouvrir
 son adresse fait la meme chose que le cron, en disant ce qui s'est passe.
+Premier passage le 2026-09-24 : publication 04:23:44, collecte lancee a 04:30:53,
+telephone reveille a 04:31:04 — sept minutes, contre deux a sept heures. Le
+cron GitHub de `collect.yml` est parti le jour meme.
+
+**Seule la publication du jour se collecte.** La SNCF republie parfois dans la
+journee : un `data_processed` a 10:00 le 23/09, invisible a 13:38 et present
+apres minuit. Le Worker, qui ne comparait que « different de la derniere
+collecte », l'a vu a 01:15 UTC le lendemain et a lance une collecte rangee sous
+la mauvaise date, avec un reveil du telephone a 3 h du matin. Il exige
+desormais un `data_processed` du jour. Le revers, accepte : une publication du
+jour qui serait datee de la veille ne serait jamais prise — 23 jours sur 23 sont
+tombes a 04:23-04:24 UTC.
 
 ## Regles a ne pas casser
 
@@ -671,9 +683,9 @@ creation** : en ajouter un nouveau marche, changer l'importance d'un canal
 existant ne prend jamais effet sur les appareils qui l'ont deja.
 
 **Les dates de voyage sont des dates locales francaises.** Ne jamais les
-convertir. Seul le cron est en UTC.
+convertir. Seuls le Worker et les horodatages de la source sont en UTC.
 
-**Le cron de ce depot part avec trois a cinq heures de retard.** Mesure, pas
+**Le cron de ce depot partait avec trois a cinq heures de retard.** Mesure, pas
 supposee : `collect` vise 06:15 UTC et part a 11:20 ; `remind` visait 14:00 et
 partait a 18:24. Aucun traitement ne doit donc dependre de l'heure a laquelle
 il croit tourner. Le rappel de confirmation exigeait 16h pile a Paris, ne
@@ -686,8 +698,8 @@ dans `state.json`. Elle reduisait la probabilite de l'echec sans le supprimer,
 et le laissait muet. **La bonne reponse etait de sortir la tache du cron** :
 un traitement a echeance horaire appartient a l'appareil, dont l'heure locale
 est celle de l'utilisateur. Le rappel est aujourd'hui une alarme posee par
-`mobile/src/data/reminders.ts`, et il ne reste dans les workflows que `collect`,
-dont l'idempotence rend le retard sans consequence.
+`mobile/src/data/reminders.ts`. `collect` a quitte le cron a son tour le
+2026-09-24, pour le Worker : ce depot n'a plus aucun workflow planifie.
 
 **`raw.githubusercontent.com` est un CDN a `max-age=300`, et la watchlist s'y
 lisait apres s'y etre ecrite.** Mesure, pas supposee : la reponse porte
@@ -945,8 +957,8 @@ pourquoi elle n'est pas symetrique :
 - L'application est couverte toute seule. `update.yml` fait tourner son propre
   `verify` — typecheck et tests — **avant** de publier : du JS casse ne peut
   pas atteindre le telephone.
-- **Le collecteur ne l'est pas.** `collect.yml` part au cron sans rien
-  demander a personne, et `ci.yml` tourne en parallele du push sans pouvoir
+- **Le collecteur ne l'est pas.** `collect.yml` part au signal du Worker sans
+  rien demander a personne, et `ci.yml` tourne en parallele du push sans pouvoir
   l'arreter. Un collecteur casse sur `main` fait une journee manquee, et une
   journee manquee est perdue pour toujours — c'est l'invariant de ce projet.
 
@@ -983,11 +995,11 @@ installable par sideload. Il faut Android + `preview` + base directory `mobile`.
 
 ## Ce qui reste a faire
 
-**Le reveil n'a encore jamais tourne sur l'appareil.** Le chemin actuel —
-collecte, commit, reveil silencieux, comparaison sur le telephone, notification
-locale — date du 2026-09-23 et demande l'APK `a7b98333`. Son premier vrai
-passage reste a observer, comme celui du rappel de confirmation a l'ouverture
-de la fenetre.
+**Le reveil n'a ete observe que du cote du collecteur.** Le 2026-09-24, Expo a
+accepte le reveil a 04:31:04. Ce que fait l'appareil ensuite — comparer, poser
+la notification — ne laisse aucune trace hors du telephone, et l'absence de
+message ne dit rien : aucun suivi n'a peut-etre bouge. Reste a observer, comme
+le rappel de confirmation a l'ouverture de la fenetre.
 
 **Statistiques.** Chaque metrique est publiee des qu'elle a un echantillon,
 plus toutes ensemble derriere un compteur de snapshots : l'erosion demande une
@@ -1006,9 +1018,10 @@ L'appareil, lui, le peut. `scheduleStaleAlarm` repose a chaque rafraichissement
 reussi, et a chaque reveil, une alarme locale a 40h : tant que la donnee arrive,
 l'echeance recule. Elle couvre donc aussi le reveil qui ne vient plus.
 C'est le seul dispositif qui survive a la panne qu'il surveille, et il ne
-demande aucun service tiers. Reste vraie la contrainte de fond : les workflows
-planifies sont desactives apres une longue inactivite du depot — verifier vers
-le 2026-11-01 que `collect` tourne toujours.
+demande aucun service tiers. L'echeance de fond a change de nature : plus de
+workflow planifie que l'inactivite du depot desactiverait, mais le jeton du
+Worker expire a la date choisie a sa creation, et ce jour-la la collecte
+s'arrete sans bruit — seule l'alarme de 40 h le dira.
 
 ## Source et licence
 
