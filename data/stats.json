@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-24T04:31:02.829Z",
-  "snapshotCount": 24,
+  "generatedAt": "2026-09-25T04:35:57.864Z",
+  "snapshotCount": 25,
   "ready": {
     "burnRate": true,
     "reopen": true,
@@ -39,8 +39,15 @@
       "weekday": 4,
       "slot": "06",
       "dir": "FRPMO>FRBOJ",
-      "medianDaysBefore": 14,
-      "sample": 3
+      "medianDaysBefore": 14.5,
+      "sample": 4
+    },
+    {
+      "weekday": 4,
+      "slot": "06",
+      "dir": "FRBOJ>FRPMO",
+      "medianDaysBefore": 18,
+      "sample": 4
     },
     {
       "weekday": 6,
@@ -114,21 +121,21 @@
     },
     "FRBOJ>FRPMO|14:46": {
       "closed": 7,
-      "reopened": 5,
-      "rate": 0.7142857142857143,
+      "reopened": 6,
+      "rate": 0.8571428571428571,
       "sample": 7
     },
     "FRPMO>FRBOJ|07:11": {
       "closed": 10,
-      "reopened": 6,
-      "rate": 0.6,
+      "reopened": 7,
+      "rate": 0.7,
       "sample": 10
     },
     "FRPMO>FRBOJ|18:11": {
-      "closed": 6,
+      "closed": 7,
       "reopened": 3,
-      "rate": 0.5,
-      "sample": 6
+      "rate": 0.42857142857142855,
+      "sample": 7
     },
     "FRPMO>FRBOJ|18:27": {
       "closed": 6,
@@ -149,10 +156,10 @@
       "sample": 8
     },
     "FRPMO>FRBOJ|06:06": {
-      "closed": 5,
+      "closed": 6,
       "reopened": 3,
-      "rate": 0.6,
-      "sample": 5
+      "rate": 0.5,
+      "sample": 6
     },
     "FRBOJ>FRPMO|07:45": {
       "closed": 8,
@@ -185,10 +192,10 @@
       "sample": 10
     },
     "FRBOJ>FRPMO|09:46": {
-      "closed": 9,
+      "closed": 10,
       "reopened": 4,
-      "rate": 0.4444444444444444,
-      "sample": 9
+      "rate": 0.4,
+      "sample": 10
     },
     "FRBOJ>FRPMO|08:46": {
       "closed": 8,
@@ -198,15 +205,15 @@
     },
     "FRBOJ>FRPMO|17:08": {
       "closed": 7,
-      "reopened": 6,
-      "rate": 0.8571428571428571,
+      "reopened": 7,
+      "rate": 1,
       "sample": 7
     },
     "FRPMO>FRBOJ|06:52": {
-      "closed": 12,
+      "closed": 13,
       "reopened": 9,
-      "rate": 0.75,
-      "sample": 12
+      "rate": 0.6923076923076923,
+      "sample": 13
     },
     "FRPMO>FRBOJ|08:01": {
       "closed": 8,
@@ -227,28 +234,28 @@
       "sample": 6
     },
     "FRPMO>FRBOJ|05:59": {
-      "closed": 8,
+      "closed": 9,
       "reopened": 6,
-      "rate": 0.75,
-      "sample": 8
+      "rate": 0.6666666666666666,
+      "sample": 9
     },
     "FRPMO>FRBOJ|06:04": {
-      "closed": 11,
-      "reopened": 5,
-      "rate": 0.45454545454545453,
-      "sample": 11
+      "closed": 12,
+      "reopened": 6,
+      "rate": 0.5,
+      "sample": 12
     },
     "FRBOJ>FRPMO|18:26": {
       "closed": 6,
-      "reopened": 4,
-      "rate": 0.6666666666666666,
+      "reopened": 5,
+      "rate": 0.8333333333333334,
       "sample": 6
     },
     "FRPMO>FRBOJ|11:10": {
-      "closed": 6,
-      "reopened": 2,
-      "rate": 0.3333333333333333,
-      "sample": 6
+      "closed": 7,
+      "reopened": 3,
+      "rate": 0.42857142857142855,
+      "sample": 7
     },
     "FRBOJ>FRPMO|05:38": {
       "closed": 8,
