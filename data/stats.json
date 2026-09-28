@@ -1,12 +1,26 @@
 {
-  "generatedAt": "2026-09-27T04:35:38.000Z",
-  "snapshotCount": 27,
+  "generatedAt": "2026-09-28T04:30:46.771Z",
+  "snapshotCount": 28,
   "ready": {
     "burnRate": true,
     "reopen": true,
     "erosion": true
   },
   "burnRate": [
+    {
+      "weekday": 0,
+      "slot": "06",
+      "dir": "FRBOJ>FRPMO",
+      "medianDaysBefore": 17,
+      "sample": 3
+    },
+    {
+      "weekday": 0,
+      "slot": "06",
+      "dir": "FRPMO>FRBOJ",
+      "medianDaysBefore": 17,
+      "sample": 3
+    },
     {
       "weekday": 1,
       "slot": "06",
@@ -109,15 +123,15 @@
       "sample": 12
     },
     "FRPMO>FRBOJ|10:11": {
-      "closed": 6,
+      "closed": 7,
       "reopened": 5,
-      "rate": 0.8333333333333334,
-      "sample": 6
+      "rate": 0.7142857142857143,
+      "sample": 7
     },
     "FRPMO>FRBOJ|15:11": {
       "closed": 10,
-      "reopened": 4,
-      "rate": 0.4,
+      "reopened": 5,
+      "rate": 0.5,
       "sample": 10
     },
     "FRPMO>FRBOJ|17:11": {
@@ -133,10 +147,10 @@
       "sample": 6
     },
     "FRBOJ>FRPMO|14:46": {
-      "closed": 7,
+      "closed": 10,
       "reopened": 6,
-      "rate": 0.8571428571428571,
-      "sample": 7
+      "rate": 0.6,
+      "sample": 10
     },
     "FRPMO>FRBOJ|07:11": {
       "closed": 10,
@@ -158,15 +172,15 @@
     },
     "FRBOJ>FRPMO|06:58": {
       "closed": 9,
-      "reopened": 3,
-      "rate": 0.3333333333333333,
+      "reopened": 4,
+      "rate": 0.4444444444444444,
       "sample": 9
     },
     "FRBOJ>FRPMO|13:46": {
-      "closed": 8,
+      "closed": 9,
       "reopened": 8,
-      "rate": 1,
-      "sample": 8
+      "rate": 0.8888888888888888,
+      "sample": 9
     },
     "FRPMO>FRBOJ|06:06": {
       "closed": 6,
@@ -181,10 +195,10 @@
       "sample": 8
     },
     "FRBOJ>FRPMO|10:47": {
-      "closed": 12,
-      "reopened": 9,
-      "rate": 0.75,
-      "sample": 12
+      "closed": 13,
+      "reopened": 10,
+      "rate": 0.7692307692307693,
+      "sample": 13
     },
     "FRBOJ>FRPMO|19:46": {
       "closed": 10,
@@ -200,14 +214,14 @@
     },
     "FRBOJ>FRPMO|07:12": {
       "closed": 10,
-      "reopened": 8,
-      "rate": 0.8,
+      "reopened": 9,
+      "rate": 0.9,
       "sample": 10
     },
     "FRBOJ>FRPMO|09:46": {
       "closed": 11,
-      "reopened": 6,
-      "rate": 0.5454545454545454,
+      "reopened": 8,
+      "rate": 0.7272727272727273,
       "sample": 11
     },
     "FRBOJ>FRPMO|08:46": {
@@ -223,10 +237,10 @@
       "sample": 7
     },
     "FRPMO>FRBOJ|06:52": {
-      "closed": 13,
+      "closed": 14,
       "reopened": 10,
-      "rate": 0.7692307692307693,
-      "sample": 13
+      "rate": 0.7142857142857143,
+      "sample": 14
     },
     "FRPMO>FRBOJ|08:01": {
       "closed": 9,
@@ -235,15 +249,15 @@
       "sample": 9
     },
     "FRPMO>FRBOJ|14:05": {
-      "closed": 10,
+      "closed": 11,
       "reopened": 9,
-      "rate": 0.9,
-      "sample": 10
+      "rate": 0.8181818181818182,
+      "sample": 11
     },
     "FRBOJ>FRPMO|15:47": {
       "closed": 6,
-      "reopened": 4,
-      "rate": 0.6666666666666666,
+      "reopened": 6,
+      "rate": 1,
       "sample": 6
     },
     "FRPMO>FRBOJ|05:59": {
@@ -260,15 +274,15 @@
     },
     "FRBOJ>FRPMO|18:26": {
       "closed": 7,
-      "reopened": 5,
-      "rate": 0.7142857142857143,
+      "reopened": 6,
+      "rate": 0.8571428571428571,
       "sample": 7
     },
     "FRPMO>FRBOJ|11:10": {
-      "closed": 8,
-      "reopened": 3,
-      "rate": 0.375,
-      "sample": 8
+      "closed": 9,
+      "reopened": 4,
+      "rate": 0.4444444444444444,
+      "sample": 9
     },
     "FRBOJ>FRPMO|05:38": {
       "closed": 8,
@@ -296,12 +310,294 @@
     },
     "FRBOJ>FRPMO|05:18": {
       "closed": 7,
-      "reopened": 4,
-      "rate": 0.5714285714285714,
+      "reopened": 6,
+      "rate": 0.8571428571428571,
       "sample": 7
     }
   },
   "erosion": [
+    {
+      "weekday": 0,
+      "dir": "FRBOJ>FRPMO",
+      "points": [
+        {
+          "daysBefore": 0,
+          "avg": 0.09411764705882353,
+          "sample": 85
+        },
+        {
+          "daysBefore": 1,
+          "avg": 0.09411764705882353,
+          "sample": 85
+        },
+        {
+          "daysBefore": 2,
+          "avg": 0.08235294117647059,
+          "sample": 85
+        },
+        {
+          "daysBefore": 3,
+          "avg": 0.05555555555555555,
+          "sample": 90
+        },
+        {
+          "daysBefore": 4,
+          "avg": 0.011111111111111112,
+          "sample": 90
+        },
+        {
+          "daysBefore": 5,
+          "avg": 0.011111111111111112,
+          "sample": 90
+        },
+        {
+          "daysBefore": 6,
+          "avg": 0,
+          "sample": 65
+        },
+        {
+          "daysBefore": 7,
+          "avg": 0,
+          "sample": 65
+        },
+        {
+          "daysBefore": 8,
+          "avg": 0,
+          "sample": 65
+        },
+        {
+          "daysBefore": 9,
+          "avg": 0,
+          "sample": 65
+        },
+        {
+          "daysBefore": 10,
+          "avg": 0,
+          "sample": 70
+        },
+        {
+          "daysBefore": 11,
+          "avg": 0.014285714285714285,
+          "sample": 70
+        },
+        {
+          "daysBefore": 12,
+          "avg": 0.014285714285714285,
+          "sample": 70
+        },
+        {
+          "daysBefore": 13,
+          "avg": 0,
+          "sample": 45
+        },
+        {
+          "daysBefore": 14,
+          "avg": 0,
+          "sample": 45
+        },
+        {
+          "daysBefore": 15,
+          "avg": 0,
+          "sample": 45
+        },
+        {
+          "daysBefore": 16,
+          "avg": 0,
+          "sample": 45
+        },
+        {
+          "daysBefore": 17,
+          "avg": 0,
+          "sample": 50
+        },
+        {
+          "daysBefore": 18,
+          "avg": 0.02,
+          "sample": 50
+        },
+        {
+          "daysBefore": 19,
+          "avg": 0.02,
+          "sample": 50
+        },
+        {
+          "daysBefore": 20,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 21,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 22,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 23,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 24,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 25,
+          "avg": 0.04,
+          "sample": 25
+        },
+        {
+          "daysBefore": 26,
+          "avg": 0.043478260869565216,
+          "sample": 23
+        }
+      ]
+    },
+    {
+      "weekday": 0,
+      "dir": "FRPMO>FRBOJ",
+      "points": [
+        {
+          "daysBefore": 0,
+          "avg": 0.6790123456790124,
+          "sample": 81
+        },
+        {
+          "daysBefore": 1,
+          "avg": 0.7283950617283951,
+          "sample": 81
+        },
+        {
+          "daysBefore": 2,
+          "avg": 0.6790123456790124,
+          "sample": 81
+        },
+        {
+          "daysBefore": 3,
+          "avg": 0.5116279069767442,
+          "sample": 86
+        },
+        {
+          "daysBefore": 4,
+          "avg": 0.011627906976744186,
+          "sample": 86
+        },
+        {
+          "daysBefore": 5,
+          "avg": 0.06976744186046512,
+          "sample": 86
+        },
+        {
+          "daysBefore": 6,
+          "avg": 0.04838709677419355,
+          "sample": 62
+        },
+        {
+          "daysBefore": 7,
+          "avg": 0.04838709677419355,
+          "sample": 62
+        },
+        {
+          "daysBefore": 8,
+          "avg": 0,
+          "sample": 62
+        },
+        {
+          "daysBefore": 9,
+          "avg": 0.03225806451612903,
+          "sample": 62
+        },
+        {
+          "daysBefore": 10,
+          "avg": 0.058823529411764705,
+          "sample": 68
+        },
+        {
+          "daysBefore": 11,
+          "avg": 0.04411764705882353,
+          "sample": 68
+        },
+        {
+          "daysBefore": 12,
+          "avg": 0.014705882352941176,
+          "sample": 68
+        },
+        {
+          "daysBefore": 13,
+          "avg": 0,
+          "sample": 44
+        },
+        {
+          "daysBefore": 14,
+          "avg": 0,
+          "sample": 44
+        },
+        {
+          "daysBefore": 15,
+          "avg": 0,
+          "sample": 44
+        },
+        {
+          "daysBefore": 16,
+          "avg": 0,
+          "sample": 44
+        },
+        {
+          "daysBefore": 17,
+          "avg": 0,
+          "sample": 50
+        },
+        {
+          "daysBefore": 18,
+          "avg": 0.02,
+          "sample": 50
+        },
+        {
+          "daysBefore": 19,
+          "avg": 0.02,
+          "sample": 50
+        },
+        {
+          "daysBefore": 20,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 21,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 22,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 23,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 24,
+          "avg": 0,
+          "sample": 25
+        },
+        {
+          "daysBefore": 25,
+          "avg": 0.04,
+          "sample": 25
+        },
+        {
+          "daysBefore": 26,
+          "avg": 0.04,
+          "sample": 25
+        }
+      ]
+    },
     {
       "weekday": 5,
       "dir": "FRBOJ>FRPMO",
